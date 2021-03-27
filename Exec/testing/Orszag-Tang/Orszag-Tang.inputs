@@ -1,0 +1,141 @@
+#======== AMREX ==========
+amrex.fpe_trap_invalid=1
+amrex.verbose = 1
+amr.verbose = 0
+# ======== TIME ==========
+max_step  = -1
+stop_time = 0.5
+
+# ======== DOMAIN ==========
+geometry.is_periodic = 1 1 1
+geometry.coord_sys   = 0  # 0 => cart, 1 => RZ  2=>spherical
+
+# lo. res.
+geometry.prob_lo     =     0.0 0.0
+geometry.prob_hi     =     1.0 1.0
+amr.n_cell           =     256 256
+
+# ======== LOAD BALANCE ==========
+amr.loadbalance_with_workestimates = 0
+amr.loadbalance_level0_int = 10
+
+# ======== GRID ==========
+amr.max_level       = 0     # maximum level number allowed
+amr.ref_ratio       = 2 2 2 2 1 # refinement ratio
+amr.regrid_int      = 2 2 2 2 2 # how often to regrid
+amr.blocking_factor = 4
+amr.max_grid_size   = 32
+amr.n_error_buf     = 4 4 4 4 4 # number of buffer cells in error est
+amr.grid_eff        = 0.99     # what constitutes an efficient grid
+amr.subcycling_mode = Auto # time sub-cycling (Auto, None, Manual, Optimal)
+
+# ======== PARTICLES ==========
+particles.do_particles = 1
+particles.v = 0
+
+# ======== OUTPUT ==========
+
+# CHECKPOINT FILES
+amr.checkpoint_files_output = 0
+amr.check_file              = Orszag-Tang.chk    # root name of checkpoint file
+amr.check_int               = 1    # number of timesteps between checkpoints
+amr.check_per               = -0.005
+
+# PLOTFILES
+amr.plot_files_output = 1
+amr.plot_file         = Orszag-Tang.plt     # root name of plotfile
+amr.plot_int          = -1      # number of timesteps between plotfiles
+amr.plot_per          = 0.01
+
+
+# ======== PROBLEM DESCRIPTION ==========
+# Note that the problem description is defined as a lua script
+# Everything within the double quotes "..." must conform to lua standards
+# Note that any strings should therefore be defined by single quotes '...'
+
+mfp.lua = "
+verbosity = 2
+cfl = 0.25
+
+force_dt = 0
+
+-- ======== PROBLEM ==========
+
+lightspeed = 1.0
+
+-- fluids
+
+function density(dat)    
+    return 25/(36*math.pi)
+end
+
+function pressure(dat)
+    return 5/(12*math.pi)
+end
+
+function velocity_x(dat)
+    y = dat['y']
+    return -math.sin(2*math.pi*y)
+end
+
+function velocity_y(dat)
+    x = dat['x']
+    return math.sin(2*math.pi*x)
+end
+
+function tracer(dat)
+    n=10
+    x = dat['x']
+    y = dat['y']
+    return 0.5+0.5*math.sin(n*math.pi*x)*math.cos(n*math.pi*y)
+end
+
+
+-- fields
+
+B0 = 1/math.sqrt(4*math.pi)
+
+function field_Bx(dat)
+    y=dat['y']
+    return -B0*math.sin(2*math.pi*y)
+end
+
+function field_By(dat)
+    x = dat['x']
+    return B0*math.sin(4*math.pi*x)
+end
+
+-- === DEFINE STATES ===
+
+states = {
+
+    mhd = {
+        type='mhd',
+        mass=1.0,  
+        gamma=5/3, 
+        reconstruction='vanLeer', 
+        flux='HLLE',
+        value={
+            rho = density,
+            x_vel   = velocity_x,
+            y_vel   = velocity_y,
+            p   = pressure,
+            x_B  = field_Bx,
+            y_B  = field_By,
+            alpha  = tracer,
+        },
+        particles = 'particle_file',
+        refine_grad_threshold = {rho=0.1},
+        project_divergence=1,
+        div_transport = 0,
+    },
+}
+--[[
+sources = {
+    div = {
+        solver='explicit',
+        sources = {damp={'mhd',damping_ratio=0.1, type='damp_divergence'}}
+    }
+}
+--]]
+"

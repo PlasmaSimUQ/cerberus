@@ -1,0 +1,148 @@
+#======== AMREX ==========
+amrex.fpe_trap_invalid=1
+amrex.fpe_trap_zero=1
+fpe_trap_overflow=1
+amr.v = 0
+
+# ======== TIME ==========
+max_step  = 1000000
+stop_time = 0.030973980073944
+
+# ======== DOMAIN ==========
+geometry.is_periodic = 1 1 1
+geometry.coord_sys   = 0  # 0 => cart, 1 => RZ  2=>spherical
+
+# lo. res.
+geometry.prob_lo     =     -1.0 -1.0
+geometry.prob_hi     =     1.0 1.0
+amr.n_cell           =     4 4
+
+# ======== LOAD BALANCE ==========
+amr.loadbalance_with_workestimates = 0
+amr.loadbalance_level0_int = 10
+
+# ======== GRID ==========
+amr.max_level       = 0      # maximum level number allowed
+amr.ref_ratio       = 4 4 4 2 1 # refinement ratio
+amr.regrid_int      = 2 2 2 2 2 # how often to regrid
+amr.blocking_factor = 2
+amr.max_grid_size   = 32
+amr.n_error_buf     = 4 4 4 4 4 # number of buffer cells in error est
+amr.grid_eff        = 0.99     # what constitutes an efficient grid
+amr.subcycling_mode = Auto # time sub-cycling (Auto, None, Manual, Optimal)
+
+# ======== GEOMETRY ==========
+eb2.geom_type = all_regular
+
+# ======== PARTICLES ==========
+particles.do_particles = 0
+
+# ======== OUTPUT ==========
+
+# CHECKPOINT FILES
+amr.checkpoint_files_output = 0
+amr.check_file              = Collisions.chk    # root name of checkpoint file
+amr.check_int               = -1    # number of timesteps between checkpoints
+amr.check_per               = 0.005
+
+# PLOTFILES
+amr.plot_files_output = 1
+amr.plot_file         = Collisions.plt     # root name of plotfile
+amr.plot_int          = 1      # number of timesteps between plotfiles
+amr.plot_per          = -1
+
+
+# ======== PROBLEM DESCRIPTION ==========
+# Note that the problem description is defined as a lua script
+# Everything within the double quotes "..." must conform to lua standards
+# Note that any strings should therefore be defined by single quotes '...'
+
+mfp.lua = "
+
+zero_dimensional = 1
+
+verbosity = 2
+cfl = 0.025
+
+force_dt = 0.0001
+
+-- === DEFINE PROBLEM ===
+
+kB = 1.38064852e-23
+ep0 = 8.85418782e-12
+
+nd = 1e20*1e6 -- 1/m^3
+q0 = 1.60217662e-19 -- Coulomb
+
+ref_length = 1e-3 --m
+ref_mass =  1.67e-24/1e3 -- kg
+ref_temp = 11604525.00617 -- K (=1keV)
+ref_density = nd*ref_mass -- kg/m^3
+
+ref_vel = math.sqrt(kB*ref_temp/ref_mass)
+ref_time = ref_length/ref_vel
+
+beam_velocity = 6.55e7*1e-2/ref_vel --m/s
+
+print('beam_velocity = ',beam_velocity)
+print('t = ',100e-12/ref_time)
+
+dD0 = math.sqrt((ep0*kB*ref_temp)/(nd*q0^2))
+
+
+Larmor = 1.0
+Debye = dD0/ref_length
+
+print('Debye = ',Debye)
+
+
+-- === DEFINE STATES ===
+
+states = {
+
+    A = {
+        type='hydro',
+        mass=12.0,  
+        charge= 6, 
+        gamma=5/3, 
+        reconstruction='centre', 
+        flux='HLLE',
+        value = {
+            nd = 0.1,
+            x_vel = beam_velocity,
+            p  = 0.05,
+        },
+    },
+
+    B = {
+        type='hydro',
+        mass=12.0,  
+        charge= 6, 
+        gamma=5/3, 
+        reconstruction='centre', 
+        flux='HLLE',
+        value = {
+            nd = 1.0,
+            p  = 0.5,
+        },
+    },
+}
+
+
+sources = {
+
+    collide = {
+        solver='explicit',
+        sources = {
+            collisions={'A', 'B',
+                type='collisions',
+                cross_sections={
+                    A={B=1.0, C=1.0},
+                },
+            },
+        },
+    },
+    
+}
+
+"

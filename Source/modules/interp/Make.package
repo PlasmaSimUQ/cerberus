@@ -1,0 +1,5 @@
+CEXE_headers += MFP_interp.H
+CEXE_sources += MFP_interp.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/modules/interp
+VPATH_LOCATIONS   += $(TOP)/Source/modules/interp

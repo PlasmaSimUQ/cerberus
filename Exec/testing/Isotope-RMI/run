@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+(cd ../../local && make -j8 DIM=2 USE_EB=FALSE AMREX_PARTICLES=TRUE)
+
+EXE=../../local/MFP.2d.gnu.MPI.PARTICLES.ex
+
+INPUTS=IRMI.inputs
+
+rm -r mov *plt* *chk*
+
+python make_particles_file.py
+
+mpirun -n 8 ${EXE} ${INPUTS} 2>&1 | tee run_log.txt
+
+python3 plot.py
+python3 movie.py

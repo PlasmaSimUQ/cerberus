@@ -1,0 +1,226 @@
+#======== AMREX ==========
+amrex.fpe_trap_invalid=0
+amrex.fpe_trap_zero=0
+fpe_trap_overflow=0
+amr.v = 0
+
+# ======== TIME ==========
+max_step  = 10
+stop_time = 20
+
+# ======== DOMAIN ==========
+geometry.is_periodic = 0 0 0
+geometry.coord_sys   = 0  # 0 => cart, 1 => RZ  2=>spherical
+
+# lo. res.
+geometry.prob_lo     =     -8 -8
+geometry.prob_hi     =     8 8
+amr.n_cell           =     64 64
+
+# ======== LOAD BALANCE ==========
+amr.loadbalance_with_workestimates = 1
+amr.loadbalance_level0_int = 10
+
+# ======== GRID ==========
+amr.max_level       = 1   # maximum level number allowed
+amr.ref_ratio       = 2 2 2 2 2 2  # refinement ratio
+amr.regrid_int      = 2 2 2 2 2 2  # how often to regrid
+amr.blocking_factor = 8
+amr.max_grid_size   = 32
+amr.n_error_buf     = 1 1 1 1 1 1  # number of buffer cells in error est
+amr.grid_eff        = 0.99     # what constitutes an efficient grid
+amr.subcycling_mode = Auto # time sub-cycling (Auto, None, Manual, Optimal)
+
+# ======== PARTICLES ==========
+particles.do_particles = 0
+particles.v = 0
+
+
+# ======== OUTPUT ==========
+
+# CHECKPOINT FILES
+amr.checkpoint_files_output = 0
+amr.check_file              = electrostatic.chk    # root name of checkpoint file
+amr.check_int               = -1    # number of timesteps between checkpoints
+amr.check_per               = 1.0
+
+# PLOTFILES
+amr.plot_files_output = 1
+amr.plot_file         = electrostatic.plt     # root name of plotfile
+amr.plot_int          = 1      # number of timesteps between plotfiles
+amr.plot_per          = -1.0
+
+
+#amr.restart =
+
+
+# ======== PROBLEM DESCRIPTION ==========
+# Note that the problem description is defined as a lua script
+# Everything within the double quotes "..." must conform to lua standards
+# Note that any strings should therefore be defined by single quotes '...'
+
+mfp.lua = "
+verbosity = 2
+linear_solver_verbosity = 1
+
+cfl = 0.5
+
+-- === DEFINE PROBLEM ===
+
+lightspeed = 1000.0
+Larmor = 1.0
+Debye = 1.0
+
+function ion_number_density(dat)
+    x = dat['x'] - 4.0
+    y = dat['y']
+    
+    r = math.sqrt(x*x + y*y)
+    
+    if (r < 1.0) then
+        return 1.0
+    else
+        return 1.0
+    end
+end
+
+-- === DEFINE STATES ===
+
+states = {
+
+    field = {
+        type='field',
+        static=1,
+        
+    },
+    
+    ion = {
+        type='hydro',
+        mass=1.0,  
+        charge= 1.0, 
+        gamma=5/3, 
+        reconstruction='minmod', 
+        flux='HLLC',
+        refine_grad_threshold = {rho=0.1},
+        value = {
+            nd = ion_number_density,
+            p =   1.0,
+        },
+    },
+
+    electron = {
+        type='hydro',
+        mass=1.0, 
+        charge=-1.0, 
+        gamma=5/3, 
+        reconstruction='minmod',  
+        flux='HLLC',
+        refine_grad_threshold = {rho=0.1},
+        value = {
+            nd = 1.0,
+            p =  1.0,
+        },
+    },
+}
+
+-- === SOURCE TERMS ===
+
+sources = {
+
+    plasma={
+        solver = 'explicit',
+        sources = {
+            plasma={'ion', 'electron', 'field',
+                type='plasma5',
+            },
+        },
+    },    
+}
+
+-- === GEOMETRY ===
+
+refine_cutcells = 1
+
+
+function make_circles(x,y,collection)
+
+    local d, dd
+
+    for i, v in ipairs(collection) do
+      dd = v[1]^2 - ((x-v[2])^2 + (y-v[3])^2)
+      if (i == 1) then
+          d = dd
+      end
+      d = math.max(d, dd)
+    end
+
+    return -d
+
+end
+
+function cylinder(x,y)
+
+    local circles = {
+      {7.5, 0.0, 0.0, 0.0},
+    }
+
+    return make_circles(x,y,circles)
+end
+
+function anode(x,y)
+
+    local circles = {
+      {1.0, 0.0, 4.0, 0.0},
+    }
+
+    return -make_circles(x,y,circles)
+end
+
+function cathode(x,y)
+
+    local circles = {
+      {1.0, 0.0, -4.0, 0.0},
+    }
+
+    return -make_circles(x,y,circles)
+end
+
+
+embedded_boundaries = {
+
+    shell = {
+      geom=cylinder,
+      bcs={
+        field={types={'scalar_potential', 'vector_potential'}, phi=0.0, A1=0.0, A2=-1.0},
+        ion={type='slip_wall'},
+        electron={type='slip_wall'},
+      },
+      set='union',
+    },
+    
+
+    anode = {
+      geom=anode,
+      bcs={
+        field={types={'scalar_potential', 'vector_potential'}, phi=-0.01, A1=0.0, A2=1.0},
+        ion={type='slip_wall'},
+        electron={type='slip_wall'},
+      },
+      set='union',
+    },
+    
+    cathode = {
+      geom=cathode,
+      bcs={
+        field={type='scalar_potential', phi=-0.0},
+        ion={type='slip_wall'},
+        electron={type='slip_wall'},
+        --electron={type='dirichlet',rho=1.0, x_vel=0.0},
+      },
+      set='union',
+    },
+
+}
+
+"
+

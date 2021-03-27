@@ -1,0 +1,6 @@
+CEXE_headers += json.hpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/extern/json
+VPATH_LOCATIONS   += $(TOP)/Source/extern/json
+
+CXXFLAGS += -std=c++17

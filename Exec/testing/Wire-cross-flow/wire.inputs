@@ -1,0 +1,343 @@
+#======== AMREX ==========
+amrex.fpe_trap_invalid=1
+amrex.fpe_trap_zero=1
+fpe_trap_overflow=1
+amr.v = 0
+
+# ======== TIME ==========
+max_step  = 1000000
+stop_time = 3.0
+
+# ======== DOMAIN ==========
+geometry.is_periodic = 0 1 1
+geometry.coord_sys   = 0  # 0 => cart, 1 => RZ  2=>spherical
+
+# lo. res.
+geometry.prob_lo     =     -10 -5
+geometry.prob_hi     =      20  5
+amr.n_cell           =     192 64
+
+# ======== LOAD BALANCE ==========
+amr.loadbalance_with_workestimates = 1
+amr.loadbalance_level0_int = 10
+
+# ======== GRID ==========
+amr.max_level       = 2   # maximum level number allowed
+amr.ref_ratio       = 2 2 2 2 2 2 2 # refinement ratio
+amr.regrid_int      = 4 4 4 4 4 4 4 # how often to regrid
+amr.blocking_factor = 8
+amr.max_grid_size   = 32
+amr.n_error_buf     = 2 2 2 2 2 2 0 # number of buffer cells in error est
+amr.grid_eff        = 0.75     # what constitutes an efficient grid
+amr.subcycling_mode = Auto # time sub-cycling (Auto, None, Manual, Optimal)
+
+
+# ======== OUTPUT ==========
+
+# CHECKPOINT FILES
+amr.checkpoint_files_output = 0
+amr.check_file              = wire.chk    # root name of checkpoint file
+amr.check_int               = -1    # number of timesteps between checkpoints
+amr.check_per               = 0.005
+
+# PLOTFILES
+amr.plot_files_output = 1
+amr.plot_file         = wire.plt     # root name of plotfile
+amr.plot_int          = 0      # number of timesteps between plotfiles
+amr.plot_per          = 0.005
+
+
+#amr.restart = 
+
+
+# ======== PROBLEM DESCRIPTION ==========
+# Note that the problem description is defined as a lua script
+# Everything within the double quotes "..." must conform to lua standards
+# Note that any strings should therefore be defined by single quotes '...'
+
+mfp.lua = "
+
+-- === SETTINGS ===
+
+verbosity = 1
+cfl = 0.3
+
+do_face_sources = 0
+do_CTU = 1
+
+force_dt = 0
+
+lightspeed = 20.0
+skin_depth = 0.1
+beta = 0.1
+
+-- ======== PROBLEM ==========
+
+shock_x = -2
+
+shock_mach = 2.0
+density_L = 1.0
+
+mass_ion = 1.0
+mass_electron = 0.01
+
+gam = 5/3
+pressure = 0.5
+
+-- computations
+
+p1 = pressure
+p0 = p1*(1 + ((2*gam)/(gam+1))*(shock_mach^2 - 1))
+
+rho1 = density_L
+rho0 = rho1/(1 - (2/(gam+1))*(1 - 1/shock_mach^2))
+
+a0 = math.sqrt(gam*p0/rho0)
+a1 = math.sqrt(gam*p1/rho1)
+
+u1 = 0.0
+u0 = shock_mach*a1 - a0*math.sqrt(((gam-1)*shock_mach^2 + 2)/(2*gam*shock_mach^2 - (gam-1)))
+
+
+-- functions
+
+function make_circles(x,y,collection)
+
+    local d, dd
+
+    for i, v in ipairs(collection) do
+      dd = v['r']^2 - ((x-v['x'])^2 + (y-v['y'])^2)
+      if (i == 1) then
+          d = dd
+      end
+      d = math.max(d, dd)
+    end
+
+    return -d
+
+end
+
+function sheath(x,y)
+
+    local circles = {
+      {r=1.0, x=0.0, y=0.0},
+    }
+
+    return -make_circles(x,y,circles)
+end
+
+function core(x,y)
+
+    local circles = {
+      {r=0.5, x=0.0, y=0.0},
+    }
+
+    return -make_circles(x,y,circles)
+end
+
+
+function wire(dat)
+  local x = dat['x']
+  local y = dat['y']
+  local t = dat['t']
+  if core(x,y) > 0 then
+    return 0.1
+  else
+    return 0
+   end
+end
+
+function dielectric(dat)
+  x = dat['x']
+  y = dat['y']
+  if sheath(x,y) > 0 then
+    return 2.0
+  else
+    return 1.0
+   end
+end
+
+function shock(x, L, R)
+    if x <= shock_x then
+	    return L
+    else
+	    return R
+    end
+end
+
+
+-- fluids
+
+function number_density(dat)
+
+    x = dat['x']
+    y = dat['y']
+    
+    return shock(x, rho0, rho1)
+end
+
+function ion_density(dat)
+    return mass_ion*number_density(dat)
+end
+
+function electron_density(dat)
+    return mass_electron*number_density(dat)
+end
+
+function tracer(dat)
+    x = dat['x']
+    y = dat['y']
+    
+    return shock(x, 0, 1)
+end
+
+function pressure(dat)
+    x = dat['x']
+    y = dat['y']
+    return shock(x, p0, p1)
+end
+
+function velocity_x(dat)
+    x = dat['x']
+    y = dat['y']
+    return shock(x, u0, u1)
+end
+
+-- === DEFINE STATES ===
+
+electron = {
+    type='hydro',
+    mass=mass_electron, 
+    charge=-1.0, 
+    gamma=5/3, 
+    reconstruction='minmod',  
+    flux='HLLC',
+    refine_grad_threshold = {rho=0.1},
+    value = {
+        rho   = electron_density,
+        x_vel = velocity_x,
+        p     = pressure,
+        alpha = tracer,
+    },
+    eb_divergence={
+        type='merge',
+        merge_threshold=0.5,
+    },
+}
+
+ion = {
+    type='hydro',
+    mass=mass_ion,  
+    charge= 1.0, 
+    gamma=5/3, 
+    reconstruction='minmod', 
+    flux='HLLC',
+    refine_grad_threshold = {rho=0.1},
+    value = {
+        rho   = ion_density,
+        x_vel = velocity_x,
+        p     = pressure,
+        alpha = tracer,
+    },
+    eb_divergence={
+        type='merge',
+        merge_threshold=0.5,
+    },
+}
+
+
+field = {
+    type='field',
+    reconstruction='O6', 
+    flux='RankineHugoniot',
+    value = {
+        --ep = dielectric,
+    },
+    eb_divergence={
+        type='merge',
+        merge_threshold=0.5,
+    },
+}
+
+states = {
+
+    electron1 = electron,
+    ion1      = ion,
+    field1    = field,
+
+    electron2 = electron,
+    ion2      = ion,
+    field2    = field,
+
+}
+
+-- === SOURCES ===
+
+sources = {
+    plasma1={
+        solver = 'implicit',
+        sources = {
+            plasma={'ion1', 'electron1', 'field1',
+                type='plasma5',
+            },
+        },
+    },
+
+    plasma2={
+        solver = 'implicit',
+        sources = {
+            plasma={'ion2', 'electron2', 'field2',
+                type='plasma5',
+            },
+        },
+    },
+}
+
+-- === GEOMETRY ===
+
+refine_boxes = {
+    {{-5,-100},{10,100},type='only_refine'},
+}
+
+refine_cutcells = 1
+
+embedded_boundaries = {
+
+    insulator1 = {
+      geom=sheath,
+      bcs={
+          ion1={type='slip_wall'}, 
+          electron1={type='slip_wall'},
+      },
+      set='union',
+    },
+
+    insulator2 = {
+      geom=sheath,
+      bcs={
+          ion2={type='slip_wall'}, 
+          electron2={type='slip_wall'},
+      },
+      set='union',
+    },
+
+    conductor1 = {
+      geom=core,
+      bcs={
+          field1={type='conductor'}, 
+      },
+      set='union',
+    },
+
+    conductor2 = {
+      geom=core,
+      bcs={
+          field2={type='conductor', B_t1=2.0, B_t2=0}, 
+      },
+      set='union',
+    },
+}
+
+
+"
+

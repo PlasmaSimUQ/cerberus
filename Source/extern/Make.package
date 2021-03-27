@@ -1,0 +1,16 @@
+include $(TOP)/Source/extern/lua-5.3.5/Make.package
+
+include $(TOP)/Source/extern/eigen-3.3.7/Make.package
+
+include $(TOP)/Source/extern/autodiff/Make.package
+
+include $(TOP)/Source/extern/json/Make.package
+
+include $(TOP)/Source/extern/delaunator-cpp/Make.package
+
+include $(TOP)/Source/extern/AABB/Make.package
+
+include $(TOP)/Source/extern/rapidxml-1.13/Make.package
+
+INCLUDE_LOCATIONS += $(TOP)/Source/extern
+VPATH_LOCATIONS   += $(TOP)/Source/extern

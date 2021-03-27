@@ -1,0 +1,4885 @@
+#LyX 2.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 544
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass amsart
+\begin_preamble
+\usepackage{cancel}
+\usepackage{algorithm,algpseudocode}
+\end_preamble
+\use_default_options false
+\begin_modules
+theorems-ams
+eqs-within-sections
+figs-within-sections
+\end_modules
+\maintain_unincluded_children false
+\language english
+\language_package none
+\inputencoding auto
+\fontencoding default
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures true
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize 12
+\spacing single
+\use_hyperref false
+\papersize a4paper
+\use_geometry true
+\use_package amsmath 2
+\use_package amssymb 0
+\use_package cancel 0
+\use_package esint 1
+\use_package mathdots 0
+\use_package mathtools 0
+\use_package mhchem 0
+\use_package stackrel 0
+\use_package stmaryrd 0
+\use_package undertilde 0
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 0
+\use_minted 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 1cm
+\topmargin 1cm
+\rightmargin 1cm
+\bottommargin 1cm
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 2
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Multi-Fluid Plasma Model
+\end_layout
+
+\begin_layout Section
+Dimensional Equations
+\end_layout
+
+\begin_layout Subsection
+Maxwell's equations
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\boldsymbol{B}}{\partial t}= & -\nabla\times\boldsymbol{E},\\
+\frac{\partial\boldsymbol{D}}{\partial t}= & \nabla\times\boldsymbol{H}-\boldsymbol{J},\\
+\nabla\cdot\boldsymbol{D}= & \rho_{c},\\
+\nabla\cdot\boldsymbol{B}= & 0,
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where we have permittivity 
+\begin_inset Formula $\varepsilon_{0}$
+\end_inset
+
+ and permeability 
+\begin_inset Formula $\mu_{0}$
+\end_inset
+
+ in vacuum and the relative permittivity 
+\begin_inset Formula $\varepsilon_{r}$
+\end_inset
+
+ and permeability 
+\begin_inset Formula $\mu_{r}$
+\end_inset
+
+ which characterise the electromagnetic properties of the medium.
+ We also have the electric flux density 
+\begin_inset Formula $\boldsymbol{D}$
+\end_inset
+
+, electric field intensity 
+\begin_inset Formula $\boldsymbol{E}$
+\end_inset
+
+, magnetic flux density 
+\begin_inset Formula $\boldsymbol{B}$
+\end_inset
+
+ and magnetic field intensity 
+\begin_inset Formula $\boldsymbol{H}$
+\end_inset
+
+, which are related according to
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\boldsymbol{D} & =\varepsilon_{0}\varepsilon_{r}\boldsymbol{E}, & \boldsymbol{B}= & \mu_{0}\mu_{r}\boldsymbol{H}.
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The free current density 
+\begin_inset Formula $\boldsymbol{J}$
+\end_inset
+
+ and free charge density 
+\begin_inset Formula $\rho_{c}$
+\end_inset
+
+are related according to
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\frac{\partial\rho_{c}}{\partial t}=\nabla\cdot\boldsymbol{J}.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We can see that for 
+\begin_inset Formula $\varepsilon_{r}=\mu_{r}=1$
+\end_inset
+
+ we retrieve the classic Maxwells equations for a vacuum with,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\boldsymbol{B}}{\partial t}= & -\nabla\times\boldsymbol{E},\\
+\frac{\partial\boldsymbol{E}}{\partial t}= & c_{0}\nabla\times\boldsymbol{B}-\frac{\boldsymbol{J}}{\varepsilon_{0}},\\
+\nabla\cdot\boldsymbol{E}= & \frac{\rho_{c}}{\varepsilon_{0}},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $c_{0}=\nicefrac{1}{\sqrt{\varepsilon_{0}\mu_{0}}}$
+\end_inset
+
+ is the speed of light in a vacuum.
+ Note that we are assuming the relative permittivity and permeability are
+ diagonal tensors according to 
+\begin_inset Formula $\varepsilon_{r}\delta_{ij}$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+In the Lorenz gauge, Maxwell's equations can be written according to
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\nabla^{2}\phi-\frac{1}{c^{2}}\frac{\partial^{2}\phi}{\partial t^{2}}= & -\frac{\rho_{c}}{\epsilon_{0}},\\
+\nabla^{2}\boldsymbol{A}-\frac{1}{c^{2}}\frac{\partial^{2}\boldsymbol{A}}{\partial t^{2}}= & -\mu_{0}\boldsymbol{J},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $\phi$
+\end_inset
+
+ is the electric scalar potential and 
+\begin_inset Formula $\boldsymbol{A}$
+\end_inset
+
+ is the magnetic vector potential.
+ The electric and magnetic fields can be recovered according to,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\boldsymbol{E}= & -\nabla\phi-\frac{\partial\boldsymbol{A}}{\partial t},\\
+\boldsymbol{B}= & \nabla\times\boldsymbol{A}.
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+If we assume an effectively infinite speed of light we recover the equations
+ of electro- and mangneto-statics, according to
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\nabla^{2}\phi= & -\frac{\rho_{c}}{\epsilon_{0}},\\
+\nabla^{2}\boldsymbol{A}= & -\mu_{0}\boldsymbol{J},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where the electric and magnetic fields become invariant with time, 
+\begin_inset Formula $\boldsymbol{E}=-\nabla\phi$
+\end_inset
+
+.
+ Note that for 
+\begin_inset Formula $\boldsymbol{D}$
+\end_inset
+
+ we have 
+\begin_inset Formula $\nabla^{2}\phi=-\epsilon_{r}\rho_{c}$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Subsection
+Hyperbolic/parabolic Maxwell's equations
+\end_layout
+
+\begin_layout Standard
+Maxwell's equations are given in mixed hyperbolic/parabolic form 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Munz2000,Yan2017"
+literal "true"
+
+\end_inset
+
+ by
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\boldsymbol{B}}{\partial t}= & -\nabla\times\boldsymbol{E}-\nabla\psi,\\
+\frac{\partial\boldsymbol{D}}{\partial t}= & \nabla\times\boldsymbol{H}-\boldsymbol{J}-\nabla\phi,\\
+\frac{\partial\phi}{\partial t}= & -c_{h}^{2}\left(\nabla\cdot\boldsymbol{D}-\rho_{c}\right)-\frac{c_{h}^{2}}{c_{p}^{2}}\phi,\\
+\frac{\partial\psi}{\partial t}= & -c_{h}^{2}\nabla\cdot\mathbf{B}-\frac{c_{h}^{2}}{c_{p}^{2}}\psi,
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where the divergence constraints are imposed by potentials 
+\begin_inset Formula $\psi$
+\end_inset
+
+ and 
+\begin_inset Formula $\phi$
+\end_inset
+
+ with positive parameters 
+\begin_inset Formula $c_{h}$
+\end_inset
+
+ and 
+\begin_inset Formula $c_{p}$
+\end_inset
+
+.
+ Note that 
+\begin_inset Formula $\psi$
+\end_inset
+
+ has units of 
+\begin_inset Formula $\boldsymbol{E}$
+\end_inset
+
+ and 
+\begin_inset Formula $\phi$
+\end_inset
+
+ has units of 
+\begin_inset Formula $\boldsymbol{H}$
+\end_inset
+
+ while 
+\begin_inset Formula $\frac{c_{h}^{2}}{c_{p}^{2}}$
+\end_inset
+
+ has units of inverse time.
+ 
+\end_layout
+
+\begin_layout Subsection
+Projection method
+\end_layout
+
+\begin_layout Standard
+Alternatively, we may use the projection method for coercing the electric
+ and magnetic fields to comply with the divergence conditions.
+ We solve, 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\nabla\cdot\boldsymbol{X}-S=\nabla^{2}\phi,
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $\boldsymbol{X}$
+\end_inset
+
+ is some vector field and we have a scalar potential 
+\begin_inset Formula $\phi$
+\end_inset
+
+ such that we can then perform the projection,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\boldsymbol{X}^{*}=\boldsymbol{X}-\nabla\phi,
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $\nabla\cdot\boldsymbol{X}^{*}-S=0$
+\end_inset
+
+.
+ The source 
+\begin_inset Formula $S$
+\end_inset
+
+ is zero for the magnetic field, where the constraint is 
+\begin_inset Formula $\nabla\cdot\boldsymbol{B}=0$
+\end_inset
+
+, while for the 
+\begin_inset Formula $\boldsymbol{D}$
+\end_inset
+
+ field we have 
+\begin_inset Formula $\nabla\cdot\boldsymbol{D}=\epsilon_{r}\rho_{c}$
+\end_inset
+
+ and thus 
+\begin_inset Formula $S=\epsilon_{r}\rho_{c}$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Subsection
+Fluid equations
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\rho_{\alpha}}{\partial t}+\nabla\cdot\left(\rho_{\alpha}\boldsymbol{u}_{\alpha}\right)= & S_{\alpha},\\
+\frac{\partial\rho_{\alpha}\boldsymbol{u}_{\alpha}}{\partial t}+\nabla\cdot\left(\rho_{\alpha}\boldsymbol{u}_{\alpha}\otimes\boldsymbol{u}_{\alpha}+\mathbb{P}_{\alpha}\right)= & n_{\alpha}q_{\alpha}\left(\mathbf{E}+\boldsymbol{u}_{\alpha}\times\mathbf{B}\right)+\sum_{\beta\neq\alpha}\boldsymbol{R}_{\alpha\beta},\\
+\frac{\partial\epsilon_{\alpha}}{\partial t}+\nabla\cdot\left(\epsilon_{\alpha}\boldsymbol{u}_{\alpha}+\boldsymbol{u}_{\alpha}\cdot\mathbb{P}_{\alpha}+\boldsymbol{h}_{\alpha}\right)= & \boldsymbol{u}_{\alpha}\cdot\left(n_{\alpha}q_{\alpha}\mathbf{E}+\sum_{\beta\neq\alpha}\boldsymbol{R}_{\alpha\beta}\right)+\sum_{\beta\neq\alpha}Q_{\alpha\beta},\\
+\frac{\partial p_{\alpha\parallel}}{\partial t}+\nabla\cdot\left(p_{\alpha}^{\parallel}\boldsymbol{u}_{\alpha}\right)= & -2p_{\alpha}^{\parallel}\boldsymbol{b}\cdot\left(\boldsymbol{b}\cdot\nabla\right)\boldsymbol{u}_{\alpha}+\frac{p_{\alpha}-p_{\alpha}^{\parallel}}{\tau_{\alpha}},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\rho_{\alpha}= & n_{\alpha}m_{\alpha},\\
+\mathbb{P}_{\alpha}= & p_{\alpha}^{\perp}\mathbf{I}+\left(p_{\alpha}^{\parallel}-p_{\alpha}^{\perp}\right)\boldsymbol{b}\otimes\boldsymbol{b}\\
+p_{\alpha}= & \frac{2p_{\alpha}^{\perp}+p_{\alpha}^{\parallel}}{3}=n_{\alpha}k_{B}T_{\alpha},\\
+\epsilon_{\alpha}= & \frac{p_{\alpha}}{\gamma-1}+\frac{\rho_{\alpha}\boldsymbol{u}_{\alpha}\cdot\boldsymbol{u}_{\alpha}}{2},\\
+\boldsymbol{b}= & \frac{\mathbf{B}}{\left|\mathbf{B}\right|}.
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Note that 
+\begin_inset Formula $\mathbb{P}$
+\end_inset
+
+ is the pressure tensor composed of the pressure perpendicular 
+\begin_inset Formula $p^{\perp}$
+\end_inset
+
+ and parallel 
+\begin_inset Formula $p^{\parallel}$
+\end_inset
+
+ to the magnetic field vector 
+\begin_inset Formula $\boldsymbol{b}$
+\end_inset
+
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Huang2019"
+literal "false"
+
+\end_inset
+
+.
+ The heat flux is given by 
+\begin_inset Formula $\boldsymbol{h}$
+\end_inset
+
+ Relaxation of 
+\begin_inset Formula $p^{\parallel}$
+\end_inset
+
+ towards the average pressure occurs at a rate 
+\begin_inset Formula $\tau$
+\end_inset
+
+ which is chosen according to the flow regime.
+ Closures for anisotropic terms are given in Appendix 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Higher-order-terms"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsubsection
+Collisional effects
+\end_layout
+
+\begin_layout Standard
+Collisions between species are handled according to 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Ghosh2019,Fundamenski2007"
+literal "false"
+
+\end_inset
+
+,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\boldsymbol{R}_{\alpha\beta} & =m_{\alpha}n_{\alpha}\nu_{\alpha\beta}\left(\boldsymbol{u}_{\beta}-\boldsymbol{u}_{\alpha}\right)=-\boldsymbol{R}_{\beta\alpha},\\
+Q_{\alpha\beta} & =Q_{\alpha\beta}^{\text{fric}}+Q_{\alpha\beta}^{\text{eq}},\\
+Q_{\alpha\beta}^{\text{fric}} & =m_{\alpha\beta}n_{\alpha}\nu_{\alpha\beta}\left(\boldsymbol{u}_{\alpha}-\boldsymbol{u}_{\beta}\right)\cdot\left(\boldsymbol{u}_{\alpha}-\boldsymbol{u}_{\beta}\right),\\
+Q_{\alpha\beta}^{\text{eq}} & =3m_{\alpha}n_{\alpha}\frac{\nu_{\alpha\beta}}{m_{\alpha}+m_{\beta}}\left(k_{B}T_{\beta}-k_{B}T_{\alpha}\right)=-Q_{\beta\alpha}^{\text{eq}},
+\end{align*}
+
+\end_inset
+
+where,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+m_{\alpha\beta}= & \frac{m_{\alpha}m_{\beta}}{m_{\alpha}+m_{\beta}},\\
+\nu_{\alpha\beta}= & \begin{cases}
+\frac{\sqrt{2}n_{\beta}Z_{\alpha}^{2}Z_{\beta}^{2}e^{4}\text{ln}\varLambda_{\alpha\beta}}{12\pi^{\nicefrac{3}{2}}\epsilon_{0}^{2}m_{\alpha\beta}m_{\alpha}}\left[\left(\frac{2}{9\pi}\right)^{\nicefrac{1}{3}}\left(\boldsymbol{u}_{\alpha}-\boldsymbol{u}_{\beta}\right)\cdot\left(\boldsymbol{u}_{\alpha}-\boldsymbol{u}_{\beta}\right)+\frac{k_{B}T_{\alpha}}{m_{\alpha}}+\frac{k_{B}T_{\beta}}{m_{\beta}}\right]^{-\nicefrac{3}{2}}, & Z_{\alpha}>0\land Z_{\beta}>0,\\
+\frac{4}{3}\frac{n_{\beta}m_{\beta}\sigma_{\alpha\beta}}{m_{\alpha}+m_{\beta}}\sqrt{\frac{8k_{B}T_{\alpha}}{\pi m_{\alpha}}+\frac{8k_{B}T_{\beta}}{\pi m_{\beta}}}, & Z_{\alpha}=0\lor Z_{\beta}=0,
+\end{cases}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $Z$
+\end_inset
+
+ is the charge state, 
+\begin_inset Formula $e$
+\end_inset
+
+ is the unit charge of an electron, 
+\begin_inset Formula $\text{ln}\varLambda_{\alpha\beta}\approx10$
+\end_inset
+
+ is the Coulomb logarithm, and 
+\begin_inset Formula $\sigma_{\alpha\beta}$
+\end_inset
+
+ is the collision cross section.
+\end_layout
+
+\begin_layout Subsection
+System of equations
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial}{\partial t}\left(\begin{array}{c}
+D_{x}\\
+D_{y}\\
+D_{z}\\
+B_{x}\\
+B_{y}\\
+B_{z}\\
+\phi\\
+\psi
+\end{array}\right)+\nabla\cdot\left(\begin{array}{ccc}
+\phi & -\frac{B_{z}}{\mu_{0}\mu_{z}} & \frac{B_{y}}{\mu_{0}\mu_{y}}\\
+\frac{B_{z}}{\mu_{0}\mu_{z}} & \phi & -\frac{B_{x}}{\mu_{0}\mu_{x}}\\
+-\frac{B_{y}}{\mu_{0}\mu_{y}} & \frac{B_{x}}{\mu_{0}\mu_{x}} & \phi\\
+\psi & \frac{D_{z}}{\varepsilon_{0}\varepsilon_{z}} & -\frac{D_{y}}{\varepsilon_{0}\varepsilon_{y}}\\
+-\frac{D_{z}}{\varepsilon_{0}\varepsilon_{z}} & \psi & \frac{D_{x}}{\varepsilon_{0}\varepsilon_{x}}\\
+\frac{D_{y}}{\varepsilon_{0}\varepsilon_{y}} & -\frac{D_{x}}{\varepsilon_{0}\varepsilon_{x}} & \psi\\
+c_{h}^{2}D_{x} & c_{h}^{2}D_{y} & c_{h}^{2}D_{z}\\
+c_{h}^{2}B_{x} & c_{h}^{2}B_{y} & c_{h}^{2}B_{z}
+\end{array}\right)=\left(\begin{array}{c}
+-j_{x}\\
+-j_{y}\\
+-j_{z}\\
+0\\
+0\\
+0\\
+c_{h}^{2}\rho_{c}-\frac{c_{h}^{2}}{c_{p}^{2}}\phi\\
+-\frac{c_{h}^{2}}{c_{p}^{2}}\psi
+\end{array}\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{multline*}
+\frac{\partial}{\partial t}\left(\begin{array}{c}
+\rho_{\alpha}\\
+\rho_{\alpha}u_{\alpha}\\
+\rho_{\alpha}v_{\alpha}\\
+\rho_{\alpha}w_{\alpha}\\
+\epsilon_{\alpha}\\
+p_{\alpha\parallel}
+\end{array}\right)+\nabla\cdot\left(\begin{array}{ccc}
+\rho_{\alpha}u_{\alpha} & \rho_{\alpha}v_{\alpha} & \rho_{\alpha}w_{\alpha}\\
+\rho_{\alpha}u_{\alpha}^{2}+b_{x}^{2}\left(p^{\parallel}-p^{\perp}\right)+p^{\perp} & \rho_{\alpha}u_{\alpha}v_{\alpha}+b_{x}b_{y}\left(p^{\parallel}-p^{\perp}\right) & \rho_{\alpha}u_{\alpha}w_{\alpha}+b_{x}b_{z}\left(p^{\parallel}-p^{\perp}\right)\\
+\rho_{\alpha}u_{\alpha}v_{\alpha}+b_{x}b_{y}\left(p^{\parallel}-p^{\perp}\right) & \rho_{\alpha}v_{\alpha}^{2}+b_{y}^{2}\left(p^{\parallel}-p^{\perp}\right)+p^{\perp} & \rho_{\alpha}v_{\alpha}w_{\alpha}+b_{y}b_{z}\left(p^{\parallel}-p^{\perp}\right)\\
+\rho_{\alpha}u_{\alpha}w_{\alpha}+b_{x}b_{z}\left(p^{\parallel}-p^{\perp}\right) & \rho_{\alpha}v_{\alpha}w_{\alpha}+b_{y}b_{z}\left(p^{\parallel}-p^{\perp}\right) & \rho_{\alpha}w_{\alpha}^{2}+b_{z}^{2}\left(p^{\parallel}-p^{\perp}\right)+p^{\perp}\\
+u_{\alpha}\left(\epsilon_{\alpha}+p^{\perp}\right)+b_{x}\left(p^{\parallel}-p^{\perp}\right)\left(ub_{x}+vb_{y}+wb_{z}\right) & v_{\alpha}\left(\epsilon_{\alpha}+p^{\perp}\right)+b_{y}\left(p^{\parallel}-p^{\perp}\right)\left(ub_{x}+vb_{y}+wb_{z}\right) & w_{\alpha}\left(\epsilon_{\alpha}+p^{\perp}\right)+b_{z}\left(p^{\parallel}-p^{\perp}\right)\left(ub_{x}+vb_{y}+wb_{z}\right)\\
+p_{\alpha}^{\parallel}u_{\alpha} & p_{\alpha}^{\parallel}v_{\alpha} & p_{\alpha}^{\parallel}w_{\alpha}
+\end{array}\right)\\
+=\left(\begin{array}{c}
+S_{\alpha}\\
+r_{\alpha}\rho_{\alpha}\left(E_{x}+v_{\alpha}B_{z}-w_{\alpha}B_{y}\right)+\sum_{\beta\neq\alpha}R_{\alpha\beta}^{x}\\
+r_{\alpha}\rho_{\alpha}\left(E_{y}+w_{\alpha}B_{x}-u_{\alpha}B_{z}\right)+\sum_{\beta\neq\alpha}R_{\alpha\beta}^{y}\\
+r_{\alpha}\rho_{\alpha}\left(E_{z}+u_{\alpha}B_{y}-v_{\alpha}B_{x}\right)+\sum_{\beta\neq\alpha}R_{\alpha\beta}^{z}\\
+\boldsymbol{u}_{\alpha}\cdot\left(n_{\alpha}q_{\alpha}\mathbf{E}+\sum_{\beta\neq\alpha}\boldsymbol{R}_{\alpha\beta}\right)+\sum_{\beta\neq\alpha}Q_{\alpha\beta}\\
+-2p_{\alpha}^{\parallel}\boldsymbol{b}\cdot\left(\boldsymbol{b}\cdot\nabla\right)\boldsymbol{u}_{\alpha}+\frac{p_{\alpha}-p_{\alpha}^{\parallel}}{\tau_{\alpha}}
+\end{array}\right)
+\end{multline*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Plasma parameters
+\end_layout
+
+\begin_layout Standard
+The Larmor radius, 
+\begin_inset Formula $d_{L}$
+\end_inset
+
+, and Debye length, 
+\begin_inset Formula $d_{D}$
+\end_inset
+
+, are characterising values of the plasma.
+ The Larmor radius is given by,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+d_{L,\alpha}= & \frac{u_{\alpha\perp}m_{\alpha}}{\left|q_{\alpha}\right|B},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $u_{\alpha\perp}=\left|\mathbf{u}_{\alpha}-\frac{\mathbf{u}_{\alpha}\cdot\mathbf{B}}{\left|\mathbf{B}\right|^{2}}\mathbf{B}\right|$
+\end_inset
+
+is the velocity perpendicular to the magnetic field of strength 
+\begin_inset Formula $B=\left|\mathbf{B}\right|$
+\end_inset
+
+.
+ The Debye length is calculated according to
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\omega_{p,\alpha} & \equiv\sqrt{\frac{n_{\alpha}q_{\alpha}^{2}}{\epsilon_{0}m_{\alpha}},}\\
+v_{th,\alpha} & =\sqrt{\frac{k_{B}T_{\alpha}}{m_{\alpha}}},\\
+d_{D,\alpha} & =\sqrt{\frac{\epsilon_{0}k_{B}T_{\alpha}}{n_{\alpha}q_{\alpha}^{2}}}=\frac{v_{th,\alpha}}{\omega_{p,\alpha}}=\sqrt{\frac{v_{th,\alpha}^{2}\epsilon_{0}m_{\alpha}}{n_{\alpha}q_{\alpha}^{2}}},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $\omega_{p}$
+\end_inset
+
+ is the plasma frequency and 
+\begin_inset Formula $v_{th}$
+\end_inset
+
+ is the one dimensional thermal velocity.
+\end_layout
+
+\begin_layout Standard
+The interaction between electromagnetic fields and matter may be described
+ by the parameter 
+\begin_inset Formula $\beta$
+\end_inset
+
+,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\beta_{\alpha}=\frac{2p_{\alpha}\mu_{0}}{B^{2}}.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Using this interaction parameter we may re-define the Larmor radius in terms
+ of 
+\begin_inset Formula $\beta$
+\end_inset
+
+ and plasma skin depth, 
+\begin_inset Formula $d_{S}$
+\end_inset
+
+, as follows,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+d_{D}= & \frac{d_{S}}{c}, & d_{L}= & \sqrt{\frac{\beta}{2}}d_{S},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+d_{S,\alpha} & \equiv\frac{1}{q_{\alpha}}\sqrt{\frac{m_{\alpha}}{\mu_{0}n_{\alpha}},}\\
+\beta_{\alpha} & \equiv\frac{2\mu_{0}n_{\alpha}m_{\alpha}u_{\alpha}^{2}}{B_{\alpha}^{2}}.
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Permittivity 
+\end_layout
+
+\begin_layout Standard
+The frequency dependent relative permittivity for a cold plasma, also known
+ as the dielectric tensor, is given for arbitrary field direction 
+\begin_inset Formula $\boldsymbol{B}$
+\end_inset
+
+ according to,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\boldsymbol{\epsilon}\left(\omega\right) & =\mathbf{1}+\sum_{s}\left[-\mathbf{1}\frac{\omega_{p,s}^{2}}{\omega^{2}}+\frac{\omega_{p,s}^{2}\left(\mathbf{\alpha}\cdot\mathbf{\Omega}_{s}\right)}{\omega\left(\omega^{2}-\Omega_{s}^{2}\right)}-\frac{\omega_{p,s}^{2}\left(\mathbf{\alpha}\cdot\mathbf{\Omega}_{s}\right)^{2}}{\omega^{2}\left(\omega^{2}-\Omega_{s}^{2}\right)}\right]\\
+\Omega_{s} & =\frac{q_{s}\boldsymbol{B}}{m_{\alpha}},\\
+\mathbf{\alpha} & =\left(\alpha_{x},\alpha_{y},\alpha_{z}\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\alpha_{x} & =\left(\begin{array}{ccc}
+0 & 0 & 0\\
+0 & 0 & -i\\
+0 & i & 0
+\end{array}\right), & \alpha_{y} & =\left(\begin{array}{ccc}
+0 & 0 & i\\
+0 & 0 & 0\\
+-i & 0 & 0
+\end{array}\right), & \alpha_{z} & =\left(\begin{array}{ccc}
+0 & -i & 0\\
+i & 0 & 0\\
+0 & 0 & 0
+\end{array}\right),
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+For a field aligned according to 
+\begin_inset Formula $\boldsymbol{B}=B_{0}\mathbf{e}_{z}$
+\end_inset
+
+ (background magnetic field is assumed to align with local 
+\begin_inset Formula $z$
+\end_inset
+
+ axis) we have,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\varepsilon_{r}=K_{ij}=\left[\begin{array}{ccc}
+S & -iD & 0\\
+iD & S & 0\\
+0 & 0 & P
+\end{array}\right]\left\{ \begin{array}{c}
+S=1-\sum_{\alpha}\frac{\omega_{p,\alpha}^{2}}{\omega^{2}-\Omega_{\alpha}^{2}},\\
+D=\sum_{\alpha}\frac{\omega_{p,\alpha}^{2}}{\omega}\frac{\Omega_{\alpha}}{\omega^{2}-\Omega_{\alpha}^{2}}\\
+P=1-\sum_{\alpha}\frac{\omega_{p,\alpha}^{2}}{\omega^{2}}.
+\end{array},\right.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In the low freqency limit we have 
+\begin_inset Formula $\omega\ll\Omega_{\alpha}$
+\end_inset
+
+ leading to
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+S= & 1-\sum_{\alpha}\frac{\omega_{p,\alpha}^{2}}{\omega^{2}-\Omega_{\alpha}^{2}} & D= & \sum_{\alpha}\frac{\omega_{p,\alpha}^{2}}{\omega}\frac{\Omega_{\alpha}}{\omega^{2}-\Omega_{\alpha}^{2}} & P= & 1-\sum_{\alpha}\frac{\omega_{p,\alpha}^{2}}{\omega^{2}}\\
+S= & 1+\sum_{\alpha}\frac{\rho_{\alpha}\mu_{0}c_{0}^{2}}{B_{0}^{2}}, & D\approx & -\sum_{\alpha}\frac{\omega_{p,\alpha}^{2}}{\omega}\frac{\Omega_{\alpha}}{\Omega_{\alpha}^{2}}=-\sum_{\alpha}\frac{\omega_{p,\alpha}^{2}}{\omega\Omega_{\alpha}}\\
+S\approx & 1+\frac{c_{0}^{2}}{v_{A}^{2}}, & D\approx & -\sum_{\alpha}\frac{1}{\omega}\frac{n_{\alpha}q_{\alpha}^{2}}{\epsilon_{0}m_{\alpha}}\frac{m_{\alpha}}{q_{s}B_{0}}\\
+ &  & D\approx & -\sum_{\alpha}\frac{1}{\omega}\frac{n_{\alpha}q_{\alpha}}{\epsilon_{0}B_{0}}\\
+ &  & D\approx & -\sum_{\alpha}\frac{u_{\alpha}d_{L,\alpha}}{\omega d_{D,\alpha}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $v_{A}=\frac{B}{\sqrt{\mu_{0}\rho}}$
+\end_inset
+
+ is the Alfven speed.
+ For the high frequency limit 
+\begin_inset Formula $\omega\gg\Omega_{\alpha}$
+\end_inset
+
+ we have 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+S= & 1-\sum_{\alpha}\frac{\omega_{p,\alpha}^{2}}{\omega^{2}-\Omega_{\alpha}^{2}} & D= & \sum_{\alpha}\frac{\omega_{p,\alpha}^{2}}{\omega}\frac{\Omega_{\alpha}}{\omega^{2}-\Omega_{\alpha}^{2}} & P= & 1-\sum_{\alpha}\frac{\omega_{p,\alpha}^{2}}{\omega^{2}}\\
+S\approx & 1-\sum_{\alpha}\frac{\omega_{p,\alpha}^{2}}{\omega^{2}} & D\approx & \sum_{\alpha}\frac{\omega_{p,\alpha}^{2}}{\omega^{2}}\frac{\Omega_{\alpha}}{\omega}\\
+ &  & D\approx & 0
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+If we assume transmission at speed 
+\begin_inset Formula $c$
+\end_inset
+
+ and have wavelengths on the order of the Debye length, then 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\omega^{2} & =\frac{c^{2}}{\lambda^{2}}\\
+\omega_{\alpha}^{2} & =\frac{c^{2}n_{\alpha}q_{\alpha}^{2}}{\epsilon_{0}k_{B}T_{\alpha}}\\
+\omega_{\alpha}^{2} & =\frac{c^{2}n_{\alpha}q_{\alpha}^{2}}{\epsilon_{0}k_{B}T_{\alpha}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+which gives
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\omega_{p,\alpha}^{2}}{\omega^{2}}= & \frac{n_{\alpha}q_{\alpha}^{2}}{\epsilon_{0}m_{\alpha}}\frac{\epsilon_{0}k_{B}T_{\alpha}}{c^{2}n_{\alpha}q_{\alpha}^{2}}\\
+= & \frac{k_{B}T_{\alpha}}{m_{\alpha}c^{2}}\\
+= & \frac{u_{T,\alpha}^{2}}{c^{2}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+So, for 
+\begin_inset Formula $\omega\approx\nicefrac{c}{d_{D}}\gg\Omega_{\alpha}$
+\end_inset
+
+ we have 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+S\approx P\approx & 1-\frac{u_{T,e}^{2}}{c^{2}}\\
+\approx & 1-\frac{\hat{T}}{\hat{m}\hat{c}^{2}}\\
+\approx & 1-\frac{\hat{p}}{\hat{\rho}\hat{c}^{2}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Reference parameters
+\end_layout
+
+\begin_layout Standard
+To define our simulation we define a number of reference parameters including
+ length, 
+\begin_inset Formula $x_{0}$
+\end_inset
+
+, and temperature, 
+\begin_inset Formula $T_{0}$
+\end_inset
+
+, this gives a speed, 
+\begin_inset Formula $u_{0}=\sqrt{\frac{k_{B}T_{0}}{m_{0}}}$
+\end_inset
+
+, and mass, 
+\begin_inset Formula $m_{0}$
+\end_inset
+
+.
+ The reference time then follows as 
+\begin_inset Formula $t_{0}=\frac{x_{0}}{u_{0}}$
+\end_inset
+
+.
+ Our reference pressure is in terms of number density, 
+\begin_inset Formula $n_{0}$
+\end_inset
+
+, mass and speed, such that 
+\begin_inset Formula $p_{0}=n_{0}m_{0}u_{0}^{2}$
+\end_inset
+
+.
+ Note that we can define a reference density as 
+\begin_inset Formula $\rho_{0}=n_{0}m_{0}$
+\end_inset
+
+ A reference magnetic field strength is also defined as 
+\begin_inset Formula $B_{0}$
+\end_inset
+
+ and electric field as 
+\begin_inset Formula $E_{0}=cB_{0}$
+\end_inset
+
+.
+ The charge of an electron is defined as 
+\begin_inset Formula $q_{0}=e$
+\end_inset
+
+.
+ We may also use a reference Larmor radius and Debye length according to
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+d_{D,0}= & \sqrt{\frac{\epsilon_{0}k_{B}T_{0}}{n_{0}q_{0}^{2}}}=\sqrt{\frac{u_{0}^{2}\epsilon_{0}m_{0}}{n_{0}q_{0}^{2}}}=\sqrt{\frac{u_{0}^{2}m_{0}}{c^{2}\mu_{0}n_{0}q_{0}^{2}}},\\
+d_{L,0}= & \frac{u_{0}m_{0}}{q_{0}B_{0}},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+which gives
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+u_{0} & =\sqrt{\frac{k_{B}T_{0}}{m_{0}}}\\
+n_{0} & =\frac{u_{0}^{2}\epsilon_{0}m_{0}}{d_{D,0}^{2}q_{0}^{2}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Likewise for 
+\begin_inset Formula $d_{S}$
+\end_inset
+
+ and 
+\begin_inset Formula $\beta$
+\end_inset
+
+ we have,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+d_{S,0}\equiv & \frac{1}{q_{0}}\sqrt{\frac{m_{0}}{\mu_{0}n_{0}}}=\frac{u_{0}\hat{c}}{q_{0}}\sqrt{\frac{\epsilon_{0}m_{0}}{n_{0}}}=\hat{c}d_{D,0}, & \beta_{0} & \equiv\frac{2\mu_{0}n_{0}m_{0}u_{0}^{2}}{B_{0}^{2}}=\frac{2}{\hat{c}^{2}}\frac{n_{0}m_{0}}{\epsilon_{0}B_{0}^{2}}=2\frac{d_{L,0}^{2}}{d_{S,0}^{2}}.
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The reference parameters are given in Table 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "tab:reference"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float table
+placement tbph
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Reference parameters
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset CommandInset label
+LatexCommand label
+name "tab:reference"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="8" columns="5">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Name 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Definition 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" bottomline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Name 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" bottomline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Definition
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Length 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $x_{0}$
+\end_inset
+
+ 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Larmor radius
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $d_{L,0}=\frac{u_{0}m_{0}}{q_{0}B_{0}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Speed 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $u_{0}=\sqrt{\frac{k_{B}T_{0}}{m_{0}}}$
+\end_inset
+
+ 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Debye length
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $d_{D,0}=\sqrt{\frac{u_{0}^{2}m_{0}}{c^{2}\mu_{0}n_{0}q_{0}^{2}}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Time 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $t_{0}=\frac{x_{0}}{u_{0}}$
+\end_inset
+
+ 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Number density
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $n_{0}=\frac{u_{0}^{2}\epsilon_{0}m_{0}}{d_{D,0}^{2}q_{0}^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Charge 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $q_{0}=e$
+\end_inset
+
+ 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell multirow="3" alignment="center" valignment="middle" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Fields
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $D_{0}=\varepsilon_{0}E_{0}$
+\end_inset
+
+,
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Mass 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $m_{0}$
+\end_inset
+
+ 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell multirow="4" alignment="center" valignment="middle" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $H_{0}=c_{0}D_{0}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Temperature
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $T_{0}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell multirow="4" alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $B_{0}=\mu_{0}H_{0}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Pressure
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $p_{0}=n_{0}m_{0}u_{0}^{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell multirow="4" alignment="center" valignment="top" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $E_{0}=c_{0}B_{0}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Non-dimensionalization
+\end_layout
+
+\begin_layout Standard
+Using the reference parameters listed above we may obtain our non-dimensional
+ parameters (ignoring species subscript),
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\hat{n}= & \frac{n}{n_{0}}, & \hat{m}= & \frac{m}{m_{0}}, & \hat{\rho}= & \frac{\rho}{\rho_{0}}, & \hat{\boldsymbol{u}}= & \frac{\boldsymbol{u}}{u_{0}}, & \hat{p}= & \frac{p}{p_{0}}, & \hat{\epsilon}= & \frac{\epsilon}{p_{0}}, & \hat{T}= & \frac{T}{T_{0}},\\
+\hat{\boldsymbol{B}}= & \frac{\boldsymbol{B}}{B_{0}}, & \hat{\boldsymbol{D}}= & \frac{\boldsymbol{D}}{D_{0}}, & \hat{\boldsymbol{E}}= & \frac{\boldsymbol{E}}{E_{0}}, & \hat{\boldsymbol{H}}= & \frac{\boldsymbol{H}}{H_{0}}, & \hat{\psi}= & \frac{\psi}{E_{0}}, & \hat{\phi}= & \frac{\phi}{H_{0}}, & \hat{c}_{h}= & \frac{c_{h}}{u_{0}}\\
+\hat{q}= & \frac{q}{q_{0}}, & \hat{t}= & \frac{t}{t_{0}}, & \hat{c}= & \frac{c}{u_{0}}, & \hat{d}_{D}= & \frac{d_{D}}{x_{0}}, & \hat{d_{L}}= & \frac{d_{L}}{x_{0}}, & \hat{d}_{S}= & \frac{d_{S}}{x_{0}}, & \hat{c}_{p}= & \frac{c_{p}}{\sqrt{x_{0}u_{0}}}.
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Interaction parameter
+\end_layout
+
+\begin_layout Standard
+The interaction parameter must be scaled to accomodate the non-dimensionalizatio
+n,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\beta=\frac{\beta_{0}\hat{p}}{\hat{B}^{2}}.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Plasma parameters
+\end_layout
+
+\begin_layout Standard
+If we desire to calculate non-dimensional plasma parameters from non-dimensional
+ quantities we can do so via the following equations
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\hat{d}_{L,\alpha}= & \hat{d}_{L,0}\frac{\hat{u}_{\alpha\perp}\hat{m}_{\alpha}}{\left|\hat{q}_{\alpha}\right|\left|\hat{\mathbf{B}}\right|},\\
+\hat{d}_{D,\alpha}^{2}= & \hat{d}_{D,0}^{2}\frac{\hat{T}}{\hat{n}\hat{q}^{2}}.
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Defining a simulation
+\end_layout
+
+\begin_layout Standard
+In order to define a simulation we must provide the spatial definition of
+ our primitive (or conserved) variables that we would like to evolve; 
+\begin_inset Formula $\hat{\rho}_{\alpha},\;\hat{\mathbf{u}}_{\alpha},\;\hat{p}_{\alpha},\;\hat{\mathbf{E}},\;\hat{\mathbf{B}}$
+\end_inset
+
+ along with parameters that define our (non-dimensional) plasma regime;
+ 
+\begin_inset Formula $\hat{c}$
+\end_inset
+
+, 
+\begin_inset Formula $\hat{m}_{\alpha}$
+\end_inset
+
+, 
+\begin_inset Formula $\hat{q}_{\alpha}$
+\end_inset
+
+, 
+\begin_inset Formula $\hat{n}_{0}$
+\end_inset
+
+ and 
+\begin_inset Formula $\hat{d}_{L,0}$
+\end_inset
+
+, 
+\begin_inset Formula $\hat{d}_{D,0}$
+\end_inset
+
+ or 
+\begin_inset Formula $\beta_{0}$
+\end_inset
+
+, 
+\begin_inset Formula $\hat{d}_{S,0}$
+\end_inset
+
+.
+ These quantities allow for the complete calculation of all the equations
+ listed below.
+ Note that 
+\begin_inset Formula $\hat{\Gamma}$
+\end_inset
+
+ values are initialized to zero.
+ To relate our non-dimensional quantities back to physical quantities, we
+ must provide values for some of our reference parameters.
+ In particular we must provide,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{alignat*}{2}
+x_{0},\; & c,\; & q_{0},\; & m_{0},\,n_{0},
+\end{alignat*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+which then allows us to calculate the remaining reference parameters according
+ to
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+u_{0}= & \frac{c}{\hat{c}}, & t_{0}= & \frac{x_{0}}{u_{0}}, & T_{0}= & \frac{u_{0}^{2}m_{0}}{k_{B}},\\
+\rho_{0}= & m_{0}n_{0}, & p_{0}= & \rho_{0}u_{0}^{2}, & E_{0}= & cB_{0}.
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Fluid equations
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\hat{\rho}_{\alpha}}{\partial\hat{t}}+\hat{\nabla}\cdot\left(\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}\right)= & \hat{S}_{\alpha},\\
+\frac{\partial\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}}{\partial\hat{t}}+\hat{\nabla}\cdot\left(\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}\hat{\mathbf{u}}_{\alpha}+\hat{p}_{\alpha}\mathbb{I}+\hat{\Pi}_{\alpha}\right)= & \frac{\hat{\rho}_{\alpha}\hat{r}_{\alpha}}{\hat{d}_{L,0}}\left(\hat{c}\hat{\mathbf{E}}+\hat{\mathbf{u}}_{\alpha}\times\hat{\mathbf{B}}\right)+\sum_{\beta}\hat{\boldsymbol{R}}_{\alpha}^{\alpha\beta},\\
+\frac{\partial\hat{\epsilon}_{\alpha}}{\partial\hat{t}}+\hat{\nabla}\cdot\left(\hat{\epsilon}_{\alpha}\hat{\boldsymbol{u}}_{\alpha}+\hat{\boldsymbol{u}}_{\alpha}\cdot\hat{\mathbb{P}}_{\alpha}+\hat{\boldsymbol{h}}_{\alpha}\right)= & \hat{\boldsymbol{u}}_{\alpha}\cdot\left(\frac{\hat{\rho}_{\alpha}\hat{r}_{\alpha}\hat{c}}{\hat{d}_{L,0}}\hat{\mathbf{E}}+\sum_{\beta\neq\alpha}\hat{\boldsymbol{R}}_{\alpha\beta}\right)+\sum_{\beta\neq\alpha}\hat{Q}_{\alpha\beta},\\
+\frac{\partial\hat{p}_{\alpha}^{\parallel}}{\partial\hat{t}}+\hat{\nabla}\cdot\left(\hat{p}_{\alpha}^{\parallel}\hat{\boldsymbol{u}}_{\alpha}\right)= & -2\hat{p}_{\alpha}^{\parallel}\boldsymbol{b}\cdot\left(\boldsymbol{b}\cdot\hat{\nabla}\right)\hat{\boldsymbol{u}}_{\alpha}+\frac{\hat{p}_{\alpha}-\hat{p}_{\alpha}^{\parallel}}{\hat{\tau}_{\alpha}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\hat{p}_{\alpha}= & \frac{2\hat{p}_{\alpha}^{\perp}+\hat{p}_{\alpha}^{\parallel}}{3}=\hat{n}_{\alpha}\hat{T}_{\alpha},\\
+\mathbb{P}_{\alpha}= & \begin{cases}
+\hat{p}_{\alpha}^{\perp}\mathbf{I}+\left(\hat{p}_{\alpha}^{\parallel}-\hat{p}_{\alpha}^{\perp}\right)\boldsymbol{b}\otimes\boldsymbol{b}, & \left|\hat{\mathbf{B}}\right|>0\land\hat{q}_{\alpha}\neq0\\
+\hat{p}_{\alpha}\mathbb{I}+\hat{\Pi}_{\alpha}, & \mathrm{otherwise},
+\end{cases},\\
+p_{\alpha}^{\perp}\mathbf{I}+\left(p_{\alpha}^{\parallel}-p_{\alpha}^{\perp}\right)\boldsymbol{b}\otimes\boldsymbol{b}= & \left[\begin{array}{ccc}
+b_{x}^{2}\left(p^{\parallel}-p^{\perp}\right)+p^{\perp} & b_{x}b_{y}\left(p^{\parallel}-p^{\perp}\right) & b_{x}b_{z}\left(p^{\parallel}-p^{\perp}\right)\\
+b_{x}b_{y}\left(p^{\parallel}-p^{\perp}\right) & b_{y}^{2}\left(p^{\parallel}-p^{\perp}\right)+p^{\perp} & b_{y}b_{z}\left(p^{\parallel}-p^{\perp}\right)\\
+b_{x}b_{z}\left(p^{\parallel}-p^{\perp}\right) & b_{y}b_{z}\left(p^{\parallel}-p^{\perp}\right) & b_{z}^{2}\left(p^{\parallel}-p^{\perp}\right)+p^{\perp}
+\end{array}\right],\\
+\boldsymbol{b}= & \frac{\hat{\mathbf{B}}}{\left|\hat{\mathbf{B}}\right|},\\
+\hat{\epsilon}_{\alpha} & =\frac{\hat{p}_{\alpha}}{\gamma-1}+\frac{\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}\cdot\hat{\mathbf{u}}_{\alpha}}{2},\\
+\hat{\boldsymbol{R}}_{\alpha\beta} & =\hat{m}_{\alpha}\hat{n}_{\alpha}\hat{\nu}_{\alpha\beta}\left(\hat{\boldsymbol{u}}_{\beta}-\hat{\boldsymbol{u}}_{\alpha}\right),\\
+\hat{Q}_{\alpha\beta} & =\hat{Q}_{\alpha\beta}^{\text{fric}}+\hat{Q}_{\alpha\beta}^{\text{eq}},\\
+\hat{Q}_{\alpha\beta}^{\text{fric}} & =\hat{m}_{\alpha\beta}\hat{n}_{\alpha}\hat{\nu}_{\alpha\beta}\left(\hat{\boldsymbol{u}}_{\alpha}-\hat{\boldsymbol{u}}_{\beta}\right)\cdot\left(\hat{\boldsymbol{u}}_{\alpha}-\hat{\boldsymbol{u}}_{\beta}\right),\\
+Q_{\alpha\beta}^{\text{eq}} & =3\hat{m}_{\alpha}\hat{n}_{\alpha}\frac{\hat{\nu}_{\alpha\beta}}{\hat{m}_{\alpha}+\hat{m}_{\beta}}\left(\hat{T}_{\beta}-\hat{T}_{\alpha}\right),\\
+\hat{\nu}_{\alpha\beta}= & \begin{cases}
+\frac{\hat{n}_{0}}{\hat{d}_{D,0}^{4}}\frac{\sqrt{2}\hat{n}_{\beta}\hat{q}_{\alpha}^{2}\hat{q}_{\beta}^{2}\text{ln}\varLambda_{\alpha\beta}}{12\pi^{\nicefrac{3}{2}}\hat{m}_{\alpha\beta}\hat{m}_{\alpha}}\left[\left(\frac{2}{9\pi}\right)^{\nicefrac{1}{3}}\left(\hat{\boldsymbol{u}}_{\alpha}-\hat{\boldsymbol{u}}_{\beta}\right)\cdot\left(\hat{\boldsymbol{u}}_{\alpha}-\hat{\boldsymbol{u}}_{\beta}\right)+\frac{\hat{T}_{\alpha}}{\hat{m}_{\alpha}}+\frac{\hat{T}_{\beta}}{\hat{m}_{\beta}}\right]^{-\nicefrac{3}{2}}, & \hat{q}_{\alpha}>0\land\hat{q}_{\beta}>0,\\
+\frac{4}{3}\frac{\hat{n}_{0}\hat{n}_{\beta}\hat{m}_{\beta}\hat{\sigma}_{\alpha\beta}}{\hat{m}_{\alpha}+\hat{m}_{\beta}}\sqrt{\frac{8}{\pi}\left(\frac{\hat{T}_{\alpha}}{\hat{m}_{\alpha}}+\frac{\hat{T}_{\beta}}{\hat{m}_{\beta}}\right)}, & \hat{q}_{\alpha}=0\lor\hat{q}_{\beta}=0.
+\end{cases}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Maxwell's equations
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\hat{\boldsymbol{D}}}{\partial\hat{t}}-\hat{c}_{0}\hat{\nabla}\times\hat{\boldsymbol{H}}= & -\frac{\hat{d}_{L,0}}{\hat{d}_{D,0}^{2}\hat{c}_{0}}\hat{\boldsymbol{J}}-\hat{c}_{0}\hat{\nabla}\hat{\phi},\\
+\frac{\partial\hat{\mathbf{B}}}{\partial\hat{t}}+\hat{c}_{0}\hat{\nabla}\times\hat{\mathbf{E}}= & -\hat{c}_{0}\hat{\nabla}\hat{\psi},\\
+\frac{\partial\hat{\phi}}{\partial\hat{t}}+\frac{\hat{c}_{h}^{2}}{\hat{c}_{0}}\hat{\nabla}\cdot\hat{\boldsymbol{D}}= & \frac{\hat{d}_{L,0}}{\hat{d}_{D,0}^{2}}\frac{\hat{c}_{h}^{2}}{\hat{c}_{0}^{2}}\hat{\rho}_{c}-\frac{\hat{c}_{h}^{2}}{\hat{c}_{p}^{2}}\hat{\phi},\\
+\frac{\partial\hat{\psi}}{\partial\hat{t}}+\frac{\hat{c}_{h}^{2}}{\hat{c}_{0}}\hat{\nabla}\cdot\hat{\mathbf{B}}= & -\frac{\hat{c}_{h}^{2}}{\hat{c}_{p}^{2}}\hat{\psi}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial}{\partial t}\left(\begin{array}{c}
+D_{x}\\
+D_{y}\\
+D_{z}\\
+B_{x}\\
+B_{y}\\
+B_{z}\\
+\phi\\
+\psi
+\end{array}\right)+c_{0}\nabla\cdot\left(\begin{array}{ccc}
+\phi & -\frac{B_{z}}{\mu_{z}} & \frac{B_{y}}{\mu_{y}}\\
+\frac{B_{z}}{\mu_{z}} & \phi & -\frac{B_{x}}{\mu_{x}}\\
+-\frac{B_{y}}{\mu_{y}} & \frac{B_{x}}{\mu_{x}} & \phi\\
+\psi & \frac{D_{z}}{\varepsilon_{z}} & -\frac{D_{y}}{\varepsilon_{y}}\\
+-\frac{D_{z}}{\varepsilon_{z}} & \psi & \frac{D_{x}}{\varepsilon_{x}}\\
+\frac{D_{y}}{\varepsilon_{y}} & -\frac{D_{x}}{\varepsilon_{x}} & \psi\\
+\frac{c_{h}^{2}}{c_{0}^{2}}D_{x} & \frac{c_{h}^{2}}{c_{0}^{2}}D_{y} & \frac{c_{h}^{2}}{c_{0}^{2}}D_{z}\\
+\frac{c_{h}^{2}}{c_{0}^{2}}B_{x} & \frac{c_{h}^{2}}{c_{0}^{2}}B_{y} & \frac{c_{h}^{2}}{c_{0}^{2}}B_{z}
+\end{array}\right)=\left(\begin{array}{c}
+-\frac{d_{L,0}}{d_{D,0}^{2}c_{0}}j_{x}\\
+-\frac{d_{L,0}}{d_{D,0}^{2}c_{0}}j_{y}\\
+-\frac{d_{L,0}}{d_{D,0}^{2}c_{0}}j_{z}\\
+0\\
+0\\
+0\\
+\frac{d_{L,0}c_{h}^{2}}{d_{D,0}^{2}c_{0}^{2}}\rho_{c}-\frac{c_{h}^{2}}{c_{p}^{2}}\phi\\
+-\frac{c_{h}^{2}}{c_{p}^{2}}\psi
+\end{array}\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The potential form (for the static solution of the fields from the charge
+ and current densities) are given by
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\hat{\nabla}^{2}\left(\epsilon_{r}\hat{\phi}\right)= & -\frac{\hat{d}_{L,0}}{\hat{c}\hat{d}_{D,0}^{2}}\sum\hat{\rho}_{\alpha}\frac{\hat{q}_{\alpha}}{\hat{m}_{\alpha}}, & \hat{\nabla}^{2}\hat{\boldsymbol{A}}= & -\frac{\hat{d}_{L,0}\mu_{r}}{\hat{c}^{2}\hat{d}_{D,0}^{2}}\sum\frac{\hat{\rho}_{\alpha}\hat{\boldsymbol{u}}_{\alpha}\hat{q}_{\alpha}}{\hat{m}_{\alpha}},\\
+\hat{\boldsymbol{D}}= & -\hat{\nabla}\left(\epsilon_{r}\hat{\phi}\right), & \hat{\boldsymbol{B}} & =\hat{\nabla}\times\hat{\boldsymbol{A}}.
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Note that full working may be found in Appendix 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Non-dimensionalizations"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+We will henceforth refrain from using the hat (
+\begin_inset Formula $\hat{})$
+\end_inset
+
+ to denote a dimensionless parameter as all will be assumed thus, unless
+ specified otherwise.
+\end_layout
+
+\begin_layout Section
+Update procedure
+\end_layout
+
+\begin_layout Subsection
+Unsplit Transverse Method
+\end_layout
+
+\begin_layout Standard
+We use the unsplit-transverse-method as implemented in 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Moreno2020"
+literal "false"
+
+\end_inset
+
+.
+ This is composed of the following steps
+\end_layout
+
+\begin_layout Enumerate
+Calculate the reconstructed face values for all quantities
+\end_layout
+
+\begin_layout Enumerate
+Calculate updated face values according to (
+\begin_inset Formula $c_{i}$
+\end_inset
+
+ is the local characteristic speed in the 
+\begin_inset Formula $i$
+\end_inset
+
+-th direction)
+\begin_inset Formula 
+\begin{align*}
+Q_{i\pm\nicefrac{1}{2}}^{n+\nicefrac{1}{2}} & =Q_{i\pm\nicefrac{1}{2}}^{n}-\frac{c_{i}}{2}\frac{\Delta t}{\Delta x}\left[Q_{i+\nicefrac{1}{2}}^{n}-Q_{i-\nicefrac{1}{2}}^{n}\mp3\left(1-c_{i}\frac{2}{3}\frac{\Delta t}{\Delta x}\right)\left(Q_{i-\nicefrac{1}{2}}^{n}+Q_{i+\nicefrac{1}{2}}^{n}\right)\right]
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+Calculate fluxes 
+\end_layout
+
+\begin_layout Enumerate
+Correct face values by using the transverse flux information according to
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+2D
+\begin_inset Formula 
+\begin{align*}
+Q_{i\pm\nicefrac{1}{2},j}^{n+\nicefrac{1}{2},*} & =Q_{i\pm\nicefrac{1}{2},j}^{n+\nicefrac{1}{2}}+\frac{1}{2}\frac{\Delta t}{\Delta y}\left(F_{y,i,j-\nicefrac{1}{2}}^{n+\nicefrac{1}{2}}-F_{y,i,j+\nicefrac{1}{2}}^{n+\nicefrac{1}{2}}\right)\\
+Q_{i,j\pm\nicefrac{1}{2}}^{n+\nicefrac{1}{2},*} & =Q_{i,j\pm\nicefrac{1}{2}}^{n+\nicefrac{1}{2}}+\frac{1}{2}\frac{\Delta t}{\Delta x}\left(F_{x,i-\nicefrac{1}{2},j}^{n+\nicefrac{1}{2}}-F_{x,i+\nicefrac{1}{2},j}^{n+\nicefrac{1}{2}}\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+3D
+\begin_inset Formula 
+\begin{align*}
+Q_{i\pm\nicefrac{1}{2},j,k}^{n+\nicefrac{1}{2},*}= & Q_{i\pm\nicefrac{1}{2},j,k}^{n+\nicefrac{1}{2}}+\frac{1}{2}\frac{\Delta t}{\Delta y}\left(F_{y,i,j-\nicefrac{1}{2},k}^{n+\nicefrac{1}{2}}-F_{y,i,j+\nicefrac{1}{2},k}^{n+\nicefrac{1}{2}}\right)\\
+ & +\frac{1}{2}\frac{\Delta t}{\Delta z}\left(F_{z,i,j,k-\nicefrac{1}{2}}^{n+\nicefrac{1}{2}}-F_{z,i,j,k+\nicefrac{1}{2}}^{n+\nicefrac{1}{2}}\right)\\
+Q_{i,j\pm\nicefrac{1}{2},k}^{n+\nicefrac{1}{2},*}= & Q_{i,j\pm\nicefrac{1}{2},k}^{n+\nicefrac{1}{2}}+\frac{1}{2}\frac{\Delta t}{\Delta x}\left(F_{x,i-\nicefrac{1}{2},j,k}^{n+\nicefrac{1}{2}}-F_{x,i+\nicefrac{1}{2},j,k}^{n+\nicefrac{1}{2}}\right)\\
+ & +\frac{1}{2}\frac{\Delta t}{\Delta z}\left(F_{z,i,j,k-\nicefrac{1}{2}}^{n+\nicefrac{1}{2}}-F_{z,i,j,k+\nicefrac{1}{2}}^{n+\nicefrac{1}{2}}\right)\\
+Q_{i,j,k\pm\nicefrac{1}{2}}^{n+\nicefrac{1}{2},*}= & Q_{i,j,k\pm\nicefrac{1}{2}}^{n+\nicefrac{1}{2}}+\frac{1}{2}\frac{\Delta t}{\Delta x}\left(F_{x,i-\nicefrac{1}{2},j,k}^{n+\nicefrac{1}{2}}-F_{x,i+\nicefrac{1}{2},j,k}^{n+\nicefrac{1}{2}}\right)\\
+ & +\frac{1}{2}\frac{\Delta t}{\Delta y}\left(F_{y,i,j-\nicefrac{1}{2},k}^{n+\nicefrac{1}{2}}-F_{y,i,j+\nicefrac{1}{2},k}^{n+\nicefrac{1}{2}}\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+Recalculate the fluxes
+\end_layout
+
+\begin_layout Enumerate
+Update cell centred value.
+\end_layout
+
+\begin_layout Standard
+Note that characteristic speed used to update the face values to 
+\begin_inset Formula $n+\nicefrac{1}{2}$
+\end_inset
+
+ should really be calculated on a per component basis according to 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Collela1990"
+literal "false"
+
+\end_inset
+
+.
+ The current approach is correct for Maxwell's equations, due to the single
+ wave speed, but for systems with more complicated wave structure a more
+ accurate estimate is desirable.
+\end_layout
+
+\begin_layout Subsection
+ODE solver
+\end_layout
+
+\begin_layout Standard
+We split the update equations such that fluxes and source terms are solved
+ separately according to,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\hat{Q}= & Q^{n}+\Delta tF\left(Q^{n}\right),\\
+Q^{n+1}= & \hat{Q}+\Delta tS\left(\hat{Q}\right),
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $F\left(Q\right)$
+\end_inset
+
+ is the update due to fluxes and 
+\begin_inset Formula $S\left(Q\right)$
+\end_inset
+
+ is that due to source terms.
+ The fluxes are calculated explicitly, as discussed in section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Fluxes"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+, while the source terms are solved via one of a selection of ODE solvers.
+\end_layout
+
+\begin_layout Subsubsection
+Euler ODE solvers
+\end_layout
+
+\begin_layout Standard
+The simplest approach is to use the forwards Euler form such that,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+Q^{n+1}=\hat{Q}+\Delta tS\left(\hat{Q}\right).
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Alternatively we may use the backwards Euler form such that, 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+S\left(\hat{Q}\right) & =\left(\boldsymbol{I}-\Delta t\frac{\partial S}{\partial\hat{Q}}\right)S\left(Q^{n+1}\right),
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $\frac{\partial S}{\partial\hat{Q}}$
+\end_inset
+
+is the Jacobian of the source term update equation.
+ This forms a linear system that may be solved for 
+\begin_inset Formula $S\left(Q^{n+1}\right)$
+\end_inset
+
+ and which may then be applied according to,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+Q^{n+1}=\hat{Q}+\Delta tS\left(Q^{n+1}\right).
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Stiff ODE solvers
+\end_layout
+
+\begin_layout Standard
+For problems where the source terms themselves are quite stiff we may also
+ use stiff ODE solvers.
+ Possibilities are LSODA
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Hindmarsh2005a"
+literal "false"
+
+\end_inset
+
+and CVODE
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Hindmarsh2005"
+literal "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsubsection
+Jacobian evaluation
+\end_layout
+
+\begin_layout Standard
+The Jacobian of the source terms may be calculated by explicit definition
+ (if provided), numerical differentiation (finite differences), or with
+ autodiff 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Leal2018"
+literal "false"
+
+\end_inset
+
+, a C++ library for automatic differentiation.
+\end_layout
+
+\begin_layout Section
+Fluxes
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Fluxes"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Reconstruction
+\end_layout
+
+\begin_layout Standard
+Reconstruction is performed on primitive values along each dimension using
+ a selection of TVD, central, or polynomial based functions.
+\end_layout
+
+\begin_layout Subsection
+Fluxes
+\end_layout
+
+\begin_layout Standard
+The hydrodynamic fluxes are calculated according to a range of approximate
+ Riemann solvers, the HLLE and HLLC solvers are given as follows 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Toro1994"
+literal "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsubsection
+HLLE
+\end_layout
+
+\begin_layout Standard
+The HLLE solver is given as follows
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+S_{L} & =\min\left(u_{L}-a_{L},\,u_{R}-a_{R}\right),\\
+S_{R} & =\max\left(u_{L}+a_{L},\,u_{R}+a_{R}\right),\\
+F^{\mathrm{HLLE}} & =\begin{cases}
+F_{L}, & S_{L}>0,\\
+\frac{S_{R}F_{L}-S_{L}F_{R}+S_{L}S_{R}\left(U_{R}-U_{L}\right)}{S_{R}-S_{L}}, & S_{L}\leq0\leq S_{R},\\
+F_{R}, & S_{R}<0,
+\end{cases}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $u$
+\end_inset
+
+ is the local speed, 
+\begin_inset Formula $a$
+\end_inset
+
+ is the local sound speed, 
+\begin_inset Formula $F$
+\end_inset
+
+ is the flux vector, and 
+\begin_inset Formula $U$
+\end_inset
+
+ the state vector for the left 
+\begin_inset Formula $L$
+\end_inset
+
+ and right 
+\begin_inset Formula $R$
+\end_inset
+
+ sides of the interface.
+ 
+\end_layout
+
+\begin_layout Subsubsection
+HLLC
+\end_layout
+
+\begin_layout Standard
+The HLLC solver is given according to
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+F^{\mathrm{HLLC}}=\begin{cases}
+F_{L}, & S_{L}>0,\\
+F_{L}^{*}, & S_{L}\leq0\leq S_{M},\\
+F_{R}^{*}, & S_{M}\leq0\leq S_{M},\\
+F_{R}, & S_{R}<0,
+\end{cases}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+S_{M}=\frac{\rho_{R}u_{R}\left(S_{R}-u_{R}\right)-\rho_{L}u_{L}\left(S_{L}-u_{L}\right)+p_{L}-p_{R}}{\rho_{R}\left(S_{R}-u_{R}\right)-\rho_{L}\left(S_{L}-u_{L}\right)}.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Electromagnetic Fluxes
+\end_layout
+
+\begin_layout Standard
+The characteristic speeds of Maxwells equations are 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+u^{\mathrm{EM}}=\left(0,\pm c,\pm c\Gamma_{B},\pm c\Gamma_{E}\right),
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+thus the HLL flux is simplified to give,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+S_{L} & =-S_{R}=\min\left(0,u^{\mathrm{EM}}\right),\\
+F^{\mathrm{HLL,EM}} & =\frac{F_{L}+F_{R}+S_{R}\left(U_{L}-U_{R}\right)}{2}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+U= & \left(\begin{array}{c}
+D_{x}\\
+D_{y}\\
+D_{z}\\
+B_{x}\\
+B_{y}\\
+B_{z}\\
+\phi\\
+\psi
+\end{array}\right), & F_{x} & =c_{0}\left(\begin{array}{c}
+\phi\\
+\frac{B_{z}}{\mu_{z}}\\
+-\frac{B_{y}}{\mu_{y}}\\
+\psi\\
+-\frac{D_{z}}{\varepsilon_{z}}\\
+\frac{D_{y}}{\varepsilon_{y}}\\
+\frac{c_{h}^{2}}{c_{0}^{2}}D_{x}\\
+\frac{c_{h}^{2}}{c_{0}^{2}}B_{x}
+\end{array}\right).
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Alternatively the exact flux for the system of equations may be derived
+ using the Rankine-Hugoniot relations 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Barbas2015"
+literal "false"
+
+\end_inset
+
+ according to
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\hat{F}_{D_{y}}= & \frac{\hat{c}_{0}}{c_{R}\mu_{R}+c_{L}\mu_{L}}\left(s\left(c_{R}\hat{B}_{z}^{R}+c_{L}\hat{B}_{z}^{L}\right)+\left(\frac{\hat{D}_{y}^{L}}{\varepsilon_{L}}-\frac{\hat{D}_{y}^{R}}{\varepsilon_{R}}\right)\right), & \hat{F}_{D_{z}}= & \frac{\hat{c}_{0}}{c_{R}\mu_{R}+c_{L}\mu_{L}}\left(-\left(c_{R}\hat{B}_{y}^{R}+c_{L}\hat{B}_{y}^{L}\right)+\left(\frac{\hat{D}_{z}^{L}}{\varepsilon_{L}}-\frac{\hat{D}_{z}^{R}}{\varepsilon_{R}}\right)\right),\\
+\hat{F}_{B_{z}}= & \frac{\hat{c}_{0}}{c_{R}\varepsilon_{R}+c_{L}\varepsilon_{L}}\left(s\left(c_{R}\hat{D}_{y}^{R}+c_{L}\hat{D}_{y}^{L}\right)+\left(\frac{\hat{B}_{z}^{L}}{\mu_{L}}-\frac{\hat{B}_{z}^{R}}{\mu_{R}}\right)\right), & \hat{F}_{B_{y}}= & \frac{\hat{c}_{0}}{c_{R}\varepsilon_{R}+c_{L}\varepsilon_{L}}\left(-\left(c_{R}\hat{D}_{z}^{R}+c_{L}\hat{D}_{z}^{L}\right)+\left(\frac{\hat{B}_{y}^{L}}{\mu_{L}}-\frac{\hat{B}_{y}^{R}}{\mu_{R}}\right)\right),\\
+\hat{F}_{D_{x}}= & \frac{\hat{c}_{0}}{2}\left(\hat{\phi}^{L}+\hat{\phi}^{R}\right)-\frac{\hat{c}_{h}}{2}\left(D_{x}^{R}-D_{x}^{L}\right), & \hat{F}_{B_{x}}= & \frac{\hat{c}_{0}}{2}\left(\hat{\psi}^{L}+\hat{\psi}^{R}\right)-\frac{\hat{c}_{h}}{2}\left(B_{x}^{R}-B_{x}^{L}\right),\\
+\hat{F}_{\phi}= & \frac{\hat{c}_{h}^{2}}{2\hat{c}_{0}}\left(\hat{D}_{x}^{L}+\hat{D}_{x}^{R}\right)-\frac{\hat{c}_{h}}{2}\left(\hat{\phi}^{R}-\hat{\phi}^{L}\right), & \hat{F}_{\psi}= & \frac{\hat{c}_{h}^{2}}{2\hat{c}_{0}}\left(\hat{B}_{x}^{L}+\hat{B}_{x}^{R}\right)-\frac{\hat{c}_{h}}{2}\left(\hat{\psi}^{R}-\hat{\psi}^{L}\right),
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $c_{r}=\frac{1}{\sqrt{\varepsilon_{r}\mu_{r}}}$
+\end_inset
+
+, also note that 
+\begin_inset Formula $\varepsilon$
+\end_inset
+
+ and 
+\begin_inset Formula $\mu$
+\end_inset
+
+ can be axis dependent and will then align with the field axis i.e.
+ 
+\begin_inset Formula $\frac{D_{y}}{\epsilon_{y}}$
+\end_inset
+
+ .
+ See Appendix 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:Electromagnetic-fluxes"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+ for further details.
+\end_layout
+
+\begin_layout Subsubsection
+Blending
+\end_layout
+
+\begin_layout Standard
+While the HLLC solver is preferable, due to its ability to capture contact
+ discontinuities exactly, it can also suffer from numerical instabilities
+ such as the carbuncle effect.
+ The HLLE scheme is not plagued by this problem and thus a switch is defined
+ that blends the fluxes of the two schemes and thus support stable operation
+ of the numerical method.
+ The blending function is defined according to 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+F=\left(1-\phi\right)F^{\mathrm{HLLC}}+\phi F^{\mathrm{HLLE}},
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\phi=\frac{1+\tanh\left(5\delta\left(\varphi-\nicefrac{3}{4\delta}\right)\right)}{2}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+and
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\varphi=\left|\frac{p_{R}-p_{L}}{p_{R}+p_{L}}\right|.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This gives a detector that ramps up to 1 when a shock is detected at 
+\begin_inset Formula $\varphi\apprge\nicefrac{1}{\delta}$
+\end_inset
+
+, and zero otherwise.
+ 
+\end_layout
+
+\begin_layout Section
+EB
+\end_layout
+
+\begin_layout Standard
+To combat the small cell problem with embedded boundaries we employ a form
+ of cell merging.
+ For each cut cell with volume-fraction less than some threshold value we
+ generate an exclusive super-cell 
+\begin_inset Formula $S_{j}$
+\end_inset
+
+ by recursively absorbing the cell 
+\begin_inset Formula $s_{i}$
+\end_inset
+
+ that is attached to the first largest face of the current cell, such that
+ 
+\begin_inset Formula $s_{i}\in S_{j}$
+\end_inset
+
+, until the total volume fraction exceeds the threshold (typically 0.5).
+ We then calculate the mean value of the super cell for each conserved quantity
+ according to,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\rho_{j}=\frac{\sum_{i\in S_{j}}\phi_{i}\left(u_{i}+\Delta u_{i}\right)}{\sum_{i\in S_{j}}\phi_{i}}.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We then adjust the 
+\begin_inset Formula $\Delta u_{i}$
+\end_inset
+
+ values (calculated from the divergence operation) such that 
+\begin_inset Formula $u_{i}+\Delta u_{i}=\rho_{j}$
+\end_inset
+
+.
+ Essentially, we assume a constant value for our conserved quantity at time
+ 
+\begin_inset Formula $t^{n+1}$
+\end_inset
+
+ across the entire super-cell and adjust the individual cell updates to
+ achieve this.
+ This approach allows for cell merging to be applied as a post-processing
+ step following the divergence calculation.
+\end_layout
+
+\begin_layout Section
+Isotopes
+\end_layout
+
+\begin_layout Standard
+In order to approximate isotopes within the solver we make each fluid a
+ mixture where the mixture fraction is tracked by a passive scalar.
+ Within a cell we have the total density, 
+\begin_inset Formula $\rho$
+\end_inset
+
+, and the mass fraction 
+\begin_inset Formula $\alpha$
+\end_inset
+
+.
+ We also know the mass, 
+\begin_inset Formula $m_{i}$
+\end_inset
+
+, charge, 
+\begin_inset Formula $q_{i}$
+\end_inset
+
+, and ratio of specific heats, 
+\begin_inset Formula $\gamma_{i}$
+\end_inset
+
+, of each component.
+ We desire to know the overall average quantities 
+\begin_inset Formula $m$
+\end_inset
+
+, 
+\begin_inset Formula $q$
+\end_inset
+
+, and 
+\begin_inset Formula $\gamma$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+Given 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\rho & =mn,\\
+\rho_{0} & =m_{0}n_{0}=\left(1-\alpha\right)\rho,\\
+\rho_{1} & =m_{1}n_{1}=\alpha\rho,
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+then 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+n_{0}= & \frac{\left(1-\alpha\right)\rho}{m_{0}}, & n_{1}= & \frac{\alpha\rho}{m_{1}}.
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Given that 
+\begin_inset Formula $n=\sum_{i}n_{i}$
+\end_inset
+
+ we have
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+m=\frac{\rho}{n} & =\frac{\rho}{\frac{\left(1-\alpha\right)\rho}{m_{0}}+\frac{\alpha\rho}{m_{1}}}=\frac{m_{0}m_{1}}{m_{0}\alpha+m_{1}\left(1-\alpha\right)}.
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The total charge density, 
+\begin_inset Formula $nq=\sum_{i}n_{i}q_{i}$
+\end_inset
+
+, allows us to get the charge of the cell according to
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+q & =\frac{\sum_{i}n_{i}q_{i}}{n}=\frac{\sum_{i}n_{i}q_{i}}{\sum_{i}n_{i}}=\frac{\alpha m_{0}q_{1}+\left(1-\alpha\right)m_{1}q_{0}}{m_{0}\alpha+m_{1}\left(1-\alpha\right)}.
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+To find 
+\begin_inset Formula $\gamma$
+\end_inset
+
+ we have 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\gamma & =\frac{c_{p}}{c_{v}}, & R & =c_{p}-c_{v}=\frac{k_{B}}{m},\\
+c_{p}= & \frac{k_{B}\gamma}{m\left(\gamma-1\right)}, & c_{v}= & \frac{k_{B}}{m\left(\gamma-1\right)}.
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The specific heats of a mixture are given by 
+\begin_inset Formula $c=\sum_{i}w_{i}c_{i}$
+\end_inset
+
+ where 
+\begin_inset Formula $w_{i}$
+\end_inset
+
+ is the component mass fraction.
+ We thus have (including some mathematica simplification)
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\gamma & =\frac{\sum_{i}w_{i}c_{p,i}}{\sum_{i}w_{i}c_{v,i}},\\
+ & =\frac{\left(1-\alpha\right)c_{p,0}+\alpha c_{p,1}}{\left(1-\alpha\right)c_{v,0}+\alpha c_{v,1}},\\
+ & =\frac{\left(1-\alpha\right)\frac{k_{B}\gamma_{0}}{m_{0}\left(\gamma_{0}-1\right)}+\alpha\frac{k_{B}\gamma_{1}}{m_{1}\left(\gamma_{1}-1\right)}}{\left(1-\alpha\right)\frac{k_{B}}{m_{0}\left(\gamma_{0}-1\right)}+\alpha\frac{k_{B}}{m_{1}\left(\gamma_{1}-1\right)}},\\
+ & =\frac{\frac{\gamma_{0}\left(1-\alpha\right)}{m_{0}\left(\gamma_{0}-1\right)}+\frac{\gamma_{1}\alpha}{m_{1}\left(\gamma_{1}-1\right)}}{\frac{1-\alpha}{m_{0}\left(\gamma_{0}-1\right)}+\frac{\alpha}{m_{1}\left(\gamma_{1}-1\right)}},\\
+\gamma & =\frac{m_{0}\alpha\left(\gamma_{0}-1\right)\gamma_{1}+m_{1}\gamma_{0}\left(\alpha-1+\left(1-\alpha\right)\gamma_{1}\right)}{m_{0}\alpha\left(\gamma_{0}-1\right)+m_{1}\left(\alpha-1+\left(1-\alpha\right)\gamma_{1}\right)}.
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset bibtex
+LatexCommand bibtex
+btprint "btPrintCited"
+bibfiles "refs"
+options "unsrt"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\start_of_appendix
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+%dummy comment inserted by tex2lyx to ensure that this paragraph is not
+ empty
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Higher order terms closure
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Higher-order-terms"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Neutral fluids
+\end_layout
+
+\begin_layout Standard
+We need expressions for 
+\begin_inset Formula $\Pi$
+\end_inset
+
+ and 
+\begin_inset Formula $\boldsymbol{h}$
+\end_inset
+
+ in order to close the system of equations.
+ Assuming an isotropic viscosity for unmagnetized flow we may apply the
+ following for the viscous stress tensor,
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\Pi & =-\mu\left(\nabla\boldsymbol{u}+\left(\nabla\boldsymbol{u}\right)^{T}\right)-\lambda\mathbf{I}\nabla\cdot\boldsymbol{u},\\
+\Pi & =-\left(\begin{array}{ccc}
+2\mu\frac{\partial u}{\partial x}+\lambda\left(\frac{\partial u}{\partial x}+\frac{\partial v}{\partial y}+\frac{\partial w}{\partial z}\right) & \mu\left(\frac{\partial u}{\partial y}+\frac{\partial v}{\partial x}\right) & \mu\left(\frac{\partial u}{\partial z}+\frac{\partial w}{\partial x}\right)\\
+\mu\left(\frac{\partial u}{\partial y}+\frac{\partial v}{\partial x}\right) & 2\mu\frac{\partial v}{\partial y}+\lambda\left(\frac{\partial u}{\partial x}+\frac{\partial v}{\partial y}+\frac{\partial w}{\partial z}\right) & \mu\left(\frac{\partial v}{\partial z}+\frac{\partial w}{\partial y}\right)\\
+\mu\left(\frac{\partial u}{\partial z}+\frac{\partial w}{\partial x}\right) & \mu\left(\frac{\partial v}{\partial z}+\frac{\partial w}{\partial y}\right) & 2\mu\frac{\partial w}{\partial z}+\lambda\left(\frac{\partial u}{\partial x}+\frac{\partial v}{\partial y}+\frac{\partial w}{\partial z}\right)
+\end{array}\right),
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $\mu$
+\end_inset
+
+ is the viscosity and 
+\begin_inset Formula $\lambda=-\frac{2}{3}\mu$
+\end_inset
+
+ is the bulk viscosity according to Stokes hypothesis.
+ We may use a constant viscosity or any of the temperature dependent relationshi
+ps such as a power law model or Sutherlands equation.
+\end_layout
+
+\begin_layout Standard
+The heat flux is given by, 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\boldsymbol{h} & =-\kappa\nabla T,\\
+\kappa & =c_{p}\frac{\mu}{\mathrm{Pr}}.
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Magnetised fluids (NOT IMPLEMENTED)
+\end_layout
+
+\begin_layout Standard
+For a magnetised fluid we have 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Krommes2018,Braginskii1965"
+literal "false"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\Pi & =-nm\boldsymbol{m}\colon\boldsymbol{S}\\
+\Pi & =-nm\sum_{p=0}^{4}n\mu_{p}\boldsymbol{V}_{p}\boldsymbol{\colon}\boldsymbol{S}\\
+\boldsymbol{V}_{0}\colon\boldsymbol{S} & =\frac{3}{2}\left(\boldsymbol{B}-\frac{1}{3}\boldsymbol{I}\right)\left(\boldsymbol{B}-\frac{1}{3}\boldsymbol{I}\right)\boldsymbol{\colon}\boldsymbol{W}\\
+\boldsymbol{V}_{1}\colon\boldsymbol{S} & =\boldsymbol{\delta}^{\perp}\cdot\boldsymbol{W}.\boldsymbol{\delta}^{\perp}+\frac{1}{2}\left(\hat{\boldsymbol{b}}\cdot\boldsymbol{W}.\hat{\boldsymbol{b}}\right)\boldsymbol{\delta}^{\perp}\\
+\boldsymbol{V}_{2}\colon\boldsymbol{S} & =\boldsymbol{\delta}^{\perp}\cdot\boldsymbol{W}.\boldsymbol{B}+\boldsymbol{B}\cdot\boldsymbol{W}.\boldsymbol{\delta}^{\perp}\\
+\boldsymbol{V}_{3}\colon\boldsymbol{S} & =\frac{1}{2}\left(\boldsymbol{\delta}^{\perp}\cdot\boldsymbol{W}.\boldsymbol{\beta}-\boldsymbol{\beta}\cdot\boldsymbol{W}.\boldsymbol{\delta}^{\perp}\right)\\
+\boldsymbol{V}_{4}\colon\boldsymbol{S} & =\boldsymbol{B}\cdot\boldsymbol{W}.\boldsymbol{\beta}-\boldsymbol{\beta}\cdot\boldsymbol{W}.\boldsymbol{B}\\
+\boldsymbol{W} & =2\left(\boldsymbol{S}-\frac{1}{3}\nabla\cdot\boldsymbol{u}\boldsymbol{I}\right)\\
+\boldsymbol{S} & =\frac{1}{2}\left[\nabla\boldsymbol{u}+\left(\nabla\boldsymbol{u}\right)^{T}\right]\\
+\boldsymbol{B} & =\hat{\boldsymbol{b}}\hat{\boldsymbol{b}}=b_{i}b_{j}\\
+\boldsymbol{\delta}^{\perp} & =\boldsymbol{I}-\boldsymbol{B}=\delta_{ij}^{\perp}\\
+\boldsymbol{\beta} & =-\epsilon_{ijk}\cdot b_{j}\\
+\hat{\boldsymbol{b}} & =\nicefrac{\boldsymbol{B}}{\left|\boldsymbol{B}\right|}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where (cgs units, quasi-neutral, 
+\begin_inset Formula $\nicefrac{m_{e}}{m_{i}}\ll1$
+\end_inset
+
+)
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\mu_{0}^{i} & =0.96n_{i}T_{i}\tau_{i}, & \mu_{0}^{e} & =0.733n_{e}T_{e}\tau_{e},\\
+\mu_{2}^{i} & =\frac{n_{i}T_{i}\tau_{i}}{\Delta}\left(\frac{6}{5}x^{2}+2.23\right) & \mu_{2}^{e} & =\frac{n_{e}T_{e}\tau_{e}}{\Delta}\left(2.05x^{2}+8.5\right)\\
+\mu_{4}^{i} & =\frac{n_{i}T_{i}\tau_{i}x}{\Delta}\left(x^{2}+2.38\right) & \mu_{4}^{e} & =-\frac{n_{e}T_{e}\tau_{e}x}{\Delta}\left(x^{2}+7.91\right)\\
+\mu_{1}^{i} & =\mu_{2}^{i}\left(2x\right) & \mu_{1}^{e} & =\mu_{2}^{e}\left(2x\right)\\
+\mu_{3}^{i} & =\mu_{4}^{i}\left(2x\right) & \mu_{3}^{e} & =\mu_{4}^{e}\left(2x\right)\\
+x & =\omega_{i}\tau_{i} & x & =\omega_{e}\tau_{e}\\
+\Delta & =x^{4}+4.03x^{2}+2.33 & \Delta & =x^{4}+13.8x^{2}+11.6\\
+\omega_{i} & =\frac{ZeB}{m_{i}c} & \omega_{e} & =\frac{eB}{m_{e}c}\\
+\begin{tabular}{c}
+ \tau_{i}\end{tabular} & =\frac{3\sqrt{m_{i}}T_{i}^{\nicefrac{3}{2}}}{4\sqrt{\pi}\lambda e^{4}Z^{4}n_{i}} & \begin{tabular}{c}
+ \tau_{e}\end{tabular} & =\frac{3\sqrt{m_{e}}T_{e}^{\nicefrac{3}{2}}}{4\sqrt{2\pi}\lambda e^{4}Z^{2}n_{i}}\\
+\lambda & =\begin{cases}
+23.4-1.15\log n+3.45\log T_{e}, & T_{e}<50eV,\\
+25.3-1.15\log n+2.3\log T_{e}, & T_{e}>50eV
+\end{cases}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+TODO: magnetised heat flux terms
+\end_layout
+
+\begin_layout Section
+Non-dimensionalizations 
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Non-dimensionalizations"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Interaction parameter
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\beta= & \frac{p}{\nicefrac{B^{2}}{2\mu_{0}}}=\frac{2\mu_{0}p}{B^{2}}\\
+= & \left[\frac{\mu_{0}m_{0}n_{0}u_{0}^{2}}{B_{0}^{2}}\right]\frac{2\hat{p}}{\hat{B}^{2}}\\
+= & \left[\frac{\mu_{0}m_{0}n_{0}u_{0}^{2}\beta_{0}}{2\mu_{0}n_{0}m_{0}u_{0}^{2}}\right]\frac{2\hat{p}}{\hat{B}^{2}}\\
+= & \left[\frac{\beta_{0}}{2}\right]\frac{2\hat{p}}{\hat{B}^{2}}\\
+\beta= & \frac{\beta_{0}\hat{p}}{\hat{B}^{2}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Alfven speed
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+v_{A,x}=\sqrt{\frac{B_{x}^{2}}{\mu_{0}\rho}+\frac{p_{\perp}-p_{\parallel}}{\rho}b_{x}^{2}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $\rho=\sum_{\alpha}\rho_{\alpha}$
+\end_inset
+
+, 
+\begin_inset Formula $p_{\perp}=\sum_{\alpha}p_{\alpha}^{\perp}$
+\end_inset
+
+, 
+\begin_inset Formula $p_{\parallel}=\sum_{\alpha}p_{\alpha}^{\parallel}$
+\end_inset
+
+ and 
+\begin_inset Formula $\boldsymbol{b}=\boldsymbol{B}/\left|\boldsymbol{B}\right|$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\beta_{0}\equiv\frac{2\mu_{0}n_{0}m_{0}u_{0}^{2}}{B_{0}^{2}}.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+v_{A} & =\sqrt{\frac{B^{2}}{\mu_{0}\rho}+\frac{p_{\perp}-p_{\parallel}}{\rho}b^{2}}\\
+\left[\frac{u_{0}^{2}}{1}\right]\hat{v}_{A}^{2} & =\left[\frac{B_{0}^{2}}{\mu_{0}\rho_{0}}\right]\frac{\hat{B}^{2}}{\hat{\rho}}+\left[\frac{p_{0}}{\rho_{0}}\right]\frac{\hat{p}_{\perp}-\hat{p}_{\parallel}}{\hat{\rho}}b^{2}\\
+\hat{v}_{A}^{2} & =\left[\frac{B_{0}^{2}}{\mu_{0}\rho_{0}u_{0}^{2}}\right]\frac{\hat{B}^{2}}{\hat{\rho}}+\left[\frac{p_{0}}{\rho_{0}u_{0}^{2}}\right]\frac{\hat{p}_{\perp}-\hat{p}_{\parallel}}{\hat{\rho}}b^{2}\\
+\hat{v}_{A}^{2} & =\frac{2}{\beta_{0}}\frac{\hat{B}^{2}}{\hat{\rho}}+\frac{\hat{p}_{\perp}-\hat{p}_{\parallel}}{\hat{\rho}}b^{2}\\
+\hat{v}_{A}^{2} & =\frac{2\hat{B}^{2}}{\beta_{0}\hat{\rho}}+\frac{b^{2}}{\hat{\rho}}\left(\hat{p}_{\perp}-\hat{p}_{\parallel}\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Plasma length scales
+\end_layout
+
+\begin_layout Subsubsection
+Reference
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+d_{D,0}= & \sqrt{\frac{\epsilon_{0}k_{B}T_{0}}{n_{0}q_{0}^{2}}}=\sqrt{\frac{u_{0}^{2}\epsilon_{0}m_{0}}{n_{0}q_{0}^{2}}}=\sqrt{\frac{u_{0}^{2}m_{0}}{c^{2}\mu_{0}n_{0}q_{0}^{2}}},\\
+d_{L,0}= & \frac{u_{0}m_{0}}{q_{0}B_{0}},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\hat{d}_{D,0}= & \frac{d_{D,0}}{x_{0}}, & \hat{d}_{L,0}= & \frac{d_{L,0}}{x_{0}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\hat{d}_{L,0}}{\hat{d}_{D,0}^{2}} & =\frac{u_{0}m_{0}}{x_{0}q_{0}B_{0}}\frac{x_{0}^{2}n_{0}q_{0}^{2}}{u_{0}^{2}\epsilon_{0}m_{0}}\\
+\frac{\hat{d}_{L,0}}{\hat{d}_{D,0}^{2}} & =\frac{x_{0}n_{0}q_{0}}{u_{0}\epsilon_{0}B_{0}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+d_{S,0}\equiv & \frac{1}{q_{0}}\sqrt{\frac{m_{0}}{\mu_{0}n_{0}}}=\frac{u_{0}\hat{c}}{q_{0}}\sqrt{\frac{\epsilon_{0}m_{0}}{n_{0}}}=\hat{c}d_{D,0}, & \beta_{0} & \equiv\frac{2\mu_{0}n_{0}m_{0}u_{0}^{2}}{B_{0}^{2}}=\frac{2}{\hat{c}^{2}}\frac{n_{0}m_{0}}{\epsilon_{0}B_{0}^{2}}=2\frac{d_{L,0}^{2}}{d_{S,0}^{2}}.
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\sqrt{\frac{\beta_{0}}{2}}\frac{1}{\hat{d}_{S,0}} & =\sqrt{\frac{\mu_{0}n_{0}m_{0}u_{0}^{2}}{B_{0}^{2}}}\frac{x_{0}q_{0}}{1}\sqrt{\frac{\mu_{0}n_{0}}{m_{0}}}\\
+ & =\sqrt{\frac{\mu_{0}^{2}n_{0}^{2}u_{0}^{2}x_{0}^{2}q_{0}^{2}}{B_{0}^{2}}}\\
+ & =\frac{\mu_{0}n_{0}u_{0}x_{0}q_{0}}{B_{0}}\\
+ & =\frac{n_{0}u_{0}x_{0}q_{0}}{c^{2}\epsilon_{0}B_{0}}\\
+\sqrt{\frac{\beta_{0}}{2}}\frac{1}{\hat{d}_{S,0}} & =\frac{1}{\hat{c}^{2}}\frac{n_{0}x_{0}q_{0}}{u_{0}\epsilon_{0}B_{0}}\\
+\sqrt{\frac{\beta_{0}}{2}}\frac{\hat{c}^{2}}{\hat{d}_{S,0}} & =\frac{n_{0}x_{0}q_{0}}{u_{0}\epsilon_{0}B_{0}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\beta_{0} & =2\frac{d_{L,0}^{2}}{d_{S,0}^{2}}.\\
+d_{L,0}^{2} & =d_{S,0}^{2}\frac{\beta_{0}}{2}\\
+d_{L,0} & =d_{S,0}\sqrt{\frac{\beta_{0}}{2}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Larmor
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+d_{L,\alpha}= & \frac{u_{\alpha\perp}m_{\alpha}}{\left|q_{\alpha}\right|B},\\
+\left[x_{0}\right]\hat{d}_{L,\alpha}= & \left[\frac{u_{0}m_{0}}{q_{0}B_{0}}\right]\frac{\hat{u}_{\alpha\perp}\hat{m}_{\alpha}}{\left|\hat{q}_{\alpha}\right|\hat{B}},\\
+\hat{d}_{L,\alpha}= & \left[\frac{u_{0}m_{0}}{q_{0}B_{0}x_{0}}\right]\frac{\hat{u}_{\alpha\perp}\hat{m}_{\alpha}}{\left|\hat{q}_{\alpha}\right|\hat{B}},\\
+\hat{d}_{L,\alpha}= & \hat{d}_{L,0}\frac{\hat{u}_{\alpha\perp}\hat{m}_{\alpha}}{\left|\hat{q}_{\alpha}\right|\hat{B}},\\
+\hat{d}_{L,\alpha}= & \hat{c}\hat{d}_{D,0}\frac{\hat{u}_{\alpha\perp}\hat{m}_{\alpha}}{\left|\hat{q}_{\alpha}\right|}\sqrt{\frac{\beta}{2\hat{p}}},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Debye
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+d_{D,\alpha} & =\sqrt{\frac{\epsilon_{0}k_{B}T_{\alpha}}{n_{\alpha}q_{\alpha}^{2}}}\\
+\left[x_{0}^{2}\right]\hat{d}_{D,\alpha}^{2} & =\left[\frac{\epsilon_{0}k_{B}T_{0}}{n_{0}q_{0}^{2}}\right]\frac{\hat{T}_{\alpha}}{\hat{n}_{\alpha}\hat{q}_{\alpha}^{2}}\\
+\hat{d}_{D,\alpha}^{2} & =\left[\frac{\epsilon_{0}k_{B}T_{0}}{x_{0}^{2}n_{0}q_{0}^{2}}\right]\frac{\hat{T}_{\alpha}}{\hat{n}_{\alpha}\hat{q}_{\alpha}^{2}}\\
+\hat{d}_{D,\alpha}^{2} & =\hat{d}_{D,0}^{2}\frac{\hat{T}_{\alpha}}{\hat{n}_{\alpha}\hat{q}_{\alpha}^{2}}\\
+\hat{d}_{D,\alpha} & =\hat{d}_{D,0}\sqrt{\frac{\hat{T}_{\alpha}}{\hat{n}_{\alpha}\hat{q}_{\alpha}^{2}}}\\
+\hat{d}_{D,\alpha} & =\frac{\hat{d}_{D,0}}{\hat{n}_{\alpha}\hat{q}_{\alpha}}\sqrt{\hat{p}_{\alpha}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Skin depth
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+d_{S,\alpha} & =\frac{1}{q_{\alpha}}\sqrt{\frac{m_{\alpha}}{\mu_{0}n_{\alpha}}},\\
+\left[x_{0}\right]\hat{d}_{S,\alpha} & =\left[\frac{1}{q_{0}}\right]\frac{1}{\hat{q}_{\alpha}}\sqrt{\left[\frac{m_{0}}{\mu_{0}n_{0}}\right]\frac{\hat{m}_{\alpha}}{\hat{n}_{\alpha}}},\\
+\hat{d}_{S,\alpha}^{2} & =\left[\frac{m_{0}}{q_{0}^{2}x_{0}^{2}\mu_{0}n_{0}}\right]\frac{\hat{m}_{\alpha}}{\hat{n}_{\alpha}\hat{q}_{\alpha}^{2}},\\
+\hat{d}_{S,\alpha}^{2} & =\left[\frac{m_{0}\epsilon_{0}c_{0}^{2}}{q_{0}^{2}x_{0}^{2}n_{0}}\right]\frac{\hat{m}_{\alpha}}{\hat{n}_{\alpha}\hat{q}_{\alpha}^{2}},\\
+\hat{d}_{S,\alpha}^{2} & =\left[\frac{m_{0}\epsilon_{0}u_{0}^{2}}{q_{0}^{2}x_{0}^{2}n_{0}}\right]\frac{\hat{c}^{2}\hat{m}_{\alpha}}{\hat{n}_{\alpha}\hat{q}_{\alpha}^{2}},\\
+\hat{d}_{S,\alpha}^{2} & =\hat{d}_{D,0}^{2}\frac{\hat{c}^{2}\hat{m}_{\alpha}}{\hat{n}_{\alpha}\hat{q}_{\alpha}^{2}},\\
+\hat{d}_{S,\alpha}^{2} & =\frac{\hat{d}_{S,0}^{2}\hat{m}_{\alpha}}{\hat{n}_{\alpha}\hat{q}_{\alpha}^{2}},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Frequencies
+\end_layout
+
+\begin_layout Subsubsection
+Plasma 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\omega_{p} & =\sqrt{\frac{nq^{2}}{\epsilon_{0}m}}\\
+\left[\frac{u_{0}^{2}}{x_{0}^{2}}\right]\hat{\omega}_{p}^{2} & =\left[\frac{n_{0}q_{0}^{2}}{\epsilon_{0}m_{0}}\right]\frac{\hat{n}\hat{q}^{2}}{\hat{m}}\\
+\hat{\omega}_{p}^{2} & =\left[\frac{x_{0}^{2}n_{0}q_{0}^{2}}{u_{0}^{2}\epsilon_{0}m_{0}}\right]\frac{\hat{n}\hat{q}^{2}}{\hat{m}}\\
+\hat{\omega}_{p}^{2} & =\frac{\hat{n}\hat{q}^{2}}{\hat{d}_{D,0}^{2}\hat{m}}\\
+\hat{\omega}_{p}^{2} & =\frac{\hat{c}^{2}\hat{n}\hat{q}^{2}}{\hat{d}_{S,0}^{2}\hat{m}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Cyclotron
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\omega_{c}= & \frac{qB}{m}\\
+\left[\frac{u_{0}}{x_{0}}\right]\hat{\omega}_{c}= & \left[\frac{q_{0}B_{0}}{m_{0}}\right]\frac{\hat{q}\hat{B}}{\hat{m}}\\
+\hat{\omega}_{c}= & \left[\frac{x_{0}q_{0}B_{0}}{u_{0}m_{0}}\right]\frac{\hat{q}\hat{B}}{\hat{m}}\\
+\hat{\omega}_{c}= & \frac{\hat{q}\hat{B}}{\hat{d}_{L,0}\hat{m}}\\
+\hat{\omega}_{c}= & \frac{\hat{q}\hat{B}}{d_{S,0}\hat{m}}\sqrt{\frac{2}{\beta_{0}}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Collisional
+\end_layout
+
+\begin_layout Subsection
+Viscosity
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\mu\rightarrow\frac{kg}{ms}$
+\end_inset
+
+, 
+\begin_inset Formula $c_{1}\rightarrow\frac{kg}{msK^{\nicefrac{1}{2}}}$
+\end_inset
+
+, 
+\begin_inset Formula $C_{2}\rightarrow K$
+\end_inset
+
+, 
+\begin_inset Formula $\mathrm{Re}_{0}=\frac{\rho_{0}u_{0}x_{0}}{\mu_{0}}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\mu & =\frac{C_{1}T^{\nicefrac{3}{2}}}{T+C_{2}}\\
+\left[\frac{\rho_{0}x_{0}u_{0}}{1}\right]\hat{\mu} & =\left[\frac{\rho_{0}x_{0}u_{0}}{T_{0}^{\nicefrac{1}{2}}}\frac{T_{0}^{\nicefrac{3}{2}}}{T_{0}}\right]\frac{\hat{C}_{1}\hat{T}^{\nicefrac{3}{2}}}{\hat{T}+\hat{C}_{2}}\\
+\hat{\mu} & =\frac{\hat{C}_{1}\hat{T}^{\nicefrac{3}{2}}}{\hat{T}+\hat{C}_{2}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\mu & =\mu_{0}\left(\frac{T}{T_{0}}\right)^{\nicefrac{3}{2}}\frac{T_{0}+S}{T+S}\\
+\hat{\mu} & =\hat{\mu}_{0}\left(\frac{\hat{T}}{\hat{T}_{0}}\right)^{\nicefrac{3}{2}}\frac{\hat{T}_{0}+\hat{S}}{\hat{T}+\hat{S}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\mu & =\mu_{0}\left(\frac{T}{T_{0}}\right)^{n}\\
+\left[\frac{\rho_{0}x_{0}u_{0}}{1}\right]\hat{\mu} & =\left[\frac{\rho_{0}x_{0}u_{0}}{1}\frac{T_{0}^{n}}{T_{0}^{n}}\right]\hat{\mu}_{0}\left(\frac{\hat{T}}{\hat{T}_{0}}\right)^{n}\\
+\hat{\mu} & =\hat{\mu}_{0}\left(\frac{\hat{T}}{\hat{T}_{0}}\right)^{n}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\hat{\mu}_{0}=\frac{\mu_{0}}{\rho_{0}x_{0}u_{0}}=\frac{1}{\mathrm{Re}_{0}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float table
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Properties of common gases at 1atm and 
+\begin_inset Formula $20^{\circ}$
+\end_inset
+
+C
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="4" columns="3">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Gas
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\mu_{0}\times10^{6}$
+\end_inset
+
+, 
+\begin_inset Formula $\frac{Ns}{m^{2}}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+power-law exponent, n
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\mathrm{H}_{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+9.05
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.68
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+He
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+19.7
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.67
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Ar
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+22.4
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0.72
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Heat flux
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\boldsymbol{h} & =-\kappa\nabla T,\\
+\kappa & =c_{p}\frac{\mu}{\mathrm{Pr}},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $c_{p}\rightarrow\frac{m^{2}}{s^{2}K}$
+\end_inset
+
+, 
+\begin_inset Formula $\kappa\rightarrow\frac{kgm}{s^{3}K}$
+\end_inset
+
+, 
+\begin_inset Formula $\boldsymbol{h}\rightarrow\frac{kg}{s^{3}}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\kappa & =c_{p}\frac{\mu}{\mathrm{Pr}},\\
+\left[\frac{m_{0}u_{0}^{3}x_{0}}{x_{0}^{3}T_{0}}\right]\hat{\kappa} & =\left[\frac{x_{0}^{2}u_{0}^{2}}{x_{0}^{2}T_{0}}\frac{m_{0}u_{0}}{x_{0}^{2}}\right]\hat{c}_{p}\frac{\hat{\mu}}{\mathrm{Pr}}\\
+\hat{\kappa} & =\hat{c}_{p}\frac{\hat{\mu}}{\mathrm{Pr}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Collision frequency
+\end_layout
+
+\begin_layout Subsubsection
+Charged
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\nu_{\alpha\beta}= & \frac{\sqrt{2}n_{\beta}Z_{\alpha}^{2}Z_{\beta}^{2}e^{4}\text{ln}\varLambda_{\alpha\beta}}{12\pi^{\nicefrac{3}{2}}\epsilon_{0}^{2}m_{\alpha\beta}m_{\alpha}}\left[\left(\frac{2}{9\pi}\right)^{\nicefrac{1}{3}}\left(\boldsymbol{u}_{\alpha}-\boldsymbol{u}_{\beta}\right)\cdot\left(\boldsymbol{u}_{\alpha}-\boldsymbol{u}_{\beta}\right)+\frac{k_{B}T_{\alpha}}{m_{\alpha}}+\frac{k_{B}T_{\beta}}{m_{\beta}}\right]^{-\nicefrac{3}{2}}\\
+\left[\frac{u_{0}}{x_{0}}\right]\hat{\nu}_{\alpha\beta}= & \left[\frac{n_{0}q_{0}^{4}}{\epsilon_{0}^{2}m_{0}^{2}}\right]\frac{\sqrt{2}\hat{n}_{\beta}\hat{q}_{\alpha}^{2}\hat{q}_{\beta}^{2}\text{ln}\varLambda_{\alpha\beta}}{12\pi^{\nicefrac{3}{2}}\hat{m}_{\alpha\beta}\hat{m}_{\alpha}}\left[\left[u_{0}^{2}\right]\left(\left(\frac{2}{9\pi}\right)^{\nicefrac{1}{3}}\left(\hat{\boldsymbol{u}}_{\alpha}-\hat{\boldsymbol{u}}_{\beta}\right)\cdot\left(\hat{\boldsymbol{u}}_{\alpha}-\hat{\boldsymbol{u}}_{\beta}\right)+\frac{\hat{T}_{\alpha}}{\hat{m}_{\alpha}}+\frac{\hat{T}_{\beta}}{\hat{m}_{\beta}}\right)\right]^{-\nicefrac{3}{2}}\\
+\left[\frac{u_{0}}{x_{0}}\right]\hat{\nu}_{\alpha\beta}= & \left[\frac{n_{0}q_{0}^{4}}{\epsilon_{0}^{2}m_{0}^{2}u_{0}^{3}}\right]\frac{\sqrt{2}\hat{n}_{\beta}\hat{q}_{\alpha}^{2}\hat{q}_{\beta}^{2}\text{ln}\varLambda_{\alpha\beta}}{12\pi^{\nicefrac{3}{2}}\hat{m}_{\alpha\beta}\hat{m}_{\alpha}}\left[\left(\frac{2}{9\pi}\right)^{\nicefrac{1}{3}}\left(\hat{\boldsymbol{u}}_{\alpha}-\hat{\boldsymbol{u}}_{\beta}\right)\cdot\left(\hat{\boldsymbol{u}}_{\alpha}-\hat{\boldsymbol{u}}_{\beta}\right)+\frac{\hat{T}_{\alpha}}{\hat{m}_{\alpha}}+\frac{\hat{T}_{\beta}}{\hat{m}_{\beta}}\right]^{-\nicefrac{3}{2}}\\
+\hat{\nu}_{\alpha\beta}= & \left[\frac{n_{0}q_{0}^{4}x_{0}}{\epsilon_{0}^{2}m_{0}^{2}u_{0}^{4}}\right]\frac{\sqrt{2}\hat{n}_{\beta}\hat{q}_{\alpha}^{2}\hat{q}_{\beta}^{2}\text{ln}\varLambda_{\alpha\beta}}{12\pi^{\nicefrac{3}{2}}\hat{m}_{\alpha\beta}\hat{m}_{\alpha}}\left[\left(\frac{2}{9\pi}\right)^{\nicefrac{1}{3}}\left(\hat{\boldsymbol{u}}_{\alpha}-\hat{\boldsymbol{u}}_{\beta}\right)\cdot\left(\hat{\boldsymbol{u}}_{\alpha}-\hat{\boldsymbol{u}}_{\beta}\right)+\frac{\hat{T}_{\alpha}}{\hat{m}_{\alpha}}+\frac{\hat{T}_{\beta}}{\hat{m}_{\beta}}\right]^{-\nicefrac{3}{2}}\\
+\hat{\nu}_{\alpha\beta}= & \left[\frac{1}{n_{0}x_{0}^{3}}\right]\frac{1}{\hat{d}_{D,0}^{4}}\frac{\sqrt{2}\hat{n}_{\beta}\hat{q}_{\alpha}^{2}\hat{q}_{\beta}^{2}\text{ln}\varLambda_{\alpha\beta}}{12\pi^{\nicefrac{3}{2}}\hat{m}_{\alpha\beta}\hat{m}_{\alpha}}\left[\left(\frac{2}{9\pi}\right)^{\nicefrac{1}{3}}\left(\hat{\boldsymbol{u}}_{\alpha}-\hat{\boldsymbol{u}}_{\beta}\right)\cdot\left(\hat{\boldsymbol{u}}_{\alpha}-\hat{\boldsymbol{u}}_{\beta}\right)+\frac{\hat{T}_{\alpha}}{\hat{m}_{\alpha}}+\frac{\hat{T}_{\beta}}{\hat{m}_{\beta}}\right]^{-\nicefrac{3}{2}}\\
+\hat{\nu}_{\alpha\beta}= & \frac{1}{\hat{n}_{0}\hat{d}_{D,0}^{4}}\frac{\sqrt{2}\hat{n}_{\beta}\hat{q}_{\alpha}^{2}\hat{q}_{\beta}^{2}\text{ln}\varLambda_{\alpha\beta}}{12\pi^{\nicefrac{3}{2}}\hat{m}_{\alpha\beta}\hat{m}_{\alpha}}\left[\left(\frac{2}{9\pi}\right)^{\nicefrac{1}{3}}\left(\hat{\boldsymbol{u}}_{\alpha}-\hat{\boldsymbol{u}}_{\beta}\right)\cdot\left(\hat{\boldsymbol{u}}_{\alpha}-\hat{\boldsymbol{u}}_{\beta}\right)+\frac{\hat{T}_{\alpha}}{\hat{m}_{\alpha}}+\frac{\hat{T}_{\beta}}{\hat{m}_{\beta}}\right]^{-\nicefrac{3}{2}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\hat{d}_{D,0} & =\frac{1}{x_{0}}\sqrt{\frac{u_{0}^{2}\epsilon_{0}m_{0}}{n_{0}q_{0}^{2}}}\\
+\hat{d}_{D,0}^{4} & =\frac{u_{0}^{4}\epsilon_{0}^{2}m_{0}^{2}}{x_{0}^{4}n_{0}^{2}q_{0}^{4}}\\
+\frac{n_{0}q_{0}^{4}x_{0}}{\epsilon_{0}^{2}m_{0}^{2}u_{0}^{4}}= & \frac{1}{n_{0}x_{0}^{3}}\frac{x_{0}^{4}n_{0}^{2}q_{0}^{4}}{u_{0}^{4}\epsilon_{0}^{2}m_{0}^{2}}\\
+\frac{n_{0}q_{0}^{4}x_{0}}{\epsilon_{0}^{2}m_{0}^{2}u_{0}^{4}} & =\frac{1}{\hat{n}_{0}\hat{d}_{D,0}^{4}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Neutral
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\nu_{\alpha\beta} & =\frac{4}{3}\frac{n_{\beta}m_{\beta}\sigma_{\alpha\beta}}{m_{\alpha}+m_{\beta}}\sqrt{\frac{8k_{B}T_{\alpha}}{\pi m_{\alpha}}+\frac{8k_{B}T_{\beta}}{\pi m_{\beta}}}\\
+\left[\frac{u_{0}}{x_{0}}\right]\hat{\nu}_{\alpha\beta} & =\left[\frac{n_{0}m_{0}x_{0}^{2}}{m_{0}}\right]\frac{4}{3}\frac{\hat{n}_{\beta}\hat{m}_{\beta}\hat{\sigma}_{\alpha\beta}}{\hat{m}_{\alpha}+\hat{m}_{\beta}}\sqrt{\left[u_{0}^{2}\right]\frac{8}{\pi}\left(\frac{\hat{T}_{\alpha}}{\hat{m}_{\alpha}}+\frac{\hat{T}_{\beta}}{\hat{m}_{\beta}}\right)}\\
+\left[\frac{u_{0}}{x_{0}}\right]\hat{\nu}_{\alpha\beta} & =\left[\frac{n_{0}x_{0}^{2}u_{0}}{1}\right]\frac{4}{3}\frac{\hat{n}_{\beta}\hat{m}_{\beta}\hat{\sigma}_{\alpha\beta}}{\hat{m}_{\alpha}+\hat{m}_{\beta}}\sqrt{\left[u_{0}^{2}\right]\frac{8}{\pi}\left(\frac{\hat{T}_{\alpha}}{\hat{m}_{\alpha}}+\frac{\hat{T}_{\beta}}{\hat{m}_{\beta}}\right)}\\
+\hat{\nu}_{\alpha\beta} & =\left[\frac{n_{0}x_{0}^{3}}{1}\right]\frac{4}{3}\frac{\hat{n}_{\beta}\hat{m}_{\beta}\hat{\sigma}_{\alpha\beta}}{\hat{m}_{\alpha}+\hat{m}_{\beta}}\sqrt{\left[u_{0}^{2}\right]\frac{8}{\pi}\left(\frac{\hat{T}_{\alpha}}{\hat{m}_{\alpha}}+\frac{\hat{T}_{\beta}}{\hat{m}_{\beta}}\right)}\\
+\hat{\nu}_{\alpha\beta} & =\frac{4}{3}\frac{\hat{n}_{0}\hat{n}_{\beta}\hat{m}_{\beta}\hat{\sigma}_{\alpha\beta}}{\hat{m}_{\alpha}+\hat{m}_{\beta}}\sqrt{\frac{8}{\pi}\left(\frac{\hat{T}_{\alpha}}{\hat{m}_{\alpha}}+\frac{\hat{T}_{\beta}}{\hat{m}_{\beta}}\right)}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Friction force
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\boldsymbol{R}_{\alpha}^{\alpha\beta} & =m_{\alpha}n_{\alpha}\nu_{\alpha\beta}\left(\boldsymbol{u}_{\beta}-\boldsymbol{u}_{\alpha}\right)\\
+\boldsymbol{R}_{\alpha}^{\alpha\beta} & =\left[\frac{m_{0}n_{0}u_{0}^{2}}{x_{0}}\right]\hat{m}_{\alpha}\hat{n}_{\alpha}\hat{\nu}_{\alpha\beta}\left(\hat{\boldsymbol{u}}_{\beta}-\hat{\boldsymbol{u}}_{\alpha}\right)\\
+\hat{\boldsymbol{R}}_{\alpha}^{\alpha\beta} & =\hat{m}_{\alpha}\hat{n}_{\alpha}\hat{\nu}_{\alpha\beta}\left(\hat{\boldsymbol{u}}_{\beta}-\hat{\boldsymbol{u}}_{\alpha}\right)=\boldsymbol{R}_{\alpha}^{\alpha\beta}\left[\frac{x_{0}}{\rho_{0}u_{0}^{2}}\right]
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Evolution equations
+\end_layout
+
+\begin_layout Subsection
+Mass
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\rho_{\alpha}}{\partial t}+\nabla\cdot\left(\rho_{\alpha}\mathbf{u}_{\alpha}\right)= & S_{\alpha}\\
+\left[\frac{\rho_{0}u_{0}}{x_{0}}\right]\frac{\partial\hat{\rho}_{\alpha}}{\partial\hat{t}}+\left[\frac{\rho_{0}u_{0}}{x_{0}}\right]\hat{\nabla}\cdot\left(\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}\right)= & \left[\frac{\rho_{0}u_{0}}{x_{0}}\right]S_{\alpha}\\
+\frac{\partial\hat{\rho}_{\alpha}}{\partial\hat{t}}+\hat{\nabla}\cdot\left(\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}\right)= & S_{\alpha}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Momentum
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\rho_{\alpha}\mathbf{u}_{\alpha}}{\partial t}+\nabla\cdot\left(\rho_{\alpha}\boldsymbol{u}_{\alpha}\otimes\boldsymbol{u}_{\alpha}+\mathbb{P}_{\alpha}\right)= & n_{\alpha}q_{\alpha}\left(\mathbf{E}+\mathbf{u}_{\alpha}\times\mathbf{B}\right)+\sum_{\beta}\boldsymbol{R}_{\alpha}^{\alpha\beta}+\rho_{\alpha}g\\
+= & \frac{\rho_{\alpha}q_{\alpha}}{m_{\alpha}}\left(\mathbf{E}+\mathbf{u}_{\alpha}\times\mathbf{B}\right)+\sum_{\beta}\boldsymbol{R}_{\alpha}^{\alpha\beta}+\rho_{\alpha}g\\
+\left[\frac{\rho_{0}u_{0}^{2}}{x_{0}}\right]\frac{\partial\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}}{\partial\hat{t}}+\left[\frac{\rho_{0}u_{0}^{2}}{x_{0}}\right]\hat{\nabla}\cdot\left(\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}\otimes\hat{\mathbf{u}}_{\alpha}+\hat{\mathbb{P}}_{\alpha}\right)= & \left[\frac{\rho_{0}q_{0}}{m_{0}}\right]\frac{\hat{\rho}_{\alpha}\hat{q}_{\alpha}}{\hat{m}_{\alpha}}\left(\left[cB_{0}\right]\hat{\mathbf{E}}+\left[u_{0}B_{0}\right]\hat{\mathbf{u}}_{\alpha}\times\hat{\mathbf{B}}\right)+\left[\frac{\rho_{0}u_{0}^{2}}{x_{0}}\right]\left(\sum_{\beta}\hat{\boldsymbol{R}}_{\alpha}^{\alpha\beta}+\hat{\rho}_{\alpha}\hat{g}\right)\\
+\left[\frac{\rho_{0}u_{0}^{2}}{x_{0}}\right]\frac{\partial\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}}{\partial\hat{t}}+\left[\frac{\rho_{0}u_{0}^{2}}{x_{0}}\right]\hat{\nabla}\cdot\left(\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}\otimes\hat{\mathbf{u}}_{\alpha}+\hat{\mathbb{P}}_{\alpha}\right)= & \left[\frac{\rho_{0}q_{0}}{m_{0}}\right]\frac{\hat{\rho}_{\alpha}\hat{q}_{\alpha}}{\hat{m}_{\alpha}}\left(\left[u_{0}B_{0}\right]\hat{c}\hat{\mathbf{E}}+\left[u_{0}B_{0}\right]\hat{\mathbf{u}}_{\alpha}\times\hat{\mathbf{B}}\right)+\left[\frac{\rho_{0}u_{0}^{2}}{x_{0}}\right]\left(\sum_{\beta}\hat{\boldsymbol{R}}_{\alpha}^{\alpha\beta}+\hat{\rho}_{\alpha}\hat{g}\right)\\
+\left[\frac{\rho_{0}u_{0}^{2}}{x_{0}}\right]\frac{\partial\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}}{\partial\hat{t}}+\left[\frac{\rho_{0}u_{0}^{2}}{x_{0}}\right]\hat{\nabla}\cdot\left(\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}\otimes\hat{\mathbf{u}}_{\alpha}+\hat{\mathbb{P}}_{\alpha}\right)= & \left[\frac{\rho_{0}u_{0}B_{0}q_{0}}{m_{0}}\right]\frac{\hat{\rho}_{\alpha}\hat{q}_{\alpha}}{\hat{m}_{\alpha}}\left(\hat{c}\hat{\mathbf{E}}+\hat{\mathbf{u}}_{\alpha}\times\hat{\mathbf{B}}\right)+\left[\frac{\rho_{0}u_{0}^{2}}{x_{0}}\right]\left(\sum_{\beta}\hat{\boldsymbol{R}}_{\alpha}^{\alpha\beta}+\hat{\rho}_{\alpha}\hat{g}\right)\\
+\frac{\partial\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}}{\partial\hat{t}}+\hat{\nabla}\cdot\left(\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}\otimes\hat{\mathbf{u}}_{\alpha}+\hat{\mathbb{P}}_{\alpha}\right)= & \left[\frac{x_{0}\rho_{0}u_{0}B_{0}q_{0}}{\rho_{0}u_{0}^{2}m_{0}}\right]\frac{\hat{\rho}_{\alpha}\hat{q}_{\alpha}}{\hat{m}_{\alpha}}\left(\hat{c}\hat{\mathbf{E}}+\hat{\mathbf{u}}_{\alpha}\times\hat{\mathbf{B}}\right)+\sum_{\beta}\hat{\boldsymbol{R}}_{\alpha}^{\alpha\beta}+\hat{\rho}_{\alpha}\hat{g}\\
+\frac{\partial\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}}{\partial\hat{t}}+\hat{\nabla}\cdot\left(\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}\otimes\hat{\mathbf{u}}_{\alpha}+\hat{\mathbb{P}}_{\alpha}\right)= & \left[\frac{x_{0}B_{0}q_{0}}{u_{0}m_{0}}\right]\frac{\hat{\rho}_{\alpha}\hat{q}_{\alpha}}{\hat{m}_{\alpha}}\left(\hat{c}\hat{\mathbf{E}}+\hat{\mathbf{u}}_{\alpha}\times\hat{\mathbf{B}}\right)+\sum_{\beta}\hat{\boldsymbol{R}}_{\alpha}^{\alpha\beta}+\hat{\rho}_{\alpha}\hat{g}\\
+\frac{\partial\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}}{\partial\hat{t}}+\hat{\nabla}\cdot\left(\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}\otimes\hat{\mathbf{u}}_{\alpha}+\hat{\mathbb{P}}_{\alpha}\right)= & \frac{\hat{\rho}_{\alpha}\hat{q}_{\alpha}}{\hat{d}_{L,0}\hat{m}_{\alpha}}\left(\hat{c}\hat{\mathbf{E}}+\hat{\mathbf{u}}_{\alpha}\times\hat{\mathbf{B}}\right)+\sum_{\beta}\hat{\boldsymbol{R}}_{\alpha}^{\alpha\beta}+\hat{\rho}_{\alpha}\hat{g}\\
+\frac{\partial\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}}{\partial\hat{t}}+\hat{\nabla}\cdot\left(\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}\otimes\hat{\mathbf{u}}_{\alpha}+\hat{\mathbb{P}}_{\alpha}\right)= & \frac{\hat{\rho}_{\alpha}\hat{r}_{\alpha}}{\hat{d}_{L,0}}\left(\hat{c}\hat{\mathbf{E}}+\hat{\mathbf{u}}_{\alpha}\times\hat{\mathbf{B}}\right)+\sum_{\beta}\hat{\boldsymbol{R}}_{\alpha}^{\alpha\beta}+\hat{\rho}_{\alpha}\hat{g}\\
+\frac{\partial\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}}{\partial\hat{t}}+\hat{\nabla}\cdot\left(\hat{\rho}_{\alpha}\hat{\mathbf{u}}_{\alpha}\otimes\hat{\mathbf{u}}_{\alpha}+\hat{\mathbb{P}}_{\alpha}\right)= & \sqrt{\frac{2}{\beta_{0}}}\frac{\hat{\rho}_{\alpha}\hat{r}_{\alpha}}{\hat{d}_{S,0}}\left(\hat{c}\hat{\mathbf{E}}+\hat{\mathbf{u}}_{\alpha}\times\hat{\mathbf{B}}\right)+\sum_{\beta}\hat{\boldsymbol{R}}_{\alpha}^{\alpha\beta}+\hat{\rho}_{\alpha}\hat{g},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\mathbb{P}_{\alpha}=\left[\begin{array}{ccc}
+b_{x}^{2}\left(p^{\parallel}-p^{\perp}\right)+p^{\perp} & b_{x}b_{y}\left(p^{\parallel}-p^{\perp}\right) & b_{x}b_{z}\left(p^{\parallel}-p^{\perp}\right)\\
+b_{x}b_{y}\left(p^{\parallel}-p^{\perp}\right) & b_{y}^{2}\left(p^{\parallel}-p^{\perp}\right)+p^{\perp} & b_{y}b_{z}\left(p^{\parallel}-p^{\perp}\right)\\
+b_{x}b_{z}\left(p^{\parallel}-p^{\perp}\right) & b_{y}b_{z}\left(p^{\parallel}-p^{\perp}\right) & b_{z}^{2}\left(p^{\parallel}-p^{\perp}\right)+p^{\perp}
+\end{array}\right]
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Pressure
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial p_{\alpha}^{\parallel}}{\partial t}+\nabla\cdot\left(p_{\alpha}^{\parallel}\boldsymbol{u}_{\alpha}\right) & =-2p_{\alpha}^{\parallel}\boldsymbol{b}\cdot\left(\boldsymbol{b}\cdot\nabla\right)\boldsymbol{u}_{\alpha}+\frac{p_{\alpha}-p_{\alpha}^{\parallel}}{\tau_{\alpha}},\\
+\left[\frac{\rho_{0}u_{0}^{3}}{x_{0}}\right]\frac{\partial\hat{p}_{\alpha}^{\parallel}}{\partial\hat{t}}+\left[\frac{\rho_{0}u_{0}^{3}}{x_{0}}\right]\hat{\nabla}\cdot\left(\hat{p}_{\alpha}^{\parallel}\hat{\boldsymbol{u}}_{\alpha}\right) & =-\left[\frac{\rho_{0}u_{0}^{3}}{x_{0}}\right]2\hat{p}_{\alpha}^{\parallel}\boldsymbol{b}\cdot\left(\boldsymbol{b}\cdot\hat{\nabla}\right)\hat{\boldsymbol{u}}_{\alpha}+\left[\frac{\rho_{0}u_{0}^{3}}{x_{0}}\right]\frac{\hat{p}_{\alpha}-\hat{p}_{\alpha}^{\parallel}}{\hat{\tau}_{\alpha}},\\
+\frac{\partial\hat{p}_{\alpha}^{\parallel}}{\partial\hat{t}}+\hat{\nabla}\cdot\left(\hat{p}_{\alpha}^{\parallel}\hat{\boldsymbol{u}}_{\alpha}\right) & =-2\hat{p}_{\alpha}^{\parallel}\boldsymbol{b}\cdot\left(\boldsymbol{b}\cdot\hat{\nabla}\right)\hat{\boldsymbol{u}}_{\alpha}+\frac{\hat{p}_{\alpha}-\hat{p}_{\alpha}^{\parallel}}{\hat{\tau}_{\alpha}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\left(\boldsymbol{b}\cdot\nabla\right)\boldsymbol{u}= & \boldsymbol{b}\cdot\left(\begin{array}{ccc}
+\frac{\partial u}{\partial x} & \frac{\partial u}{\partial y} & \frac{\partial u}{\partial z}\\
+\frac{\partial v}{\partial x} & \frac{\partial v}{\partial y} & \frac{\partial v}{\partial z}\\
+\frac{\partial w}{\partial x} & \frac{\partial w}{\partial y} & \frac{\partial w}{\partial z}
+\end{array}\right)\\
+\left(\boldsymbol{b}\cdot\nabla\right)\boldsymbol{u}= & \left(\begin{array}{c}
+b_{x}\frac{\partial u}{\partial x}+b_{y}\frac{\partial v}{\partial x}+b_{z}\frac{\partial w}{\partial x}\\
+b_{x}\frac{\partial u}{\partial y}+b_{y}\frac{\partial v}{\partial y}+b_{z}\frac{\partial w}{\partial y}\\
+b_{x}\frac{\partial u}{\partial z}+b_{y}\frac{\partial v}{\partial z}+b_{z}\frac{\partial w}{\partial z}
+\end{array}\right)\\
+\boldsymbol{b}\cdot\left(\boldsymbol{b}\cdot\nabla\right)\boldsymbol{u}= & b_{x}\left(b_{x}\frac{\partial u}{\partial x}+b_{y}\frac{\partial v}{\partial x}+b_{z}\frac{\partial w}{\partial x}\right)+b_{y}\left(b_{x}\frac{\partial u}{\partial y}+b_{y}\frac{\partial v}{\partial y}+b_{z}\frac{\partial w}{\partial y}\right)+b_{z}\left(b_{x}\frac{\partial u}{\partial z}+b_{y}\frac{\partial v}{\partial z}+b_{z}\frac{\partial w}{\partial z}\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Energy
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+Q_{\alpha\beta}^{\text{fric}} & =m_{\alpha\beta}n_{\alpha}\nu_{\alpha\beta}\left(\boldsymbol{u}_{\alpha}-\boldsymbol{u}_{\beta}\right)\cdot\left(\boldsymbol{u}_{\alpha}-\boldsymbol{u}_{\beta}\right),\\
+\left[\frac{\rho_{0}u_{0}^{3}}{x_{0}}\right]\hat{Q}_{\alpha\beta}^{\text{fric}} & =\left[\frac{\rho_{0}u_{0}^{3}}{x_{0}}\right]\hat{m}_{\alpha\beta}\hat{n}_{\alpha}\hat{\nu}_{\alpha\beta}\left(\hat{\boldsymbol{u}}_{\alpha}-\hat{\boldsymbol{u}}_{\beta}\right)\cdot\left(\hat{\boldsymbol{u}}_{\alpha}-\hat{\boldsymbol{u}}_{\beta}\right),\\
+\hat{Q}_{\alpha\beta}^{\text{fric}} & =\hat{m}_{\alpha\beta}\hat{n}_{\alpha}\hat{\nu}_{\alpha\beta}\left(\hat{\boldsymbol{u}}_{\alpha}-\hat{\boldsymbol{u}}_{\beta}\right)\cdot\left(\hat{\boldsymbol{u}}_{\alpha}-\hat{\boldsymbol{u}}_{\beta}\right),
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+Q_{\alpha\beta}^{\text{eq}} & =3m_{\alpha}n_{\alpha}\frac{\nu_{\alpha\beta}}{m_{\alpha}+m_{\beta}}\left(k_{B}T_{\beta}-k_{B}T_{\alpha}\right),\\
+\left[\frac{\rho_{0}u_{0}^{3}}{x_{0}}\right]Q_{\alpha\beta}^{\text{eq}} & =\left[\frac{\rho_{0}u_{0}k_{B}T_{0}}{x_{0}m_{0}}\right]3\hat{m}_{\alpha}\hat{n}_{\alpha}\frac{\hat{\nu}_{\alpha\beta}}{\hat{m}_{\alpha}+\hat{m}_{\beta}}\left(\hat{T}_{\beta}-\hat{T}_{\alpha}\right),\\
+\left[\frac{\rho_{0}u_{0}^{3}}{x_{0}}\right]Q_{\alpha\beta}^{\text{eq}} & =\left[\frac{\rho_{0}u_{0}^{3}}{x_{0}}\right]3\hat{m}_{\alpha}\hat{n}_{\alpha}\frac{\hat{\nu}_{\alpha\beta}}{\hat{m}_{\alpha}+\hat{m}_{\beta}}\left(\hat{T}_{\beta}-\hat{T}_{\alpha}\right),\\
+Q_{\alpha\beta}^{\text{eq}} & =3\hat{m}_{\alpha}\hat{n}_{\alpha}\frac{\hat{\nu}_{\alpha\beta}}{\hat{m}_{\alpha}+\hat{m}_{\beta}}\left(\hat{T}_{\beta}-\hat{T}_{\alpha}\right),
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\epsilon_{\alpha}}{\partial t}+\nabla\cdot\left(\epsilon_{\alpha}\boldsymbol{u}_{\alpha}+\boldsymbol{u}_{\alpha}\cdot\mathbb{P}_{\alpha}+\boldsymbol{h}_{\alpha}\right)= & \boldsymbol{u}_{\alpha}\cdot\left(n_{\alpha}q_{\alpha}\mathbf{E}+\sum_{\beta\neq\alpha}\boldsymbol{R}_{\alpha\beta}+\rho_{\alpha}g\right)+\sum_{\beta\neq\alpha}Q_{\alpha\beta},\\
+\left[\frac{\rho_{0}u_{0}^{3}}{x_{0}}\right]\frac{\partial\hat{\epsilon}_{\alpha}}{\partial\hat{t}}+\left[\frac{\rho_{0}u_{0}^{3}}{x_{0}}\right]\hat{\nabla}\cdot\left(\hat{\epsilon}_{\alpha}\hat{\boldsymbol{u}}_{\alpha}+\hat{\boldsymbol{u}}_{\alpha}\cdot\hat{\mathbb{P}}_{\alpha}+\hat{\boldsymbol{h}}_{\alpha}\right)= & \left[n_{0}q_{0}u_{0}^{2}B_{0}\right]\hat{n}_{\alpha}\hat{q}_{\alpha}\hat{\boldsymbol{u}}_{\alpha}\cdot\hat{\mathbf{E}}+\left[\frac{\rho_{0}u_{0}^{3}}{x_{0}}\right]\hat{\boldsymbol{u}}_{\alpha}\cdot\left(\sum_{\beta\neq\alpha}\hat{\boldsymbol{R}}_{\alpha\beta}+\hat{\rho}_{\alpha}\hat{g}\right)+\left[\frac{\rho_{0}u_{0}^{3}}{x_{0}}\right]\sum_{\beta\neq\alpha}\hat{Q}_{\alpha\beta},\\
+\frac{\partial\hat{\epsilon}_{\alpha}}{\partial\hat{t}}+\hat{\nabla}\cdot\left(\hat{\epsilon}_{\alpha}\hat{\boldsymbol{u}}_{\alpha}+\hat{\boldsymbol{u}}_{\alpha}\cdot\hat{\mathbb{P}}_{\alpha}+\hat{\boldsymbol{h}}_{\alpha}\right)= & \left[\frac{x_{0}n_{0}q_{0}u_{0}^{2}B_{0}}{\rho_{0}u_{0}^{3}}\right]\hat{n}_{\alpha}\hat{q}_{\alpha}\hat{\boldsymbol{u}}_{\alpha}\cdot\hat{\mathbf{E}}+\hat{\boldsymbol{u}}_{\alpha}\cdot\left(\sum_{\beta\neq\alpha}\hat{\boldsymbol{R}}_{\alpha\beta}+\hat{\rho}_{\alpha}\hat{g}\right)+\sum_{\beta\neq\alpha}\hat{Q}_{\alpha\beta},\\
+\frac{\partial\hat{\epsilon}_{\alpha}}{\partial\hat{t}}+\hat{\nabla}\cdot\left(\hat{\epsilon}_{\alpha}\hat{\boldsymbol{u}}_{\alpha}+\hat{\boldsymbol{u}}_{\alpha}\cdot\hat{\mathbb{P}}_{\alpha}+\hat{\boldsymbol{h}}_{\alpha}\right)= & \frac{\hat{n}_{\alpha}\hat{q}_{\alpha}\hat{c}}{\hat{d}_{L,0}}\hat{n}_{\alpha}\hat{q}_{\alpha}\hat{\boldsymbol{u}}_{\alpha}\cdot\hat{\mathbf{E}}+\hat{\boldsymbol{u}}_{\alpha}\cdot\left(\sum_{\beta\neq\alpha}\hat{\boldsymbol{R}}_{\alpha\beta}+\hat{\rho}_{\alpha}\hat{g}\right)+\sum_{\beta\neq\alpha}\hat{Q}_{\alpha\beta},\\
+\frac{\partial\hat{\epsilon}_{\alpha}}{\partial\hat{t}}+\hat{\nabla}\cdot\left(\hat{\epsilon}_{\alpha}\hat{\boldsymbol{u}}_{\alpha}+\hat{\boldsymbol{u}}_{\alpha}\cdot\hat{\mathbb{P}}_{\alpha}+\hat{\boldsymbol{h}}_{\alpha}\right)= & \hat{\boldsymbol{u}}_{\alpha}\cdot\left(\frac{\hat{\rho}_{\alpha}\hat{r}_{\alpha}\hat{c}}{\hat{d}_{L,0}}\hat{\mathbf{E}}+\sum_{\beta\neq\alpha}\hat{\boldsymbol{R}}_{\alpha\beta}+\hat{\rho}_{\alpha}\hat{g}\right)+\sum_{\beta\neq\alpha}\hat{Q}_{\alpha\beta},\\
+\frac{\partial\hat{\epsilon}_{\alpha}}{\partial\hat{t}}+\hat{\nabla}\cdot\left(\hat{\epsilon}_{\alpha}\hat{\boldsymbol{u}}_{\alpha}+\hat{\boldsymbol{u}}_{\alpha}\cdot\hat{\mathbb{P}}_{\alpha}+\hat{\boldsymbol{h}}_{\alpha}\right)= & \hat{\boldsymbol{u}}_{\alpha}\cdot\left(\sqrt{\frac{2}{\beta_{0}}}\frac{\hat{\rho}_{\alpha}\hat{r}_{\alpha}\hat{c}}{\hat{d}_{S,0}}\hat{\mathbf{E}}+\sum_{\beta\neq\alpha}\hat{\boldsymbol{R}}_{\alpha\beta}+\hat{\rho}_{\alpha}\hat{g}\right)+\sum_{\beta\neq\alpha}\hat{Q}_{\alpha\beta},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Electric field update
+\end_layout
+
+\begin_layout Standard
+Reference quantities 
+\begin_inset Formula $D_{0}=\varepsilon_{0}E_{0}$
+\end_inset
+
+, 
+\begin_inset Formula $B_{0}=\mu_{0}H_{0}$
+\end_inset
+
+, 
+\begin_inset Formula $E_{0}=c_{0}B_{0}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $D_{0}=\nicefrac{H_{0}}{c_{0}}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\phi=\hat{\phi}H_{0}$
+\end_inset
+
+, 
+\begin_inset Formula $\psi=\hat{\psi}E_{0}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\boldsymbol{D}}{\partial t}= & \nabla\times\boldsymbol{H}-\boldsymbol{J}-\nabla\phi,\\
+\left[\frac{D_{0}u_{0}}{x_{0}}\right]\frac{\partial\hat{\boldsymbol{D}}}{\partial\hat{t}}= & \left[\frac{H_{0}}{x_{0}}\right]\hat{\nabla}\times\hat{\boldsymbol{H}}-\left[\frac{n_{0}q_{0}u_{0}}{1}\right]\hat{\boldsymbol{J}}-\left[\frac{H_{0}}{x_{0}}\right]\hat{\nabla}\hat{\phi},\\
+\left[\frac{H_{0}u_{0}}{x_{0}c_{0}}\right]\frac{\partial\hat{\boldsymbol{D}}}{\partial\hat{t}}= & \left[\frac{H_{0}}{x_{0}}\right]\hat{\nabla}\times\hat{\boldsymbol{H}}-\left[\frac{n_{0}q_{0}u_{0}}{1}\right]\hat{\boldsymbol{J}}-\left[\frac{H_{0}}{x_{0}}\right]\hat{\nabla}\hat{\phi},\\
+\left[\frac{H_{0}}{x_{0}}\right]\frac{1}{\hat{c}_{0}}\frac{\partial\hat{\boldsymbol{D}}}{\partial\hat{t}}= & \left[\frac{H_{0}}{x_{0}}\right]\hat{\nabla}\times\hat{\boldsymbol{H}}-\left[\frac{n_{0}q_{0}u_{0}}{1}\right]\hat{\boldsymbol{J}}-\left[\frac{H_{0}}{x_{0}}\right]\hat{\nabla}\hat{\phi},\\
+\frac{1}{\hat{c}_{0}}\frac{\partial\hat{\boldsymbol{D}}}{\partial\hat{t}}= & \hat{\nabla}\times\hat{\boldsymbol{H}}-\left[\frac{n_{0}q_{0}u_{0}x_{0}}{H_{0}}\right]\hat{\boldsymbol{J}}-\hat{\nabla}\hat{\phi},\\
+\frac{1}{\hat{c}_{0}}\frac{\partial\hat{\boldsymbol{D}}}{\partial\hat{t}}= & \hat{\nabla}\times\hat{\boldsymbol{H}}-\left[\frac{n_{0}q_{0}x_{0}}{u_{0}\varepsilon_{0}B_{0}}\right]\frac{\hat{\boldsymbol{J}}}{\hat{c}_{0}^{2}}-\hat{\nabla}\hat{\phi},\\
+\frac{1}{\hat{c}_{0}}\frac{\partial\hat{\boldsymbol{D}}}{\partial\hat{t}}= & \hat{\nabla}\times\hat{\boldsymbol{H}}-\frac{\hat{d}_{L,0}}{\hat{d}_{D,0}^{2}}\frac{\hat{\boldsymbol{J}}}{\hat{c}_{0}^{2}}-\hat{\nabla}\hat{\psi}_{D},\\
+\frac{\partial\hat{\boldsymbol{D}}}{\partial\hat{t}}= & \hat{c}_{0}\hat{\nabla}\times\hat{\boldsymbol{H}}-\frac{\hat{d}_{L,0}}{\hat{d}_{D,0}^{2}}\frac{\hat{\boldsymbol{J}}}{\hat{c}_{0}}-\hat{c}_{0}\hat{\nabla}\hat{\phi},\\
+\frac{\partial\hat{\boldsymbol{D}}}{\partial\hat{t}}-\hat{c}_{0}\hat{\nabla}\times\hat{\boldsymbol{H}}= & -\frac{\hat{d}_{L,0}}{\hat{d}_{D,0}^{2}\hat{c}_{0}}\hat{\boldsymbol{J}}-\hat{c}_{0}\hat{\nabla}\hat{\phi},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Magnetic field update
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $D_{0}=\varepsilon_{0}E_{0}$
+\end_inset
+
+, 
+\begin_inset Formula $B_{0}=\mu_{0}H_{0}$
+\end_inset
+
+, 
+\begin_inset Formula $E_{0}=c_{0}B_{0}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\mathbf{B}}{\partial t}+\nabla\times\mathbf{E}= & -\nabla\psi\\
+\left[\frac{B_{0}u_{0}}{x_{0}}\right]\frac{\partial\hat{\mathbf{B}}}{\partial\hat{t}}+\left[\frac{E_{0}}{x_{0}}\right]\hat{\nabla}\times\hat{\mathbf{E}}= & -\left[\frac{E_{0}}{x_{0}}\right]\hat{\nabla}\hat{\psi}\\
+\left[\frac{E_{0}u_{0}}{x_{0}c_{0}}\right]\frac{\partial\hat{\mathbf{B}}}{\partial\hat{t}}+\left[\frac{E_{0}}{x_{0}}\right]\hat{\nabla}\times\hat{\mathbf{E}}= & -\left[\frac{E_{0}}{x_{0}}\right]\hat{\nabla}\hat{\psi}\\
+\left[\frac{E_{0}}{x_{0}}\right]\frac{1}{\hat{c}_{0}}\frac{\partial\hat{\mathbf{B}}}{\partial\hat{t}}+\left[\frac{E_{0}}{x_{0}}\right]\hat{\nabla}\times\hat{\mathbf{E}}= & -\left[\frac{E_{0}}{x_{0}}\right]\hat{\nabla}\hat{\psi}\\
+\frac{1}{\hat{c}_{0}}\frac{\partial\hat{\mathbf{B}}}{\partial\hat{t}}+\hat{\nabla}\times\hat{\mathbf{E}}= & -\hat{\nabla}\hat{\psi}\\
+\frac{\partial\hat{\mathbf{B}}}{\partial\hat{t}}+\hat{c}_{0}\hat{\nabla}\times\hat{\mathbf{E}}= & -\hat{c}_{0}\hat{\nabla}\hat{\psi}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Electric field divergence constraint
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\nabla\cdot\boldsymbol{D}= & \rho_{c},\\
+\left[\frac{D_{0}}{x_{0}}\right]\hat{\nabla}\cdot\hat{\boldsymbol{D}}= & \left[\frac{n_{0}q_{0}}{1}\right]\hat{\rho}_{c},\\
+\hat{\nabla}\cdot\hat{\boldsymbol{D}}= & \left[\frac{x_{0}n_{0}q_{0}}{D_{0}}\right]\hat{\rho}_{c},\\
+\hat{\nabla}\cdot\hat{\boldsymbol{D}}= & \left[\frac{x_{0}n_{0}q_{0}}{\varepsilon_{0}E_{0}}\right]\hat{\rho}_{c},\\
+\hat{\nabla}\cdot\hat{\boldsymbol{D}}= & \left[\frac{x_{0}n_{0}q_{0}}{\varepsilon_{0}c_{0}B_{0}}\right]\hat{\rho}_{c},\\
+\hat{\nabla}\cdot\hat{\boldsymbol{D}}= & \left[\frac{x_{0}n_{0}q_{0}}{\varepsilon_{0}u_{0}B_{0}}\right]\frac{\hat{\rho}_{c}}{\hat{c}_{0}},\\
+\hat{\nabla}\cdot\hat{\boldsymbol{D}}= & \frac{\hat{d}_{L,0}}{\hat{d}_{D,0}^{2}}\frac{\hat{\rho}_{c}}{\hat{c}_{0}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\phi}{\partial t}+c_{h}^{2}\nabla\cdot\boldsymbol{D}= & c_{h}^{2}\rho_{c}-\frac{c_{h}^{2}}{c_{p}^{2}}\phi,\\
+\left[\frac{H_{0}u_{0}}{x_{0}}\right]\frac{\partial\hat{\phi}}{\partial\hat{t}}+\left[\frac{u_{0}^{2}D_{0}}{x_{0}}\right]\hat{c}_{h}^{2}\hat{\nabla}\cdot\hat{\boldsymbol{D}}= & \left[\frac{u_{0}^{2}n_{0}q_{0}}{1}\right]\hat{c}_{h}^{2}\hat{\rho}_{c}-\left[\frac{u_{0}^{2}H_{0}}{u_{0}x_{0}}\right]\frac{\hat{c}_{h}^{2}}{\hat{c}_{p}^{2}}\hat{\phi},\\
+\left[\frac{H_{0}u_{0}}{x_{0}}\right]\frac{\partial\hat{\phi}}{\partial\hat{t}}+\left[\frac{u_{0}^{2}H_{0}}{x_{0}c_{0}}\right]\hat{c}_{h}^{2}\hat{\nabla}\cdot\hat{\boldsymbol{D}}= & \left[\frac{u_{0}^{2}n_{0}q_{0}}{1}\right]\hat{c}_{h}^{2}\hat{\rho}_{c}-\left[\frac{u_{0}H_{0}}{x_{0}}\right]\frac{\hat{c}_{h}^{2}}{\hat{c}_{p}^{2}}\hat{\phi},\\
+\left[\frac{H_{0}u_{0}}{x_{0}}\right]\frac{\partial\hat{\phi}}{\partial\hat{t}}+\left[\frac{u_{0}H_{0}}{x_{0}}\right]\frac{\hat{c}_{h}^{2}}{\hat{c}_{0}}\hat{\nabla}\cdot\hat{\boldsymbol{D}}= & \left[\frac{u_{0}^{2}n_{0}q_{0}}{1}\right]\hat{c}_{h}^{2}\hat{\rho}_{c}-\left[\frac{u_{0}H_{0}}{x_{0}}\right]\frac{\hat{c}_{h}^{2}}{\hat{c}_{p}^{2}}\hat{\phi},\\
+\frac{\partial\hat{\phi}}{\partial\hat{t}}+\frac{\hat{c}_{h}^{2}}{\hat{c}_{0}}\hat{\nabla}\cdot\hat{\boldsymbol{D}}= & \left[\frac{u_{0}^{2}n_{0}q_{0}x_{0}}{H_{0}u_{0}}\right]\hat{c}_{h}^{2}\hat{\rho}_{c}-\frac{\hat{c}_{h}^{2}}{\hat{c}_{p}^{2}}\hat{\phi},\\
+\frac{\partial\hat{\phi}}{\partial\hat{t}}+\frac{\hat{c}_{h}^{2}}{\hat{c}_{0}}\hat{\nabla}\cdot\hat{\boldsymbol{D}}= & \left[\frac{u_{0}^{2}n_{0}q_{0}x_{0}\mu_{0}}{B_{0}u_{0}}\right]\hat{c}_{h}^{2}\hat{\rho}_{c}-\frac{\hat{c}_{h}^{2}}{\hat{c}_{p}^{2}}\hat{\phi},\\
+\frac{\partial\hat{\phi}}{\partial\hat{t}}+\frac{\hat{c}_{h}^{2}}{\hat{c}_{0}}\hat{\nabla}\cdot\hat{\boldsymbol{D}}= & \left[\frac{u_{0}^{2}n_{0}q_{0}x_{0}}{B_{0}u_{0}c^{2}\varepsilon_{0}}\right]\hat{c}_{h}^{2}\hat{\rho}_{c}-\frac{\hat{c}_{h}^{2}}{\hat{c}_{p}^{2}}\hat{\phi},\\
+\frac{\partial\hat{\phi}}{\partial\hat{t}}+\frac{\hat{c}_{h}^{2}}{\hat{c}_{0}}\hat{\nabla}\cdot\hat{\boldsymbol{D}}= & \left[\frac{n_{0}q_{0}x_{0}}{u_{0}B_{0}\varepsilon_{0}}\right]\frac{\hat{c}_{h}^{2}}{\hat{c}_{0}^{2}}\hat{\rho}_{c}-\frac{\hat{c}_{h}^{2}}{\hat{c}_{p}^{2}}\hat{\phi},\\
+\frac{\partial\hat{\phi}}{\partial\hat{t}}+\frac{\hat{c}_{h}^{2}}{\hat{c}_{0}}\hat{\nabla}\cdot\hat{\boldsymbol{D}}= & \frac{\hat{d}_{L,0}}{\hat{d}_{D,0}^{2}}\frac{\hat{c}_{h}^{2}}{\hat{c}_{0}^{2}}\hat{\rho}_{c}-\frac{\hat{c}_{h}^{2}}{\hat{c}_{p}^{2}}\hat{\phi},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Magnetic field divergence constraint
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\nabla\cdot\boldsymbol{B}= & 0,\\
+\left[\frac{B_{0}}{x_{0}}\right]\hat{\nabla}\cdot\hat{\boldsymbol{B}}= & 0,\\
+\hat{\nabla}\cdot\hat{\boldsymbol{B}}= & 0,
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\psi}{\partial t}+c_{h}^{2}\nabla\cdot\mathbf{B}= & -\frac{c_{h}^{2}}{c_{p}^{2}}\psi\\
+\left[\frac{E_{0}u_{0}}{x_{0}}\right]\frac{\partial\hat{\psi}}{\partial\hat{t}}+\left[\frac{u_{0}^{2}B_{0}}{x_{0}}\right]\hat{c}_{h}^{2}\hat{\nabla}\cdot\hat{\mathbf{B}}= & -\left[\frac{u_{0}^{2}E_{0}}{x_{0}u_{0}}\right]\frac{\hat{c}_{h}^{2}}{\hat{c}_{p}^{2}}\hat{\psi}\\
+\left[\frac{E_{0}u_{0}}{x_{0}}\right]\frac{\partial\hat{\psi}}{\partial\hat{t}}+\left[\frac{u_{0}^{2}E_{0}}{x_{0}c_{0}}\right]\hat{c}_{h}^{2}\hat{\nabla}\cdot\hat{\mathbf{B}}= & -\left[\frac{E_{0}u_{0}}{x_{0}}\right]\frac{\hat{c}_{h}^{2}}{\hat{c}_{p}^{2}}\hat{\psi}\\
+\left[\frac{E_{0}u_{0}}{x_{0}}\right]\frac{\partial\hat{\psi}}{\partial\hat{t}}+\left[\frac{u_{0}^{2}E_{0}}{x_{0}u_{0}}\right]\frac{\hat{c}_{h}^{2}}{\hat{c}_{0}}\hat{\nabla}\cdot\hat{\mathbf{B}}= & -\left[\frac{E_{0}u_{0}}{x_{0}}\right]\frac{\hat{c}_{h}^{2}}{\hat{c}_{p}^{2}}\hat{\psi}\\
+\left[\frac{E_{0}u_{0}}{x_{0}}\right]\frac{\partial\hat{\psi}}{\partial\hat{t}}+\left[\frac{u_{0}E_{0}}{x_{0}}\right]\frac{\hat{c}_{h}^{2}}{\hat{c}_{0}}\hat{\nabla}\cdot\hat{\mathbf{B}}= & -\left[\frac{E_{0}u_{0}}{x_{0}}\right]\frac{\hat{c}_{h}^{2}}{\hat{c}_{p}^{2}}\hat{\psi}\\
+\frac{\partial\hat{\psi}}{\partial\hat{t}}+\frac{\hat{c}_{h}^{2}}{\hat{c}_{0}}\hat{\nabla}\cdot\hat{\mathbf{B}}= & -\frac{\hat{c}_{h}^{2}}{\hat{c}_{p}^{2}}\hat{\psi}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Electric scalar potential
+\end_layout
+
+\begin_layout Standard
+Let reference voltage (
+\begin_inset Formula $kgm^{2}s^{-2}C^{-1}$
+\end_inset
+
+) be given by 
+\begin_inset Formula $V_{0}=x_{0}E_{0}=x_{0}c_{0}B_{0}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+d_{D,0}= & \sqrt{\frac{u_{0}^{2}\epsilon_{0}m_{0}}{n_{0}q_{0}^{2}}},\\
+d_{L,0}= & \frac{u_{0}m_{0}}{q_{0}B_{0}},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\frac{\hat{d}_{L,0}}{\hat{d}_{D,0}^{2}}=\frac{x_{0}n_{0}q_{0}}{u_{0}\epsilon_{0}B_{0}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\nabla^{2}\phi= & -\frac{\rho_{c}}{\epsilon_{0}\epsilon_{r}},\\
+\nabla^{2}\phi= & -\frac{1}{\epsilon_{0}\epsilon_{r}}\sum\rho_{\alpha}\frac{q_{\alpha}}{m_{\alpha}},\\
+\left[\frac{V_{0}}{x_{0}^{2}}\right]\hat{\nabla}^{2}\hat{\phi}= & -\left[\frac{\rho_{0}q_{0}}{\epsilon_{0}m_{0}}\right]\frac{1}{\epsilon_{r}}\sum\hat{\rho}_{\alpha}\frac{\hat{q}_{\alpha}}{\hat{m}_{\alpha}},\\
+\left[\frac{x_{0}c_{0}B_{0}}{x_{0}^{2}}\right]\hat{\nabla}^{2}\hat{\phi}= & -\left[\frac{\rho_{0}q_{0}}{\epsilon_{0}m_{0}}\right]\frac{1}{\epsilon_{r}}\sum\hat{\rho}_{\alpha}\frac{\hat{q}_{\alpha}}{\hat{m}_{\alpha}},\\
+\left[\frac{u_{0}B_{0}}{x_{0}}\right]\hat{c}\hat{\nabla}^{2}\hat{\phi}= & -\left[\frac{\rho_{0}q_{0}}{\epsilon_{0}m_{0}}\right]\frac{1}{\epsilon_{r}}\sum\hat{\rho}_{\alpha}\frac{\hat{q}_{\alpha}}{\hat{m}_{\alpha}},\\
+\hat{\nabla}^{2}\hat{\phi}= & -\left[\frac{x_{0}\rho_{0}q_{0}}{\epsilon_{0}m_{0}u_{0}B_{0}}\right]\frac{1}{\hat{c\epsilon_{r}}}\sum\hat{\rho}_{\alpha}\frac{\hat{q}_{\alpha}}{\hat{m}_{\alpha}},\\
+\hat{\nabla}^{2}\hat{\phi}= & -\frac{\hat{d}_{L,0}}{\hat{c}\epsilon_{r}\hat{d}_{D,0}^{2}}\sum\hat{\rho}_{\alpha}\frac{\hat{q}_{\alpha}}{\hat{m}_{\alpha}},\\
+\hat{\nabla}^{2}\epsilon_{r}\hat{\phi}= & -\frac{\hat{d}_{L,0}}{\hat{c}\hat{d}_{D,0}^{2}}\sum\hat{\rho}_{\alpha}\frac{\hat{q}_{\alpha}}{\hat{m}_{\alpha}},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $D_{0}=\varepsilon_{0}E_{0}$
+\end_inset
+
+, 
+\begin_inset Formula $B_{0}=\mu_{0}H_{0}$
+\end_inset
+
+, 
+\begin_inset Formula $E_{0}=c_{0}B_{0}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\boldsymbol{E}= & -\nabla\phi\\
+\frac{\boldsymbol{D}}{\epsilon_{0}\epsilon_{r}}= & -\nabla\phi\\
+\left[\frac{D_{0}}{\epsilon_{0}\epsilon_{r}}\right]\hat{\boldsymbol{D}}= & -\left[\frac{V_{0}}{x_{0}}\right]\hat{\nabla}\hat{\phi}\\
+\left[\frac{\varepsilon_{0}c_{0}B_{0}}{\epsilon_{0}\epsilon_{r}}\right]\hat{\boldsymbol{D}}= & -\left[\frac{x_{0}c_{0}B_{0}}{x_{0}}\right]\hat{\nabla}\hat{\phi}\\
+\frac{\hat{\boldsymbol{D}}}{\epsilon_{r}}= & -\hat{\nabla}\hat{\phi}\\
+\hat{\boldsymbol{D}}= & -\hat{\nabla}\epsilon_{r}\hat{\phi}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+potential from continuous charge
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\phi\left(\vec{x}\right) & =\frac{1}{4\pi\epsilon_{0}}\int\frac{\varrho\left(\vec{x}'\right)}{\left|\vec{x}-\vec{x}'\right|}\mathrm{d}\vec{r}'\\
+\left[V_{0}\right]\hat{\phi}\left(\hat{\vec{x}}\right) & =\left[\frac{1}{4\pi\epsilon_{0}}\frac{n_{0}q_{0}x_{0}^{3}}{x_{0}}\right]\int\frac{\hat{\varrho}\left(\hat{\vec{x}}'\right)}{\left|\hat{\vec{x}}-\hat{\vec{x}}'\right|}\mathrm{d}\hat{\vec{x}}'\\
+\left[x_{0}c_{0}B_{0}\right]\hat{\phi}\left(\hat{\vec{x}}\right) & =\left[\frac{n_{0}q_{0}x_{0}^{3}}{4\pi\epsilon_{0}x_{0}}\right]\int\frac{\hat{\varrho}\left(\hat{\vec{x}}'\right)}{\left|\hat{\vec{x}}-\hat{\vec{x}}'\right|}\mathrm{d}\hat{\vec{x}}'\\
+\hat{\phi}\left(\hat{\vec{x}}\right) & =\left[\frac{n_{0}q_{0}x_{0}}{4\pi\epsilon_{0}c_{0}B_{0}}\right]\int\frac{\hat{\varrho}\left(\hat{\vec{x}}'\right)}{\left|\hat{\vec{x}}-\hat{\vec{x}}'\right|}\mathrm{d}\hat{\vec{x}}'\\
+\hat{\phi}\left(\hat{\vec{x}}\right) & =\left[\frac{n_{0}q_{0}x_{0}}{\epsilon_{0}u_{0}B_{0}}\right]\frac{1}{4\pi\hat{c}}\int\frac{\hat{\varrho}\left(\hat{\vec{x}}'\right)}{\left|\hat{\vec{x}}-\hat{\vec{x}}'\right|}\mathrm{d}\hat{\vec{x}}'\\
+\hat{\phi}\left(\hat{\vec{x}}\right) & =\frac{\hat{d}_{L,0}}{4\pi\hat{c}_{0}\hat{d}_{D,0}^{2}}\int\frac{\hat{\varrho}\left(\hat{\vec{x}}'\right)}{\left|\hat{\vec{x}}-\hat{\vec{x}}'\right|}\mathrm{d}\hat{\vec{x}}'
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Magnetic vector potential
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+d_{D,0}^{2}= & \frac{u_{0}^{2}m_{0}}{c^{2}\mu_{0}n_{0}q_{0}^{2}}=\frac{m_{0}}{\hat{c}^{2}\mu_{0}n_{0}q_{0}^{2}}\\
+d_{L,0}= & \frac{u_{0}m_{0}}{q_{0}B_{0}},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\nabla^{2}\boldsymbol{A}= & -\mu_{0}\mu_{r}\boldsymbol{J},\\
+\nabla^{2}\boldsymbol{A}= & -\mu_{0}\mu_{r}\sum\frac{\rho_{\alpha}\boldsymbol{u}_{\alpha}q_{\alpha}}{m_{\alpha}},\\
+\left[\frac{B_{0}x_{0}}{x_{0}^{2}}\right]\hat{\nabla}^{2}\hat{\boldsymbol{A}}= & -\left[\frac{\mu_{0}\rho_{0}u_{0}q_{0}}{m_{0}}\right]\mu_{r}\sum\frac{\hat{\rho}_{\alpha}\hat{\boldsymbol{u}}_{\alpha}\hat{q}_{\alpha}}{\hat{m}_{\alpha}},\\
+\hat{\nabla}^{2}\hat{\boldsymbol{A}}= & -\left[\frac{x_{0}\mu_{0}\rho_{0}u_{0}q_{0}}{B_{0}m_{0}}\right]\mu_{r}\sum\frac{\hat{\rho}_{\alpha}\hat{\boldsymbol{u}}_{\alpha}\hat{q}_{\alpha}}{\hat{m}_{\alpha}},\\
+\hat{\nabla}^{2}\hat{\boldsymbol{A}}= & -\left[\frac{q_{0}d_{L,0}}{u_{0}m_{0}}\frac{x_{0}\mu_{0}\rho_{0}u_{0}q_{0}}{m_{0}}\right]\mu_{r}\sum\frac{\hat{\rho}_{\alpha}\hat{\boldsymbol{u}}_{\alpha}\hat{q}_{\alpha}}{\hat{m}_{\alpha}},\\
+\hat{\nabla}^{2}\hat{\boldsymbol{A}}= & -\left[\frac{d_{L,0}x_{0}}{1}\frac{\mu_{0}n_{0}q_{0}^{2}}{m_{0}}\right]\mu_{r}\sum\frac{\hat{\rho}_{\alpha}\hat{\boldsymbol{u}}_{\alpha}\hat{q}_{\alpha}}{\hat{m}_{\alpha}},\\
+\hat{\nabla}^{2}\hat{\boldsymbol{A}}= & -\left[\frac{d_{L,0}x_{0}}{d_{D,0}^{2}}\right]\frac{\mu_{r}}{\hat{c}^{2}}\sum\frac{\hat{\rho}_{\alpha}\hat{\boldsymbol{u}}_{\alpha}\hat{q}_{\alpha}}{\hat{m}_{\alpha}},\\
+\hat{\nabla}^{2}\hat{\boldsymbol{A}}= & -\frac{\mu_{r}\hat{d}_{L,0}}{\hat{c}^{2}\hat{d}_{D,0}^{2}}\sum\frac{\hat{\rho}_{\alpha}\hat{\boldsymbol{u}}_{\alpha}\hat{q}_{\alpha}}{\hat{m}_{\alpha}},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\boldsymbol{B} & =\nabla\times\boldsymbol{A}\\
+\left[\frac{B_{0}}{1}\right]\hat{\boldsymbol{B}} & =\left[\frac{B_{0}x_{0}}{x_{0}}\right]\hat{\nabla}\times\hat{\boldsymbol{A}}\\
+\hat{\boldsymbol{B}} & =\hat{\nabla}\times\hat{\boldsymbol{A}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Electromagnetic fluxes
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:Electromagnetic-fluxes"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Start with system of equations 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial}{\partial t}\left(\begin{array}{c}
+D_{x}\\
+D_{y}\\
+D_{z}\\
+B_{x}\\
+B_{y}\\
+B_{z}\\
+\phi\\
+\psi
+\end{array}\right)+\nabla\cdot\left(\begin{array}{ccc}
+\phi & -\frac{B_{z}}{\mu_{0}\mu_{r}} & \frac{B_{y}}{\mu_{0}\mu_{r}}\\
+\frac{B_{z}}{\mu_{0}\mu_{r}} & \phi & -\frac{B_{x}}{\mu_{0}\mu_{r}}\\
+-\frac{B_{y}}{\mu_{0}\mu_{r}} & \frac{B_{x}}{\mu_{0}\mu_{r}} & \phi\\
+\psi & \frac{D_{z}}{\varepsilon_{0}\varepsilon_{r}} & -\frac{D_{y}}{\varepsilon_{0}\varepsilon_{r}}\\
+-\frac{D_{z}}{\varepsilon_{0}\varepsilon_{r}} & \psi & \frac{D_{x}}{\varepsilon_{0}\varepsilon_{r}}\\
+\frac{D_{y}}{\varepsilon_{0}\varepsilon_{r}} & -\frac{D_{x}}{\varepsilon_{0}\varepsilon_{r}} & \psi\\
+c_{h}^{2}D_{x} & c_{h}^{2}D_{y} & c_{h}^{2}D_{z}\\
+c_{h}^{2}B_{x} & c_{h}^{2}B_{y} & c_{h}^{2}B_{z}
+\end{array}\right)=\left(\begin{array}{c}
+-j_{x}\\
+-j_{y}\\
+-j_{z}\\
+0\\
+0\\
+0\\
+c_{h}^{2}\rho_{c}-\frac{c_{h}^{2}}{c_{p}^{2}}\phi\\
+-\frac{c_{h}^{2}}{c_{p}^{2}}\psi
+\end{array}\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+only consider the 
+\begin_inset Formula $x-$
+\end_inset
+
+ component and disregard sources.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial}{\partial t}\left(\begin{array}{c}
+D_{x}\\
+D_{y}\\
+D_{z}\\
+B_{x}\\
+B_{y}\\
+B_{z}\\
+\phi\\
+\psi
+\end{array}\right)+\frac{\partial}{\partial x}\left(\begin{array}{c}
+\phi\\
+\frac{B_{z}}{\mu_{0}\mu_{r}}\\
+-\frac{B_{y}}{\mu_{0}\mu_{r}}\\
+\psi\\
+-\frac{D_{z}}{\varepsilon_{0}\varepsilon_{r}}\\
+\frac{D_{y}}{\varepsilon_{0}\varepsilon_{r}}\\
+c_{h}^{2}D_{x}\\
+c_{h}^{2}B_{x}
+\end{array}\right) & =\mathbf{0}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Notice that we have a set of four independent system of equations
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\boldsymbol{U}}{\partial t}+\mathbf{A}\frac{\partial\boldsymbol{U}}{\partial x} & =\mathbf{0}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial}{\partial t}\left(\begin{array}{c}
+D_{x}\\
+\phi
+\end{array}\right) & =-\frac{\partial}{\partial x}\left(\begin{array}{c}
+\phi\\
+c_{h}^{2}D_{x}
+\end{array}\right), & \frac{\partial}{\partial t}\left(\begin{array}{c}
+D_{y}\\
+B_{z}
+\end{array}\right) & =-\frac{\partial}{\partial x}\left(\begin{array}{c}
+\frac{B_{z}}{\mu_{0}\mu_{r}}\\
+\frac{D_{y}}{\varepsilon_{0}\varepsilon_{r}}
+\end{array}\right), & \frac{\partial}{\partial t}\left(\begin{array}{c}
+D_{z}\\
+B_{y}
+\end{array}\right) & =-\frac{\partial}{\partial x}\left(\begin{array}{c}
+-\frac{B_{y}}{\mu_{0}\mu_{r}}\\
+-\frac{D_{z}}{\varepsilon_{0}\varepsilon_{r}}
+\end{array}\right), & \frac{\partial}{\partial t}\left(\begin{array}{c}
+B_{x}\\
+\psi_{B}
+\end{array}\right) & =-\frac{\partial}{\partial x}\left(\begin{array}{c}
+\psi\\
+c_{h}^{2}B_{x}
+\end{array}\right),\\
+\boldsymbol{U}_{1} & =\left(\begin{array}{c}
+D_{x}\\
+\phi
+\end{array}\right), & \boldsymbol{U}_{2} & =\left(\begin{array}{c}
+D_{y}\\
+B_{z}
+\end{array}\right), & \boldsymbol{U}_{3} & =\left(\begin{array}{c}
+D_{z}\\
+B_{y}
+\end{array}\right), & \boldsymbol{U}_{4} & =\left(\begin{array}{c}
+B_{x}\\
+\psi
+\end{array}\right),\\
+\mathbf{A}_{1} & =\left(\begin{array}{cc}
+0 & 1\\
+c_{h}^{2} & 0
+\end{array}\right), & \mathbf{A}_{2} & =\left(\begin{array}{cc}
+0 & \frac{1}{\mu_{0}\mu_{r}}\\
+\frac{1}{\varepsilon_{0}\varepsilon_{r}} & 0
+\end{array}\right), & \mathbf{A}_{3} & =\left(\begin{array}{cc}
+0 & \frac{-1}{\mu_{0}\mu_{r}}\\
+\frac{-1}{\varepsilon_{0}\varepsilon_{r}} & 0
+\end{array}\right), & \mathbf{A}_{4} & =\left(\begin{array}{cc}
+0 & 1\\
+c_{h}^{2} & 0
+\end{array}\right),\\
+\lambda_{1} & =\pm c_{h}, & \lambda_{2} & =\pm c_{0}c_{r}, & \lambda_{3} & =\pm c_{0}c_{r}, & \lambda_{4} & =\pm c_{h},
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Apply Rankine-Hugoniot conditions (
+\begin_inset Formula $\lambda\Delta\boldsymbol{U}=\Delta\boldsymbol{F}=\mathbf{A}\Delta\boldsymbol{U}$
+\end_inset
+
+) to resulting waves along with continuity conditions (
+\begin_inset Formula $\rho_{s}$
+\end_inset
+
+= surface charge density, 
+\begin_inset Formula $\boldsymbol{K}$
+\end_inset
+
+= surface current, 
+\begin_inset Formula $\mathbf{n}$
+\end_inset
+
+= interface normal).
+ Note that continuity conditions can be deduced from the fact we have all
+ non-zero eigenvalues, that is we do not have a discontinuity at the contact
+ surface post evolution.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\mathbf{n}\cdot\left(\boldsymbol{D}^{R}-\boldsymbol{D}^{L}\right) & =\rho_{s}\left(=0\right), & \mathbf{n}\cdot\left(\left(\varepsilon\boldsymbol{E}\right)^{R}-\left(\varepsilon\boldsymbol{E}\right)^{L}\right) & =\rho_{s}\left(=0\right),\\
+\mathbf{n}\cdot\left(\boldsymbol{B}^{R}-\boldsymbol{B}^{L}\right) & =0, & \mathbf{n}\cdot\left(\left(\mu\boldsymbol{H}\right)^{R}-\left(\mu\boldsymbol{H}\right)^{L}\right) & =0,\\
+\mathbf{n}\times\left(\boldsymbol{E}^{R}-\boldsymbol{E}^{L}\right) & =0, & \mathbf{n}\times\left(\left(\frac{\boldsymbol{D}}{\varepsilon}\right)^{R}-\left(\frac{\boldsymbol{D}}{\varepsilon}\right)^{L}\right) & =0,\\
+\mathbf{n}\times\left(\boldsymbol{H}^{R}-\boldsymbol{H}^{L}\right) & =\boldsymbol{K}\left(=0\right), & \mathbf{n}\times\left(\left(\frac{\boldsymbol{B}}{\mu}\right)^{R}-\left(\frac{\boldsymbol{B}}{\mu}\right)^{L}\right) & =\boldsymbol{K}\left(=0\right),
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Define 
+\begin_inset Formula $c_{L}^{2}=\frac{1}{\varepsilon_{L}\mu_{L}}$
+\end_inset
+
+, 
+\begin_inset Formula $c_{R}^{2}=\frac{1}{\varepsilon_{R}\mu_{R}}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+I & IV
+\end_layout
+
+\begin_layout Standard
+Likewise for 
+\begin_inset Formula $F_{B_{x}}$
+\end_inset
+
+ and 
+\begin_inset Formula $F_{\psi_{B}}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+c_{h}\left(D_{x}^{R}-D_{x}^{*R}\right)= & \phi^{R}-\phi_{D}^{*R} & \phi^{*L}-\phi^{L}= & -c_{h}\left(D_{x}^{*L}-D_{x}^{L}\right)\\
+-c_{h}\left(D_{x}^{*L}-D_{x}^{L}\right)= & \phi^{*L}-\phi^{L} & \phi^{*L}= & \phi^{L}-c_{h}\left(D_{x}^{*L}-D_{x}^{L}\right)\\
+\\
+D_{x}^{*L}-D_{x}^{L}= & -\frac{1}{c_{h}}\left(\phi^{*L}-\phi^{L}\right) & c_{h}\left(D_{x}^{R}-D_{x}^{*R}\right)= & \phi^{R}-\phi^{*R}\\
+D_{x}^{*L}= & D_{x}^{L}-\frac{1}{c_{h}}\left(\phi^{*L}-\phi^{L}\right) & D_{x}^{R}-D_{x}^{*R}= & \frac{\phi^{R}-\phi^{*R}}{c_{h}}\\
+ &  & D_{x}^{*R}= & D_{x}^{R}-\frac{\phi^{R}-\phi^{*R}}{c_{h}}\\
+\phi^{R}-\phi^{*R}= & c_{h}\left(D_{x}^{R}-D_{x}^{*R}\right) & D_{x}^{*R}= & D_{x}^{R}-\frac{1}{c_{h}}\left(\phi^{R}-\phi^{L}+c_{h}\left(D_{x}^{*L}-D_{x}^{L}\right)\right)\\
+\phi^{*R}= & \phi^{R}-c_{h}\left(D_{x}^{R}-D_{x}^{*R}\right) & D_{x}^{*R}= & D_{x}^{R}-\frac{1}{c_{h}}\left(\phi^{R}-\phi^{L}\right)-D_{x}^{*L}+D_{x}^{L}\\
+\phi^{*R}= & \phi^{R}-c_{h}\left(D_{x}^{R}-D_{x}^{L}+\frac{1}{c_{h}}\left(\phi^{*L}-\phi^{L}\right)\right) & D_{x}^{*R}+D_{x}^{*L}= & D_{x}^{L}+D_{x}^{R}-\frac{1}{c_{h}}\left(\phi^{R}-\phi^{L}\right)\\
+\phi^{*R}= & \phi^{R}-c_{h}\left(D_{x}^{R}-D_{x}^{L}\right)-\phi^{*L}+\phi^{L} & D_{x}^{*R}= & \frac{D_{x}^{L}+D_{x}^{R}}{2}-\frac{1}{2c_{h}}\left(\phi^{R}-\phi^{L}\right)\\
+\phi^{*R}+\phi^{*L}= & \phi^{L}+\phi^{R}-c_{h}\left(D_{x}^{R}-D_{x}^{L}\right) & F_{\phi}= & c_{h}^{2}D_{x}^{*R}\\
+\phi^{*R}= & \frac{\phi^{L}+\phi^{R}}{2}-\frac{c_{h}}{2}\left(D_{x}^{R}-D_{x}^{L}\right) & F_{\phi}= & c_{h}^{2}\left(\frac{D_{x}^{L}+D_{x}^{R}}{2}-\frac{1}{2c_{h}}\left(\phi^{R}-\phi^{L}\right)\right)\\
+F_{D}= & \phi^{*R}=\frac{\phi^{L}+\phi^{R}}{2}-\frac{c_{h}}{2}\left(D_{x}^{R}-D_{x}^{L}\right) & F_{\phi}= & c_{h}^{2}\left(\frac{D_{x}^{L}+D_{x}^{R}}{2}-\frac{\phi^{R}-\phi^{L}}{2c_{h}}\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Non-dimensionalisation (note that 
+\begin_inset Formula $c_{r}^{2}=\frac{1}{\varepsilon_{r}\mu_{r}}$
+\end_inset
+
+ with 
+\begin_inset Formula $\varepsilon_{r}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mu_{r}$
+\end_inset
+
+ already nondimensional):
+\end_layout
+
+\begin_layout Standard
+Reference quantities 
+\begin_inset Formula $D_{0}=\varepsilon_{0}E_{0}$
+\end_inset
+
+, 
+\begin_inset Formula $B_{0}=\mu_{0}H_{0}$
+\end_inset
+
+, 
+\begin_inset Formula $E_{0}=c_{0}B_{0}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $D_{0}=\nicefrac{H_{0}}{c_{0}}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\phi=\hat{\phi}H_{0}$
+\end_inset
+
+, 
+\begin_inset Formula $\psi=\hat{\psi}E_{0}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+F_{D}= & \frac{\phi^{L}+\phi^{R}}{2}-\frac{c_{h}}{2}\left(D_{x}^{R}-D_{x}^{L}\right)\\
+F_{D}= & \left[\frac{H_{0}}{1}\right]\frac{\hat{\phi}^{L}+\hat{\phi}^{R}}{2}-\left[\frac{u_{0}D_{0}}{1}\right]\frac{\hat{c}_{h}}{2}\left(D_{x}^{R}-D_{x}^{L}\right)\\
+F_{D}= & \left[\frac{H_{0}}{1}\right]\frac{\hat{\phi}^{L}+\hat{\phi}^{R}}{2}-\left[\frac{u_{0}D_{0}}{1}\right]\frac{\hat{c}_{h}}{2}\left(D_{x}^{R}-D_{x}^{L}\right)\\
+F_{D}= & \left[\frac{c_{0}D_{0}}{1}\right]\frac{\hat{\phi}^{L}+\hat{\phi}^{R}}{2}-\left[\frac{u_{0}D_{0}}{1}\right]\frac{\hat{c}_{h}}{2}\left(D_{x}^{R}-D_{x}^{L}\right)\\
+F_{D}= & \left[\frac{u_{0}D_{0}}{1}\right]\hat{c}_{0}\frac{\hat{\phi}^{L}+\hat{\phi}^{R}}{2}-\left[\frac{u_{0}D_{0}}{1}\right]\frac{\hat{c}_{h}}{2}\left(D_{x}^{R}-D_{x}^{L}\right)\\
+\left[\frac{1}{D_{0}u_{0}}\right]F_{D}=\hat{F}_{D}= & \frac{\hat{c}_{0}}{2}\left(\hat{\phi}^{L}+\hat{\phi}^{R}\right)-\frac{\hat{c}_{h}}{2}\left(D_{x}^{R}-D_{x}^{L}\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+F_{\phi}= & c_{h}^{2}\left(\frac{D_{x}^{L}+D_{x}^{R}}{2}-\frac{\phi^{R}-\phi^{L}}{2c_{h}}\right)\\
+F_{\phi}= & \left[\frac{u_{0}^{2}}{1}\right]\hat{c}_{h}^{2}\left(\left[\frac{D_{0}}{1}\right]\frac{\hat{D}_{x}^{L}+\hat{D}_{x}^{R}}{2}-\left[\frac{H_{0}}{u_{0}}\right]\frac{\hat{\phi}^{R}-\hat{\phi}^{L}}{2\hat{c}_{h}}\right)\\
+F_{\phi}= & \left[\frac{u_{0}^{2}}{1}\right]\hat{c}_{h}^{2}\left(\left[\frac{H_{0}}{u_{0}}\right]\frac{\hat{D}_{x}^{L}+\hat{D}_{x}^{R}}{\hat{c}_{0}2}-\left[\frac{H_{0}}{u_{0}}\right]\frac{\hat{\phi}^{R}-\hat{\phi}^{L}}{2\hat{c}_{h}}\right)\\
+F_{\phi}= & \left[\frac{H_{0}u_{0}}{1}\right]\hat{c}_{h}^{2}\left(\frac{\hat{D}_{x}^{L}+\hat{D}_{x}^{R}}{\hat{c}_{0}2}-\frac{\hat{\phi}^{R}-\hat{\phi}^{L}}{2\hat{c}_{h}}\right)\\
+\left[\frac{1}{H_{0}u_{0}}\right]F_{\phi}=\hat{F}_{\phi}= & \frac{\hat{c}_{h}^{2}}{2\hat{c}_{0}}\left(\hat{D}_{x}^{L}+\hat{D}_{x}^{R}\right)-\frac{\hat{c}_{h}}{2}\left(\hat{\phi}^{R}-\hat{\phi}^{L}\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+II & III
+\end_layout
+
+\begin_layout Standard
+For 
+\begin_inset Formula $F_{D_{z}}$
+\end_inset
+
+ and 
+\begin_inset Formula $F_{B_{y}}$
+\end_inset
+
+ we set 
+\begin_inset Formula $\mu_{0}=-\mu_{0}$
+\end_inset
+
+ and 
+\begin_inset Formula $\varepsilon_{0}=-\varepsilon_{0}$
+\end_inset
+
+ (but only where they explicitly appear, not in 
+\begin_inset Formula $c_{0}$
+\end_inset
+
+!)
+\end_layout
+
+\begin_layout Subsubsection
+\begin_inset Formula $D$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+c_{0}c_{R}\left(D_{y}^{R}-D_{y}^{*R}\right)= & \frac{1}{\mu_{0}}\left(\frac{B_{z}^{R}}{\mu^{R}}-\frac{B_{z}^{*R}}{\mu^{R}}\right) & -c_{0}c_{L}\left(D_{y}^{*L}-D_{y}^{L}\right)= & \frac{1}{\mu_{0}}\left(\frac{B_{z}^{*L}}{\mu^{L}}-\frac{B_{z}^{L}}{\mu^{L}}\right)\\
+\\
+D_{y}^{R}-D_{y}^{*R}= & \frac{1}{c_{0}c_{R}\mu_{0}}\left(\frac{B_{z}^{R}}{\mu^{R}}-\frac{B_{z}^{*R}}{\mu^{R}}\right) & -\mu_{0}c_{0}c_{L}\left(D_{y}^{*L}-D_{y}^{L}\right)= & \frac{B_{z}^{*L}}{\mu^{L}}-\frac{B_{z}^{L}}{\mu^{L}}\\
+\frac{D_{y}^{*R}}{\varepsilon^{R}}= & \frac{D_{y}^{R}}{\varepsilon^{R}}-\frac{1}{c_{0}c_{R}\mu_{0}\varepsilon^{R}}\left(\frac{B_{z}^{R}}{\mu^{R}}-\frac{B_{z}^{*R}}{\mu^{R}}\right) & \frac{B_{z}^{*L}}{\mu^{L}}= & \frac{B_{z}^{L}}{\mu^{L}}-\mu_{0}c_{0}c_{L}\left(D_{y}^{*L}-D_{y}^{L}\right)\\
+\frac{D_{y}^{*R}}{\varepsilon^{R}}= & \frac{D_{y}^{R}}{\varepsilon^{R}}-\frac{1}{c_{0}c_{R}\mu_{0}\varepsilon^{R}}\left(\frac{B_{z}^{R}}{\mu^{R}}-\frac{B_{z}^{*R}}{\mu^{R}}\right)\\
+\\
+\frac{D_{y}^{*R}}{\varepsilon^{R}}= & \frac{D_{y}^{R}}{\varepsilon^{R}}-\frac{1}{c_{0}c_{R}\mu_{0}\varepsilon^{R}}\left(\frac{B_{z}^{R}}{\mu^{R}}-\left(\frac{B_{z}^{L}}{\mu^{L}}-\mu_{0}c_{0}c_{L}\left(D_{y}^{*L}-D_{y}^{L}\right)\right)\right)\\
+\frac{D_{y}^{*R}}{\varepsilon^{R}}= & \frac{D_{y}^{R}}{\varepsilon^{R}}-\frac{1}{c_{0}c_{R}\mu_{0}\varepsilon^{R}}\left(\frac{B_{z}^{R}}{\mu^{R}}-\frac{B_{z}^{L}}{\mu^{L}}+\mu_{0}c_{0}c_{L}\left(D_{y}^{*L}-D_{y}^{L}\right)\right)\\
+\frac{D_{y}^{*R}}{\varepsilon^{R}}= & \frac{D_{y}^{R}}{\varepsilon^{R}}-\frac{1}{c_{0}c_{R}\mu_{0}\varepsilon^{R}}\left(\frac{B_{z}^{R}}{\mu^{R}}-\frac{B_{z}^{L}}{\mu^{L}}\right)-\frac{1}{c_{0}c_{R}\mu_{0}\varepsilon^{R}}\left(\mu_{0}c_{0}c_{L}\left(D_{y}^{*L}-D_{y}^{L}\right)\right)\\
+\frac{D_{y}^{*R}}{\varepsilon^{R}}= & \frac{D_{y}^{R}}{\varepsilon^{R}}-\frac{1}{c_{0}c_{R}\mu_{0}\varepsilon^{R}}\left(\frac{B_{z}^{R}}{\mu^{R}}-\frac{B_{z}^{L}}{\mu^{L}}\right)-\frac{c_{L}}{c_{R}\varepsilon^{R}}\left(D_{y}^{*L}-D_{y}^{L}\right)\\
+\frac{D_{y}^{*R}}{\varepsilon^{R}}+\frac{c_{L}\varepsilon_{L}}{c_{R}\varepsilon^{R}}\frac{D_{y}^{*L}}{\varepsilon_{L}}= & \frac{D_{y}^{R}}{\varepsilon^{R}}-\frac{1}{c_{0}c_{R}\mu_{0}\varepsilon^{R}}\left(\frac{B_{z}^{R}}{\mu^{R}}-\frac{B_{z}^{L}}{\mu^{L}}\right)+\frac{c_{L}\varepsilon_{L}}{c_{R}\varepsilon^{R}}\frac{D_{y}^{L}}{\varepsilon_{L}}\\
+\frac{D_{y}^{*R}}{\varepsilon^{R}}\left(1+\frac{c_{L}\varepsilon_{L}}{c_{R}\varepsilon^{R}}\right)= & \frac{D_{y}^{R}}{\varepsilon^{R}}-\frac{1}{c_{0}c_{R}\mu_{0}\varepsilon^{R}}\left(\frac{B_{z}^{R}}{\mu^{R}}-\frac{B_{z}^{L}}{\mu^{L}}\right)+\frac{c_{L}\varepsilon_{L}}{c_{R}\varepsilon^{R}}\frac{D_{y}^{L}}{\varepsilon_{L}}\\
+\left(1+\frac{c_{L}\varepsilon_{L}}{c_{R}\varepsilon^{R}}\right)^{-1}= & \frac{c_{R}\varepsilon_{R}}{c_{R}\varepsilon_{R}+c_{L}\varepsilon_{L}}\\
+\frac{D_{y}^{*R}}{\varepsilon^{R}}= & \left(\frac{c_{R}\varepsilon_{R}}{c_{R}\varepsilon_{R}+c_{L}\varepsilon_{L}}\right)\left(\frac{D_{y}^{R}}{\varepsilon^{R}}+\frac{c_{L}\varepsilon_{L}}{c_{R}\varepsilon_{R}}\frac{D_{y}^{L}}{\varepsilon_{L}}-\frac{1}{c_{0}\mu_{0}}\frac{1}{c_{R}\varepsilon_{R}}\left(\frac{B_{z}^{R}}{\mu^{R}}-\frac{B_{z}^{L}}{\mu^{L}}\right)\right)\\
+\frac{D_{y}^{*R}}{\varepsilon^{R}}= & \frac{c_{R}\varepsilon_{R}}{c_{R}\varepsilon_{R}+c_{L}\varepsilon_{L}}\frac{D_{y}^{R}}{\varepsilon^{R}}+\frac{c_{L}\varepsilon_{L}}{c_{R}\varepsilon^{R}+c_{L}\varepsilon_{L}}\frac{D_{y}^{L}}{\varepsilon_{L}}-\frac{1}{c_{R}\varepsilon_{R}+c_{L}\varepsilon_{L}}\left(\frac{1}{c_{0}\mu_{0}}\left(\frac{B_{z}^{R}}{\mu^{R}}-\frac{B_{z}^{L}}{\mu^{L}}\right)\right)\\
+\frac{D_{y}^{*R}}{\varepsilon^{R}}= & \frac{1}{c_{R}\varepsilon_{R}+c_{L}\varepsilon_{L}}\left(c_{R}D_{y}^{R}+c_{L}D_{y}^{L}+\frac{1}{\mu_{0}c_{0}}\left(\frac{B_{z}^{L}}{\mu^{L}}-\frac{B_{z}^{R}}{\mu^{R}}\right)\right)\\
+\\
+F_{B_{z}}= & \frac{D_{y}^{*R}}{\epsilon_{0}\varepsilon^{R}}\\
+F_{B_{z}}= & \frac{1}{c_{R}\varepsilon_{R}+c_{L}\varepsilon_{L}}\left(\frac{1}{\varepsilon_{0}}\left(c_{R}D_{y}^{R}+c_{L}D_{y}^{L}\right)+c_{0}\left(\frac{B_{z}^{L}}{\mu^{L}}-\frac{B_{z}^{R}}{\mu^{R}}\right)\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Non-dimensionalisation (note that 
+\begin_inset Formula $c_{r}^{2}=\frac{1}{\varepsilon_{r}\mu_{r}}$
+\end_inset
+
+ with 
+\begin_inset Formula $\varepsilon_{r}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mu_{r}$
+\end_inset
+
+ already nondimensional):
+\end_layout
+
+\begin_layout Standard
+Reference quantities 
+\begin_inset Formula $D_{0}=\varepsilon_{0}E_{0}$
+\end_inset
+
+, 
+\begin_inset Formula $B_{0}=\mu_{0}H_{0}$
+\end_inset
+
+, 
+\begin_inset Formula $E_{0}=c_{0}B_{0}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $D_{0}=\nicefrac{H_{0}}{c_{0}}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\psi_{D}=\hat{\psi}_{D}H_{0}$
+\end_inset
+
+, 
+\begin_inset Formula $\psi_{B}=\hat{\psi}_{B}E_{0}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+F_{B}= & \frac{1}{c_{R}\varepsilon_{R}+c_{L}\varepsilon_{L}}\left(\frac{s}{\varepsilon_{0}}\left(c_{R}D_{y}^{R}+c_{L}D_{y}^{L}\right)+c_{0}\left(\frac{B_{z}^{L}}{\mu_{L}}-\frac{B_{z}^{R}}{\mu_{R}}\right)\right)\\
+F_{B}= & \frac{1}{c_{R}\varepsilon_{R}+c_{L}\varepsilon_{L}}\left(\left[\frac{D_{0}}{\varepsilon_{0}}\right]s\left(c_{R}\hat{D}_{y}^{R}+c_{L}\hat{D}_{y}^{L}\right)+\left[\frac{B_{0}c_{0}}{1}\right]\left(\frac{\hat{B}_{z}^{L}}{\mu_{L}}-\frac{\hat{B}_{z}^{R}}{\mu_{R}}\right)\right)\\
+F_{B}= & \frac{1}{c_{R}\varepsilon_{R}+c_{L}\varepsilon_{L}}\left(\left[\frac{D_{0}}{\varepsilon_{0}}\right]s\left(c_{R}\hat{D}_{y}^{R}+c_{L}\hat{D}_{y}^{L}\right)+\left[\frac{B_{0}u_{0}}{1}\right]\hat{c}_{0}\left(\frac{\hat{B}_{z}^{L}}{\mu_{L}}-\frac{\hat{B}_{z}^{R}}{\mu_{R}}\right)\right)\\
+\frac{D_{0}}{\varepsilon_{0}}= & \frac{\varepsilon_{0}E_{0}}{\varepsilon_{0}}=c_{0}B_{0}=B_{0}u_{0}\hat{c}_{0}\\
+F_{B}= & \frac{1}{c_{R}\varepsilon_{R}+c_{L}\varepsilon_{L}}\left(\left[\frac{B_{0}u_{0}}{1}\right]s\hat{c}_{0}\left(c_{R}\hat{D}_{y}^{R}+c_{L}\hat{D}_{y}^{L}\right)+\left[\frac{B_{0}u_{0}}{1}\right]\hat{c}_{0}\left(\frac{\hat{B}_{z}^{L}}{\mu_{L}}-\frac{\hat{B}_{z}^{R}}{\mu_{R}}\right)\right)\\
+\frac{F_{B}}{B_{0}u_{0}}=\hat{F}_{B}= & \frac{\hat{c}_{0}}{c_{R}\varepsilon_{R}+c_{L}\varepsilon_{L}}\left(s\left(c_{R}\hat{D}_{y}^{R}+c_{L}\hat{D}_{y}^{L}\right)+\left(\frac{\hat{B}_{z}^{L}}{\mu_{L}}-\frac{\hat{B}_{z}^{R}}{\mu_{R}}\right)\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+\begin_inset Formula $B$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+c_{0}c_{R}\left(B_{z}^{R}-B_{z}^{*R}\right)= & \frac{1}{\varepsilon_{0}}\left(\frac{D_{y}^{R}}{\varepsilon_{R}}-\frac{D_{y}^{*R}}{\varepsilon_{R}}\right) & -c_{0}c_{L}\left(B_{z}^{*L}-B_{z}^{L}\right)= & \frac{1}{\varepsilon_{0}}\left(\frac{D_{y}^{*L}}{\varepsilon_{L}}-\frac{D_{y}^{L}}{\varepsilon_{L}}\right)\\
+\\
+\frac{B_{z}^{*R}}{\mu_{R}}= & \frac{B_{z}^{R}}{\mu_{R}}-\frac{1}{\varepsilon_{0}c_{0}c_{R}\mu_{R}}\left(\frac{D_{y}^{R}}{\varepsilon_{R}}-\frac{D_{y}^{*R}}{\varepsilon_{R}}\right) & \frac{D_{y}^{*L}}{\varepsilon_{L}}= & \frac{D_{y}^{L}}{\varepsilon_{L}}-\varepsilon_{0}c_{0}c_{L}\mu_{L}\left(\frac{B_{z}^{*L}}{\mu_{L}}-\frac{B_{z}^{L}}{\mu_{L}}\right)\\
+\\
+\frac{B_{z}^{*R}}{\mu_{R}}= & \frac{B_{z}^{R}}{\mu_{R}}-\frac{1}{\varepsilon_{0}c_{0}c_{R}\mu_{R}}\left(\frac{D_{y}^{R}}{\varepsilon_{R}}-\frac{D_{y}^{L}}{\varepsilon_{L}}+\varepsilon_{0}c_{0}c_{L}\mu_{L}\left(\frac{B_{z}^{*L}}{\mu_{L}}-\frac{B_{z}^{L}}{\mu_{L}}\right)\right)\\
+\frac{B_{z}^{*R}}{\mu_{R}}= & \frac{B_{z}^{R}}{\mu_{R}}-\frac{1}{\varepsilon_{0}c_{0}c_{R}\mu_{R}}\left(\frac{D_{y}^{R}}{\varepsilon_{R}}-\frac{D_{y}^{L}}{\varepsilon_{L}}\right)-\frac{c_{L}\mu_{L}}{c_{R}\mu_{R}}\left(\frac{B_{z}^{*L}}{\mu_{L}}-\frac{B_{z}^{L}}{\mu_{L}}\right)\\
+\frac{B_{z}^{*R}}{\mu_{R}}+\frac{c_{L}\mu_{L}}{c_{R}\mu_{R}}\frac{B_{z}^{*L}}{\mu_{L}}= & \frac{B_{z}^{R}}{\mu_{R}}+\frac{c_{L}\mu_{L}}{c_{R}\mu_{R}}\frac{B_{z}^{L}}{\mu_{L}}-\frac{1}{\varepsilon_{0}c_{0}c_{R}\mu_{R}}\left(\frac{D_{y}^{R}}{\varepsilon_{R}}-\frac{D_{y}^{L}}{\varepsilon_{L}}\right)\\
+\frac{B_{z}^{*R}}{\mu_{R}}\left(1+\frac{c_{L}\mu_{L}}{c_{R}\mu_{R}}\right)= & \frac{B_{z}^{R}}{\mu_{R}}+\frac{c_{L}\mu_{L}}{c_{R}\mu_{R}}\frac{B_{z}^{L}}{\mu_{L}}-\frac{1}{\varepsilon_{0}c_{0}c_{R}\mu_{R}}\left(\frac{D_{y}^{R}}{\varepsilon_{R}}-\frac{D_{y}^{L}}{\varepsilon_{L}}\right)\\
+\left(1+\frac{c_{L}\mu_{L}}{c_{R}\mu_{R}}\right)^{-1}= & \frac{c_{R}\mu_{R}}{c_{R}\mu_{R}+c_{L}\mu_{L}}\\
+\frac{B_{z}^{*R}}{\mu_{R}}= & \frac{c_{R}}{c_{R}\mu_{R}+c_{L}\mu_{L}}B_{z}^{R}+\frac{c_{L}}{c_{R}\mu_{R}+c_{L}\mu_{L}}B_{z}^{L}-\frac{1}{\varepsilon_{0}c_{0}}\frac{1}{c_{R}\mu_{R}+c_{L}\mu_{L}}\left(\frac{D_{y}^{R}}{\varepsilon_{R}}-\frac{D_{y}^{L}}{\varepsilon_{L}}\right)\\
+\frac{B_{z}^{*R}}{\mu_{R}}= & \frac{1}{c_{R}\mu_{R}+c_{L}\mu_{L}}\left(c_{R}B_{z}^{R}+c_{L}B_{z}^{L}-\frac{1}{\varepsilon_{0}c_{0}}\left(\frac{D_{y}^{R}}{\varepsilon_{R}}-\frac{D_{y}^{L}}{\varepsilon_{L}}\right)\right)\\
+\\
+F_{D_{y}}= & \frac{B_{z}^{*R}}{\mu_{0}\mu_{R}}\\
+F_{D_{y}}= & \frac{1}{c_{R}\mu_{R}+c_{L}\mu_{L}}\left(\frac{1}{\mu_{0}}\left(c_{R}B_{z}^{R}+c_{L}B_{z}^{L}\right)-c_{0}\left(\frac{D_{y}^{R}}{\varepsilon_{R}}-\frac{D_{y}^{L}}{\varepsilon_{L}}\right)\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Non-dimensionalisation (note that 
+\begin_inset Formula $c_{r}^{2}=\frac{1}{\varepsilon_{r}\mu_{r}}$
+\end_inset
+
+ with 
+\begin_inset Formula $\varepsilon_{r}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mu_{r}$
+\end_inset
+
+ already nondimensional):
+\end_layout
+
+\begin_layout Standard
+Reference quantities 
+\begin_inset Formula $D_{0}=\varepsilon_{0}E_{0}$
+\end_inset
+
+, 
+\begin_inset Formula $B_{0}=\mu_{0}H_{0}$
+\end_inset
+
+, 
+\begin_inset Formula $E_{0}=c_{0}B_{0}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $D_{0}=\nicefrac{H_{0}}{c_{0}}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\psi_{D}=\hat{\psi}_{D}H_{0}$
+\end_inset
+
+, 
+\begin_inset Formula $\psi_{B}=\hat{\psi}_{B}E_{0}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+F_{D}= & \frac{1}{c_{R}\mu_{R}+c_{L}\mu_{L}}\left(\frac{s}{\mu_{0}}\left(c_{R}B_{z}^{R}+c_{L}B_{z}^{L}\right)-c_{0}\left(\frac{D_{y}^{R}}{\varepsilon_{R}}-\frac{D_{y}^{L}}{\varepsilon_{L}}\right)\right)\\
+F_{D}= & \frac{1}{c_{R}\mu_{R}+c_{L}\mu_{L}}\left(\left[\frac{B_{0}}{\mu_{0}}\right]s\left(c_{R}\hat{B}_{z}^{R}+c_{L}\hat{B}_{z}^{L}\right)-\left[\frac{D_{0}c_{0}}{1}\right]\left(\frac{\hat{D}_{y}^{R}}{\varepsilon_{R}}-\frac{\hat{D}_{y}^{L}}{\varepsilon_{L}}\right)\right)\\
+F_{D}= & \frac{1}{c_{R}\mu_{R}+c_{L}\mu_{L}}\left(\left[\frac{B_{0}}{\mu_{0}}\right]s\left(c_{R}\hat{B}_{z}^{R}+c_{L}\hat{B}_{z}^{L}\right)-\left[\frac{D_{0}u_{0}}{1}\right]\hat{c}_{0}\left(\frac{\hat{D}_{y}^{R}}{\varepsilon_{R}}-\frac{\hat{D}_{y}^{L}}{\varepsilon_{L}}\right)\right)\\
+\frac{B_{0}}{\mu_{0}}= & \frac{\mu_{0}H_{0}}{\mu_{0}}=c_{0}D_{0}=D_{0}u_{0}\hat{c}_{0}\\
+F_{D}= & \frac{1}{c_{R}\mu_{R}+c_{L}\mu_{L}}\left(\left[\frac{D_{0}u_{0}}{1}\right]s\hat{c}_{0}\left(c_{R}\hat{B}_{z}^{R}+c_{L}\hat{B}_{z}^{L}\right)-\left[\frac{D_{0}u_{0}}{1}\right]\hat{c}_{0}\left(\frac{\hat{D}_{y}^{R}}{\varepsilon_{R}}-\frac{\hat{D}_{y}^{L}}{\varepsilon_{L}}\right)\right)\\
+\frac{F_{D}}{D_{0}u_{0}}=\hat{F}_{D}= & \frac{\hat{c}_{0}}{c_{R}\mu_{R}+c_{L}\mu_{L}}\left(s\left(c_{R}\hat{B}_{z}^{R}+c_{L}\hat{B}_{z}^{L}\right)+\left(\frac{\hat{D}_{y}^{L}}{\varepsilon_{L}}-\frac{\hat{D}_{y}^{R}}{\varepsilon_{R}}\right)\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Accelerations
+\end_layout
+
+\begin_layout Standard
+Acceleration of any species may be recovered from the momentum equation
+ according to 
+\begin_inset Formula $\mathbf{a}=\frac{d\mathbf{u}}{dt}$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\rho_{\alpha}\mathbf{u}_{\alpha}}{\partial t}+\nabla\cdot\left(\rho_{\alpha}\mathbf{u}_{\alpha}\mathbf{u}_{\alpha}+p_{\alpha}\mathbf{I}\right)= & n_{\alpha}q_{\alpha}\left(\mathbf{E}+\mathbf{u}_{\alpha}\times\mathbf{B}\right)\\
+\left(\frac{\partial}{\partial t}+\mathbf{u}_{\alpha}\cdot\nabla\right)\mathbf{u}_{\alpha}+\frac{\nabla p_{\alpha}}{n_{\alpha}m_{\alpha}}= & \frac{q_{\alpha}}{m_{\alpha}}\left(\mathbf{E}+\mathbf{u}_{\alpha}\times\mathbf{B}\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Now 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{d}{dt} & =\frac{\partial}{\partial t}+\mathbf{u}\cdot\nabla
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+So
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{d\mathbf{u}_{\alpha}}{dt}+\frac{\nabla p_{\alpha}}{n_{\alpha}m_{\alpha}}= & \frac{q_{\alpha}}{m_{\alpha}}\left(\mathbf{E}+\mathbf{u}_{\alpha}\times\mathbf{B}\right)\\
+\mathbf{a}= & \frac{q_{\alpha}}{m_{\alpha}}\left(\mathbf{E}+\mathbf{u}_{\alpha}\times\mathbf{B}\right)-\frac{\nabla p_{\alpha}}{n_{\alpha}m_{\alpha}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\left[\frac{u_{0}^{2}}{x_{0}}\right]\hat{\mathbf{a}} & =\left[\frac{q_{0}u_{0}B_{0}}{m_{0}}\right]\hat{r}_{\alpha}\hat{c}\mathbf{E}+\left[\frac{q_{0}u_{0}B_{0}}{m_{0}}\right]\hat{r}_{\alpha}\left(\hat{\mathbf{u}}_{\alpha}\times\hat{\mathbf{B}}\right)-\left[\frac{u_{0}^{2}}{x_{0}}\right]\frac{\hat{\nabla}\hat{p}_{\alpha}}{\hat{n}_{\alpha}\hat{m}_{\alpha}}\\
+\hat{\mathbf{a}} & =\left[\frac{x_{0}q_{0}B_{0}}{u_{0}m_{0}}\right]\hat{r}_{\alpha}\left(\hat{c}\mathbf{E}+\left(\hat{\mathbf{u}}_{\alpha}\times\hat{\mathbf{B}}\right)\right)-\frac{\hat{\nabla}\hat{p}_{\alpha}}{\hat{n}_{\alpha}\hat{m}_{\alpha}}\\
+\hat{\mathbf{a}} & =\frac{\hat{r}_{\alpha}}{\hat{d}_{L,0}}\left(\hat{c}\mathbf{E}+\left(\hat{\mathbf{u}}_{\alpha}\times\hat{\mathbf{B}}\right)\right)-\frac{\hat{\nabla}\hat{p}_{\alpha}}{\hat{\rho}_{\alpha}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Vorticity equation
+\end_layout
+
+\begin_layout Standard
+Starting from the non-dimensional momentum equation.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\rho_{\alpha}\mathbf{U}_{\alpha}}{\partial t}+\nabla\cdot\left(\rho_{\alpha}\mathbf{U}_{\alpha}\mathbf{U}_{\alpha}+p_{\alpha}\mathbf{I}\right) & =\frac{\rho_{\alpha}r_{\alpha}}{d_{L}}\left(c\mathbf{E}+\mathbf{U}_{\alpha}\times\mathbf{B}\right)\\
+\frac{\partial\mathbf{U}_{\alpha}}{\partial t}+\left(\mathbf{U}_{\alpha}\cdot\nabla\right)\mathbf{U}_{\alpha}+\frac{1}{\rho_{\alpha}}\nabla p_{\alpha} & =\frac{r_{\alpha}}{d_{L}}\left(c\mathbf{E}+\mathbf{U}_{\alpha}\times\mathbf{B}\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+using the identity 
+\begin_inset Formula $\left(\mathbf{A}\cdot\nabla\right)\mathbf{A}=\frac{1}{2}\nabla\left(\mathbf{A}\cdot\mathbf{A}\right)-\mathbf{A}\times\left(\nabla\times\mathbf{A}\right)$
+\end_inset
+
+ we get 
+\begin_inset Formula $\left(\mathbf{U}_{\alpha}\cdot\nabla\right)\mathbf{U}_{\alpha}=\frac{1}{2}\nabla\left(\mathbf{U}_{\alpha}\cdot\mathbf{U}_{\alpha}\right)-\mathbf{U}_{\alpha}\times\mathbf{\omega}_{\alpha}$
+\end_inset
+
+ and thus
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\mathbf{U}_{\alpha}}{\partial t}+\frac{1}{2}\nabla\left(\mathbf{U}_{\alpha}\cdot\mathbf{U}_{\alpha}\right)-\mathbf{U}_{\alpha}\times\mathbf{\omega}_{\alpha}+\frac{1}{\rho_{\alpha}}\nabla p_{\alpha} & =\frac{r_{\alpha}}{d_{L}}\left(c\mathbf{E}+\mathbf{U}_{\alpha}\times\mathbf{B}\right)\\
+\nabla\times\left(\frac{\partial\mathbf{U}_{\alpha}}{\partial t}+\frac{1}{2}\nabla\left(\mathbf{U}_{\alpha}\cdot\mathbf{U}_{\alpha}\right)-\mathbf{U}_{\alpha}\times\mathbf{\omega}_{\alpha}+\frac{1}{\rho_{\alpha}}\nabla p_{\alpha}\right) & =\nabla\times\left(\frac{r_{\alpha}}{d_{L}}\left(c\mathbf{E}+\mathbf{U}_{\alpha}\times\mathbf{B}\right)\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+now 
+\begin_inset Formula $\nabla\times\nabla\phi=0$
+\end_inset
+
+ such that 
+\begin_inset Formula $\nabla\times\left(\frac{1}{2}\nabla\left(\mathbf{U}_{\alpha}\cdot\mathbf{U}_{\alpha}\right)\right)=0$
+\end_inset
+
+ and we get
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\mathbf{\omega}_{\alpha}}{\partial t}-\nabla\times\left(\mathbf{U}_{\alpha}\times\mathbf{\omega}_{\alpha}\right)+\nabla\times\left(\frac{1}{\rho_{\alpha}}\nabla p_{\alpha}\right) & =\nabla\times\left(\frac{r_{\alpha}}{d_{L}}\left(c\mathbf{E}+\mathbf{U}_{\alpha}\times\mathbf{B}\right)\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+now 
+\begin_inset Formula $\nabla\times(\mathbf{A}\times\mathbf{B})=\mathbf{A}(\nabla\cdot\mathbf{B})-\mathbf{B}(\nabla\cdot\mathbf{A})+(\mathbf{B}\cdot\nabla)\mathbf{A}-(\mathbf{A}\cdot\nabla)\mathbf{B}$
+\end_inset
+
+ such that
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\nabla\times\left(\mathbf{U}_{\alpha}\times\mathbf{\omega}_{\alpha}\right) & =\mathbf{U}_{\alpha}\left(\cancelto{0}{\nabla\cdot\mathbf{\omega}_{\alpha}}\right)-\mathbf{\omega}_{\alpha}\left(\nabla\cdot\mathbf{U}_{\alpha}\right)+\left(\mathbf{\omega}_{\alpha}\cdot\nabla\right)\mathbf{U}_{\alpha}-\left(\mathbf{U}_{\alpha}\cdot\nabla\right)\mathbf{\omega}_{\alpha}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+giving
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\frac{\partial\mathbf{\omega}_{\alpha}}{\partial t}+\mathbf{\omega}_{\alpha}\left(\nabla\cdot\mathbf{U}_{\alpha}\right)-\left(\mathbf{\omega}_{\alpha}\cdot\nabla\right)\mathbf{U}_{\alpha}+\left(\mathbf{U}_{\alpha}\cdot\nabla\right)\mathbf{\omega}_{\alpha}+\nabla\times\left(\frac{1}{\rho_{\alpha}}\nabla p_{\alpha}\right)=\nabla\times\left(\frac{r_{\alpha}}{d_{L}}\left(c\mathbf{E}+\mathbf{U}_{\alpha}\times\mathbf{B}\right)\right)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+also 
+\begin_inset Formula $\nabla\times\left(\psi\nabla\phi\right)=\nabla\psi\times\nabla\phi$
+\end_inset
+
+ and 
+\begin_inset Formula $\nabla\left(\frac{\psi}{\phi}\right)=\frac{\phi\nabla\psi-(\nabla\phi)\psi}{\phi^{2}}$
+\end_inset
+
+ such that
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\nabla\times\left(\frac{1}{\rho_{\alpha}}\nabla p_{\alpha}\right) & =\nabla\left(\frac{1}{\rho_{\alpha}}\right)\times\nabla p_{\alpha}\\
+ & =\left(-\frac{1}{\rho_{\alpha}^{2}}\nabla\rho_{\alpha}\right)\times\nabla p_{\alpha}\\
+ & =-\frac{1}{\rho_{\alpha}^{2}}\left(\nabla\rho_{\alpha}\times\nabla p_{\alpha}\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+resulting in
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\mathbf{\omega}_{\alpha}}{\partial t}+\mathbf{\omega}_{\alpha}\left(\nabla\cdot\mathbf{U}_{\alpha}\right)-\left(\mathbf{\omega}_{\alpha}\cdot\nabla\right)\mathbf{U}_{\alpha}+\left(\mathbf{U}_{\alpha}\cdot\nabla\right)\mathbf{\omega}_{\alpha}-\frac{1}{\rho_{\alpha}^{2}}\left(\nabla\rho_{\alpha}\times\nabla p_{\alpha}\right) & =\nabla\times\left(\frac{r_{\alpha}}{d_{L}}\left(c\mathbf{E}+\mathbf{U}_{\alpha}\times\mathbf{B}\right)\right)\\
+ & =\nabla\times\left(\sqrt{\frac{2}{\beta}}\frac{r_{\alpha}}{d_{S}}\left(c\mathbf{E}+\mathbf{U}_{\alpha}\times\mathbf{B}\right)\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+or 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{multline*}
+\frac{\partial\mathbf{\omega}_{\alpha}}{\partial t}=\underbrace{\left(\mathbf{\omega}_{\alpha}\cdot\nabla\right)\mathbf{U}_{\alpha}}_{\tau_{v}}-\underbrace{\left(\mathbf{U}_{\alpha}\cdot\nabla\right)\mathbf{\omega}_{\alpha}}_{\tau_{c}}-\underbrace{\mathbf{\omega}_{\alpha}\left(\nabla\cdot\mathbf{U}_{\alpha}\right)}_{\tau_{s}}\\
++\underbrace{\frac{1}{\rho_{\alpha}^{2}}\left(\nabla\rho_{\alpha}\times\nabla p_{\alpha}\right)}_{\tau_{b}}+\underbrace{\sqrt{\frac{2}{\beta}}\frac{r_{\alpha}c}{d_{S}}\left(\nabla\times\mathbf{E}\right)}_{\tau_{E}}+\underbrace{\sqrt{\frac{2}{\beta}}\frac{r_{\alpha}}{d_{S}}\left(\nabla\times\left(\mathbf{U}_{\alpha}\times\mathbf{B}\right)\right)}_{\tau_{B}}
+\end{multline*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\tau_{v}$
+\end_inset
+
+: 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\xout off
+\uuline off
+\uwave off
+\noun off
+\color none
+Stretch due to velocity
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\tau_{c}$
+\end_inset
+
+: Convective term
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\tau_{s}$
+\end_inset
+
+: Stretch due to compressibility
+\end_layout
+
+\begin_layout Section
+Self generation of magnetic fields
+\end_layout
+
+\begin_layout Standard
+The non-dimensional Maxwell's equations (neglecting Lagrange multiplier)
+ give us 
+\begin_inset Formula $-\frac{1}{c}\frac{\partial\mathbf{B}}{\partial t}=\nabla\times\mathbf{E}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\hat{\mathbf{E}}}{\partial\hat{t}}-\hat{c}\hat{\nabla}\times\hat{\mathbf{B}}= & -\frac{\hat{\vartheta}_{0}}{\hat{\lambda}_{0}^{2}\hat{c}}\sum_{\alpha}\hat{\rho}_{\alpha}\hat{r}_{\alpha}\hat{\mathbf{U}}_{\alpha},\\
+\frac{\partial\hat{\mathbf{B}}}{\partial\hat{t}}+\hat{c}\hat{\nabla}\times\hat{\mathbf{E}}= & 0,
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Thus 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{\partial\mathbf{\omega}_{\alpha}}{\partial t}-\nabla\times\left(\mathbf{U}_{\alpha}\times\mathbf{\omega}_{\alpha}\right)-\frac{1}{\rho_{\alpha}^{2}}\left(\nabla\rho_{\alpha}\times\nabla p_{\alpha}\right) & =\nabla\times\left(\frac{r_{\alpha}}{d_{L}}\left(c\mathbf{E}+\mathbf{U}_{\alpha}\times\mathbf{B}\right)\right)\\
+ & =\frac{r_{\alpha}c}{d_{L}}\nabla\times\mathbf{E}+\frac{r_{\alpha}}{d_{L}}\nabla\times\left(\mathbf{U}_{\alpha}\times\mathbf{B}\right)\\
+\frac{\partial\mathbf{\omega}_{\alpha}}{\partial t}-\nabla\times\left(\mathbf{U}_{\alpha}\times\mathbf{\omega}_{\alpha}\right)-\frac{1}{\rho_{\alpha}^{2}}\left(\nabla\rho_{\alpha}\times\nabla p_{\alpha}\right) & =-\frac{r_{\alpha}}{d_{L}}\frac{\partial\mathbf{B}}{\partial t}+\frac{r_{\alpha}}{d_{L}}\nabla\times\left(\mathbf{U}_{\alpha}\times\mathbf{B}\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\frac{r_{\alpha}}{d_{L}}\frac{\partial\mathbf{B}}{\partial t} & =\frac{1}{\rho_{\alpha}^{2}}\left(\nabla\rho_{\alpha}\times\nabla p_{\alpha}\right)+\frac{r_{\alpha}}{d_{L}}\nabla\times\left(\mathbf{U}_{\alpha}\times\mathbf{B}\right)-\frac{\partial\mathbf{\omega}_{\alpha}}{\partial t}+\nabla\times\left(\mathbf{U}_{\alpha}\times\mathbf{\omega}_{\alpha}\right)\\
+\frac{\partial\mathbf{B}}{\partial t} & =\frac{d_{L}}{r_{\alpha}\rho_{\alpha}^{2}}\left(\nabla\rho_{\alpha}\times\nabla p_{\alpha}\right)+\nabla\times\left(\mathbf{U}_{\alpha}\times\mathbf{B}\right)-\frac{d_{L}}{r_{\alpha}}\left(\frac{\partial\mathbf{\omega}_{\alpha}}{\partial t}-\nabla\times\left(\mathbf{U}_{\alpha}\times\mathbf{\omega}_{\alpha}\right)\right)\\
+\frac{\partial\mathbf{B}}{\partial t} & =\frac{d_{L}}{q_{\alpha}m_{\alpha}n_{\alpha}^{2}}\left(\nabla\rho_{\alpha}\times\nabla p_{\alpha}\right)+\nabla\times\left(\mathbf{U}_{\alpha}\times\mathbf{B}\right)-\frac{d_{L}m_{\alpha}}{q_{\alpha}}\left(\frac{\partial\mathbf{\omega}_{\alpha}}{\partial t}-\nabla\times\left(\mathbf{U}_{\alpha}\times\mathbf{\omega}_{\alpha}\right)\right)
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Backwards Euler
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+f\left(\boldsymbol{u}^{n+1}\right) & =\frac{\boldsymbol{u}^{n+1}-\boldsymbol{u}^{n}}{h}\\
+f\left(\boldsymbol{u}^{n+1}\right) & =f\left(\boldsymbol{u}^{n}\right)+\frac{\partial f}{\partial\boldsymbol{u}^{n}}\left(\boldsymbol{u}^{n+1}-\boldsymbol{u}^{n}\right)\\
+f\left(\boldsymbol{u}^{n+1}\right) & =f\left(\boldsymbol{u}^{n}\right)+h\frac{\partial f}{\partial\boldsymbol{u}^{n}}f\left(\boldsymbol{u}^{n+1}\right)\\
+f\left(\boldsymbol{u}^{n}\right) & =f\left(\boldsymbol{u}^{n+1}\right)-h\frac{\partial f}{\partial\boldsymbol{u}^{n}}f\left(\boldsymbol{u}^{n+1}\right)\\
+f\left(\boldsymbol{u}^{n}\right) & =\left(\boldsymbol{I}-h\frac{\partial f}{\partial\boldsymbol{u}^{n}}\right)f\left(\boldsymbol{u}^{n+1}\right)\\
+\boldsymbol{b} & =\boldsymbol{A}\boldsymbol{x}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document

@@ -1,0 +1,6 @@
+
+CEXE_headers += MFP_hydro2p.H
+CEXE_sources += MFP_hydro2p.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/states/hydro2p
+VPATH_LOCATIONS   += $(TOP)/Source/states/hydro2p

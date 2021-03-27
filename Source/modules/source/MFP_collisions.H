@@ -1,0 +1,34 @@
+#ifndef COLLISIONS_H
+#define COLLISIONS_H
+
+#include "MFP_source.H"
+#include "sol.hpp"
+#include "eigen.hpp"
+#include "forward.hpp"
+
+//-----------------------------------------------------------------------------
+
+class Collisions : public SourceTerm
+{
+public:
+    Collisions();
+    Collisions(const sol::table& def);
+    ~Collisions();
+
+    static Vector<dual> collisions(const Vector<dual> &y0, const Vector<OffsetIndex> &offsets, const Vector<Vector<Real>> &ccs);
+
+    virtual int fun_rhs(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &ydot, Real dt=0) const override;
+    virtual int fun_jac(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &J) const override;
+
+    static bool valid_state(const int global_idx);
+    static bool valid_solver(const int solve_idx);
+
+    virtual SourceType get_type() const override {return SourceType::Collisions;}
+    virtual const std::string& get_tag() const override {return tag;}
+    static std::string tag;
+    static bool registered;
+    Vector<Vector<Real> > ccs;
+
+};
+
+#endif // COLLISIONS_H

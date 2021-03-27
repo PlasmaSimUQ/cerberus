@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+(cd ../../local && make -j8 DIM=2 USE_EB=FALSE AMREX_PARTICLES=FALSE)
+
+EXE=../../local/MFP.2d.gnu.MPI.ex
+
+INPUTS=*.inputs
+
+rm -r plt* chk*
+
+python3 pressure_definition.py
+
+mpirun -n 4 ${EXE} ${INPUTS} 2>&1 | tee run_log.txt
+
+python3 check.py

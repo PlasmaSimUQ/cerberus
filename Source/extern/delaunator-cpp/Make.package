@@ -1,0 +1,5 @@
+CEXE_headers += delaunator.hpp
+CEXE_sources += delaunator.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/extern/delaunator-cpp
+VPATH_LOCATIONS   += $(TOP)/Source/extern/delaunator-cpp

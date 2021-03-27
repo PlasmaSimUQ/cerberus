@@ -1,0 +1,2 @@
+INCLUDE_LOCATIONS += $(TOP)/Source/extern/eigen-3.3.7
+VPATH_LOCATIONS   += $(TOP)/Source/extern/eigen-3.3.7

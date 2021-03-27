@@ -1,0 +1,577 @@
+% Encoding: UTF-8
+
+@article{Dedner2002,
+title = "Hyperbolic Divergence Cleaning for the MHD Equations",
+journal = "Journal of Computational Physics",
+volume = "175",
+number = "2",
+pages = "645 - 673",
+year = "2002",
+issn = "0021-9991",
+doi = "https://doi.org/10.1006/jcph.2001.6961",
+url = "http://www.sciencedirect.com/science/article/pii/S002199910196961X",
+author = "A. Dedner and F. Kemm and D. Kröner and C.-D. Munz and T. Schnitzer and M. Wesenberg",
+abstract = "In simulations of magnetohydrodynamic (MHD) processes the violation of the divergence constraint causes severe stability problems. In this paper we develop and test a new approach to the stabilization of numerical schemes. Our technique can be easily implemented in any existing code since there is no need to modify the solver for the MHD equations. It is based on a modified system in which the divergence constraint is coupled with the conservation laws by introducing a generalized Lagrange multiplier. We suggest a formulation in which the divergence errors are transported to the domain boundaries with the maximal admissible speed and are damped at the same time. This corrected system is hyperbolic and the density, momentum, magnetic induction, and total energy density are still conserved. In comparison to results obtained without correction or with the standard “divergence source terms,” our approach seems to yield more robust schemes with significantly smaller divergence errors."
+}
+
+@misc{sol2,
+author = {ThePhD},
+title = {sol2: a C++ {$<$-$>$} Lua API wrapper (Version 2.18.0)},
+howpublished = {[Software]},
+month = {June},
+year = {2017},
+url = {https://github.com/ThePhD/sol2},
+note = {https://github.com/ThePhD/sol2}
+}
+
+@book{Oberkampf2010, 
+place={Cambridge}, 
+title={Verification and Validation in Scientific Computing}, 
+DOI={10.1017/CBO9780511760396}, 
+publisher={Cambridge University Press}, 
+author={Oberkampf, William L. and Roy, Christopher J.}, 
+year={2010}
+}
+
+@article{Sverdrup2019,
+author = {Sverdrup,Knut  and Almgren,Ann  and Nikiforakis,Nikolaos },
+title = {An embedded boundary approach for efficient simulations of viscoplastic fluids in three dimensions},
+journal = {Physics of Fluids},
+volume = {31},
+number = {9},
+pages = {093102},
+year = {2019},
+doi = {10.1063/1.5110654},
+
+URL = { 
+        https://doi.org/10.1063/1.5110654
+    
+},
+eprint = { 
+        https://doi.org/10.1063/1.5110654
+    
+}
+
+}
+
+@article{Pember1995,
+title = "An Adaptive Cartesian Grid Method for Unsteady Compressible Flow in Irregular Regions",
+journal = "Journal of Computational Physics",
+volume = "120",
+number = "2",
+pages = "278 - 304",
+year = "1995",
+issn = "0021-9991",
+doi = "https://doi.org/10.1006/jcph.1995.1165",
+url = "http://www.sciencedirect.com/science/article/pii/S0021999185711655",
+author = "Richard B. Pember and John B. Bell and Phillip Colella and William Y. Curtchfield and Michael L. Welcome",
+abstract = "In this paper we describe an adaptive Cartesian grid method for modeling time-dependent inviscid compressible flow in irregular regions. In this approach a body is treated as an interface embedded in a regular Cartesian mesh. The single grid algorithm uses an unsplit second-order Godunov algorithm followed by a corrector applied to cells at the boundary. The discretization near the fluid-body interface is based on a volume-of-fluid approach with a redistribution procedure to maintain conservation while avoiding time step restrictions arising from small cells where the boundary intersects the mesh. The single grid Cartesian mesh integration scheme is coupled to a conservative adaptive mesh refinement algorithm that selectively refines regions of the computational grid to achieve a desired level of accuracy. Examples showing the results of the combined Cartesian grid integration/adaptive mesh refinement algorithm for both two- and three-dimensional flows are presented."
+}
+
+@article{AMReX,
+  doi = {10.21105/joss.01370},
+  url = {https://doi.org/10.21105/joss.01370},
+  year = {2019},
+  month = may,
+  publisher = {The Open Journal},
+  volume = {4},
+  number = {37},
+  pages = {1370},
+  author = {Weiqun Zhang and Ann Almgren and Vince Beckner and John Bell and Johannes Blaschke and Cy Chan and Marcus Day and Brian Friesen and Kevin Gott and Daniel Graves and Max Katz and Andrew Myers and Tan Nguyen and Andrew Nonaka and Michele Rosso and Samuel Williams and Michael Zingale},
+  title = {{AMReX}: a framework for block-structured adaptive mesh refinement},
+  journal = {Journal of Open Source Software}
+}
+
+@article{Wada1997,
+author = {Wada, Yasuhiro and Liou, Meng-Sing},
+title = {An Accurate and Robust Flux Splitting Scheme for Shock and Contact Discontinuities},
+journal = {SIAM Journal on Scientific Computing},
+volume = {18},
+number = {3},
+pages = {633-657},
+year = {1997},
+doi = {10.1137/S1064827595287626},
+
+URL = { 
+        https://doi.org/10.1137/S1064827595287626
+    
+},
+eprint = { 
+        https://doi.org/10.1137/S1064827595287626
+    
+}
+
+}
+
+
+@article{Collela2008,
+title = "A limiter for PPM that preserves accuracy at smooth extrema",
+journal = "Journal of Computational Physics",
+volume = "227",
+number = "15",
+pages = "7069 - 7076",
+year = "2008",
+issn = "0021-9991",
+doi = "https://doi.org/10.1016/j.jcp.2008.03.034",
+url = "http://www.sciencedirect.com/science/article/pii/S0021999108001435",
+author = "Phillip Colella and Michael D. Sekora",
+keywords = "Upwind methods, PPM, Limiters",
+abstract = "We present a new limiter for the PPM method of Colella and Woodward [P. Colella, P.R. Woodward, The Piecewise Parabolic Method (PPM) for gas-dynamical simulations, Journal of Computational Physics 54 (1984) 174–201] that preserves accuracy at smooth extrema. It is based on constraining the interpolated values at extrema (and only at extrema) using non-linear combinations of various difference approximations of the second derivatives. Otherwise, we use a standard geometric limiter to preserve monotonicity away from extrema. This leads to a method that has the same accuracy for smooth initial data as the underlying PPM method without limiting, while providing sharp, non-oscillatory representations of discontinuities."
+}
+
+@article{Collela1990,
+title = "Multidimensional upwind methods for hyperbolic conservation laws",
+journal = "Journal of Computational Physics",
+volume = "87",
+number = "1",
+pages = "171 - 200",
+year = "1990",
+issn = "0021-9991",
+doi = "https://doi.org/10.1016/0021-9991(90)90233-Q",
+url = "http://www.sciencedirect.com/science/article/pii/002199919090233Q",
+author = "Phillip Colella",
+abstract = "We present a class of second-order conservative finite difference algorithms for solving numerically time-dependent problems for hyperbolic conservation laws in several space variables. These methods are upwind and multidimensional, in that the numerical fluxes are obtained by solving the characteristic form of the full multidimensional equations at the zone edge, and that all fluxes are evaluated and differenced at the same time; in particular, operator splitting is not used. Correct behavior at discontinuities is obtained by the use of solutions to the Riemann problem, and by limiting some of the second-order terms. Numerical results are presented, which show that the methods described here yield the same high resolution as the corresponding operator split methods."
+}
+
+@article{Moreno2020,
+title = "{EMcLAW}: An unsplit {Godunov} method for {Maxwell}'s equations including polarization, metals, divergence control and {AMR}",
+journal = "Computer Physics Communications",
+pages = "107268",
+year = "2020",
+issn = "0010-4655",
+doi = "https://doi.org/10.1016/j.cpc.2020.107268",
+url = "http://www.sciencedirect.com/science/article/pii/S0010465520300862",
+author = "Jose A. Moreno and Eduardo Oliva and Pedro Velarde",
+keywords = "Maxwell’s equations, Polarization, Godunov method, Adaptive Mesh Refinement, Metals, Divergence control",
+abstract = "A new 3D unsplit Godunov scheme for solving Maxwell’s equations with polarization is presented. The numerical scheme avoids the use of limiters by interpolating the field components that are continuous at cell boundaries, making the algorithm simpler and faster. The algorithm allows the use of metals and a wide variety of polarization models: Lorentz, non-linear as Kerr type or Havriliak–Negami dielectric model. Moreover, the algorithm can use Adaptive Mesh Refinement (AMR) to simulate systems with sharp steps in material properties as well as the propagation of short-wavelength pulses in great domains with a reasonable computational effort. With AMR the resulting method is faster in computer time compared to FDTD at the same accuracy. Furthermore, a divergence control algorithm has been implemented, although it is not needed in all the tests performed so far."
+}
+
+@article{Barbas2015,
+title = "Development of a Godunov method for Maxwell's equations with Adaptive Mesh Refinement",
+journal = "Journal of Computational Physics",
+volume = "300",
+pages = "186 - 201",
+year = "2015",
+issn = "0021-9991",
+doi = "https://doi.org/10.1016/j.jcp.2015.07.048",
+url = "http://www.sciencedirect.com/science/article/pii/S002199911500501X",
+author = "Alfonso Barbas and Pedro Velarde",
+keywords = "Maxwell's equations, Godunov method, AMR",
+abstract = "In this paper we present a second order 3D method for Maxwell's equations based on a Godunov scheme with Adaptive Mesh Refinement (AMR). In order to achieve it, we apply a limiter which better preserves extrema and boundary conditions based on a characteristic fields decomposition. Despite being more complex, simplifications in the boundary conditions make the resulting method competitive in computer time consumption and accuracy compared to FDTD. AMR allows us to simulate systems with a sharp step in material properties with negligible rebounds and also large domains with accuracy in small wavelengths."
+}
+
+@article{Yan2017,
+title = "A continuity-preserving and divergence-cleaning algorithm based on purely and damped hyperbolic Maxwell equations in inhomogeneous media",
+journal = "Journal of Computational Physics",
+volume = "334",
+pages = "392 - 418",
+year = "2017",
+issn = "0021-9991",
+doi = "https://doi.org/10.1016/j.jcp.2017.01.012",
+url = "http://www.sciencedirect.com/science/article/pii/S0021999117300220",
+author = "Su Yan and Jian-Ming Jin",
+keywords = "Continuity-preserving, Damped hyperbolic Maxwell equations, Divergence-cleaning, Discontinuous Galerkin time-domain method, Electromagnetic simulation, Inhomogeneous media, Purely hyperbolic Maxwell equations, Self-consistent simulation",
+abstract = "In the numerical solution of Maxwell's equations for dynamic electromagnetic fields, the two Gauss's laws are usually not considered since they are a natural consequence of Faraday's and Maxwell–Ampère's laws if the charge conservation law is satisfied. However, when the charge conservation law is not satisfied, the numerical errors of Gauss's laws will increase unbounded, leading to numerical instability or breakdown. Unfortunately, the charge conservation law can be easily violated in self-consistent wave–particle simulations. In the meantime, the violation of Gauss's laws will also result in an increased error in the normal flux continuity. In the simulations of pure electromagnetic problems, the satisfaction of tangential field continuity across a material interface is sufficient to yield accurate numerical results. However, in a self-consistent wave–particle simulation, the normal components are as important as the tangential components, since they are critical in predicting the particle kinetics. In this paper, a divergence-cleaning method is presented to enforce Gauss's laws and normal flux continuity by introducing auxiliary variables and damping terms into Maxwell's equations in inhomogeneous media, which yield hyperbolic and mixed hyperbolic–parabolic Maxwell equations. The numerical solution schemes of the resulting purely and damped hyperbolic Maxwell equations are introduced under the framework of the discontinuous Galerkin time-domain method. It is shown through several numerical examples that the proposed method is able to preserve the continuity conditions for both tangential field components and normal flux components, and is effective in cleaning the numerical errors in both Gauss's laws."
+}
+
+@article{Huang2019,
+title = "A six-moment multi-fluid plasma model",
+journal = "Journal of Computational Physics",
+volume = "387",
+pages = "134 - 153",
+year = "2019",
+issn = "0021-9991",
+doi = "https://doi.org/10.1016/j.jcp.2019.02.023",
+url = "http://www.sciencedirect.com/science/article/pii/S0021999119301408",
+author = "Zhenguang Huang and Gabor Toth and Bart van der Holst and Yuxi Chen and Tamas Gombosi",
+keywords = "Plasma physics, Multi-fluid, Moment closure",
+abstract = "We present a six-moment multi-fluid model, which solves the governing equations for both ions and electrons, with pressure anisotropy along and perpendicular to the magnetic field direction, as well as the complete set of Maxwell equations. This set of equations includes the Hall effect, different temperatures for different species and pressure anisotropy. It is more comprehensive than the five-moment equations with isotropic pressures and significantly less expensive than the ten-moment equations with a full pressure tensors. Similarly to the five- and ten-moment equations, the wave speeds are naturally limited by the speed of light, which eliminates the issue of unlimited whistler wave speeds present in Hall magnetohydrodynamics (MHD). It is also possible to simulate multiple negatively charged fluids, which cannot be done in MHD models. The six-moment model is a reasonable description of the plasma outside magnetic reconnection regions and therefore well-suited to be coupled with an embedded particle-in-cell model that covers the reconnection region. Our numerical implementation uses a point-implicit scheme for the stiff source terms, and we use a second-order accurate Rusanov-type scheme with carefully selected wave speeds. For the plasma variables and the magnetic field the maximum wave speed is based on the fast magnetosonic speed of MHD with anisotropic pressures that we derive. For the electric field related variables the speed of light is used. The divergence of the magnetic field and Gauss's law are controlled with a hyperbolic-parabolic scheme. We present a number of numerical tests to demonstrate that this numerical model is robust without being excessively diffusive."
+}
+
+@article{Krommes2018, 
+title={Projection-operator methods for classical transport in magnetized plasmas. Part 1. Linear response, the Braginskii equations and fluctuating hydrodynamics}, 
+volume={84}, 
+DOI={10.1017/S0022377818000582}, 
+number={4}, 
+journal={Journal of Plasma Physics}, 
+publisher={Cambridge University Press}, 
+author={Krommes, John A.}, 
+year={2018}, 
+pages={925840401}
+}
+
+@article{Spiteri2002,
+author = {Spiteri, Raymond J. and Ruuth, Steven J.},
+title = {A New Class of Optimal High-Order Strong-Stability-Preserving Time Discretization Methods},
+journal = {SIAM Journal on Numerical Analysis},
+volume = {40},
+number = {2},
+pages = {469-491},
+year = {2002},
+doi = {10.1137/S0036142901389025},
+
+URL = { 
+        https://doi.org/10.1137/S0036142901389025
+    
+},
+eprint = { 
+        https://doi.org/10.1137/S0036142901389025
+    
+}
+
+}
+
+@article{Deng2019,
+title = "A fifth-order shock capturing scheme with two-stage boundary variation diminishing algorithm",
+journal = "Journal of Computational Physics",
+volume = "386",
+pages = "323 - 349",
+year = "2019",
+issn = "0021-9991",
+doi = "https://doi.org/10.1016/j.jcp.2019.02.024",
+url = "http://www.sciencedirect.com/science/article/pii/S002199911930141X",
+author = "Xi Deng and Yuya Shimizu and Feng Xiao",
+keywords = "Shock capturing, High order schemes, Boundary variation diminishing, THINC scheme, Hyperbolic systems",
+abstract = "A novel 5th-order shock capturing scheme is presented in this paper. The scheme, so-called P4T2−BVD (polynomial of 4-degree and THINC function of 2-level reconstruction based on BVD algorithm), is formulated as a two-stage spatial reconstruction scheme following the BVD (Boundary Variation Diminishing) principle that minimizes the jumps of the reconstructed values at cell boundaries. In the P4T2−BVD scheme, polynomial of degree four and THINC (Tangent of Hyperbola for INterface Capturing) functions with two-level steepness are used as the candidate reconstruction functions. The final reconstruction function is selected through the two-stage BVD algorithm so as to effectively control both numerical oscillation and dissipation. Spectral analysis and numerical verifications show that the P4T2−BVD scheme possesses the following desirable properties: 1) it effectively suppresses spurious numerical oscillation in the presence of strong shock or discontinuity; 2) it substantially reduces numerical dissipation errors; 3) it automatically retrieves the underlying linear 5th-order upwind scheme for smooth solution over all wave numbers; 4) it is able to resolve both smooth and discontinuous flow structures of all scales with substantially improved solution quality in comparison to other existing methods; and 5) it produces accurate solutions in long term computation. P4T2−BVD, as well as the underlying idea presented in this paper, provides an innovative and practical approach to design high-fidelity numerical schemes for compressible flows involving strong discontinuities and flow structures of wide range scales."
+}
+
+@article{AlvarezLaguna2018,
+title = "Fully-implicit finite volume method for the ideal two-fluid plasma model",
+journal = "Computer Physics Communications",
+volume = "231",
+pages = "31-44",
+year = "2018",
+issn = "0010-4655",
+doi = "https://doi.org/10.1016/j.cpc.2018.05.006",
+url = "http://www.sciencedirect.com/science/article/pii/S0010465518301590",
+author = "A. Alvarez Laguna and N. Ozak and A. Lani and H. Deconinck and S. Poedts",
+}
+
+@Article{Abgrall2014,
+  Title                    = {Robust Finite Volume Schemes for Two-Fluid Plasma Equations},
+  Author                   = {Abgrall, Remi and Kumar, Harish},
+  Journal                  = {Journal of Scientific Computing},
+  Year                     = {2014},
+  Number                   = {3},
+  Pages                    = {584-611},
+  Volume                   = {60},
+
+  Doi                      = {10.1007/s10915-013-9809-6},
+  File                     = {:Abgrall2014.pdf:PDF},
+  ISSN                     = {0885-7474},
+  Keywords                 = {Two-fluid plasma equations; System of balance laws; Finite volume schemes; IMEX schemes},
+  Language                 = {English},
+  Owner                    = {daryl},
+  Publisher                = {Springer US},
+  Timestamp                = {2015.12.14},
+  Url                      = {http://dx.doi.org/10.1007/s10915-013-9809-6}
+}
+
+@TechReport{Adams2015,
+  Title                    = {Chombo Software Package for AMR Applications - Design Document},
+  Author                   = {M. Adams and P. Colella and D. T. Graves and J.N. Johnson and N.D. Keen and T. J. Ligocki and D. F. Martin and P.W. McCorquodale and D. Modiano and P.O. Schwartz and T.D. Sternberg and B. Van Straalen},
+  Institution              = {Lawrence Berkeley National Laboratory},
+  Year                     = {2015},
+  Number                   = {LBNL-6616E},
+
+  Owner                    = {daryl},
+  Timestamp                = {2016.07.25}
+}
+
+@Article{Einfeldt1988,
+  Title                    = {On Godunov-Type Methods for Gas Dynamics},
+  Author                   = {Bernd Einfeldt},
+  Journal                  = {SIAM Journal on Numerical Analysis},
+  Year                     = {1988},
+  Number                   = {2},
+  Pages                    = {294-318},
+  Volume                   = {25},
+
+  Doi                      = {10.1137/0725021},
+  Eprint                   = { http://dx.doi.org/10.1137/0725021 
+},
+  File                     = {:Einfeldt1988.pdf:PDF},
+  Url                      = { http://dx.doi.org/10.1137/0725021 
+}
+}
+
+@Article{Gottlieb2001,
+  Title                    = {Strong Stability-Preserving High-Order Time Discretization Methods},
+  Author                   = {Sigal Gottlieb and Chi-Wang Shu and Eitan Tadmor},
+  Journal                  = {SIAM Review},
+  Year                     = {2001},
+  Number                   = {1},
+  Pages                    = {89-112},
+  Volume                   = {43},
+
+  Doi                      = {10.1137/S003614450036757X},
+  Eprint                   = { http://dx.doi.org/10.1137/S003614450036757X 
+},
+  File                     = {:Gottlieb2001.pdf:PDF},
+  Url                      = { http://dx.doi.org/10.1137/S003614450036757X 
+}
+}
+
+@Article{Loverich2011,
+  author    = {John Loverich and Ammar Hakim and Uri Shumlak},
+  title     = {A Discontinuous Galerkin Method for Ideal Two-Fluid Plasma Equations},
+  journal   = {Communications in Computational Physics},
+  year      = {2011},
+  volume    = {9},
+  number    = {2},
+  pages     = {240-268},
+  month     = {08},
+  abstract  = {AbstractA discontinuous Galerkin method for the ideal 5 moment two-fluid plasma system is presented. The method uses a second or third order discontinuous Galerkin spatial discretization and a third order TVD Runge-Kutta time stepping scheme. The method is benchmarked against an analytic solution of a dispersive electron acoustic square pulse as well as the two-fluid electromagnetic shock [1] and existing numerical solutions to the GEM challenge magnetic reconnection problem [2]. The algorithm can be generalized to arbitrary geometries and three dimensions. An approach to maintaining small gauge errors based on error propagation is suggested.},
+  address   = {Cambridge, UK},
+  day       = {01},
+  doi       = {10.4208/cicp.250509.210610a},
+  file      = {:Loverich2011.pdf:PDF},
+  owner     = {daryl},
+  publisher = {Cambridge University Press},
+  timestamp = {2016.09.08},
+  url       = {https://www.cambridge.org/core/article/a-discontinuous-galerkin-method-for-ideal-two-fluid-plasma-equations/B9E8016B909BDE84B5DC27ED67671582},
+}
+
+@Article{Munz2000,
+  Title                    = {A three-dimensional finite-volume solver for the Maxwell equations with divergence cleaning on unstructured meshes },
+  Author                   = {C.-D. Munz and P. Ommes and R. Schneider},
+  Journal                  = {Computer Physics Communications },
+  Year                     = {2000},
+  Number                   = {1-2},
+  Pages                    = {83 - 117},
+  Volume                   = {130},
+
+  Abstract                 = {A finite-volume scheme on unstructured meshes for the three-dimensional time-dependent Maxwell equations is presented. To avoid the increase of numerical errors caused by suppressing the information contained in Gauss' law as well as the divergence-free condition of the magnetic induction, a divergence cleaning step is added which does not require the solution of a Poisson equation. The elliptical constraints of the Maxwell equations is approximated by a hyperbolic condition, starting from the so-called Generalised Lagrange Multiplier Maxwell model. This results in a purely hyperbolic system that fits very well in the framework of high-resolution finite-volume schemes yielding an efficient and flexible parallel Maxwell solver for explicit field calculations in time domain on unstructured grids in three space dimensions. Simulation results obtained with this new approximation technique are presented and compared with analytical as well as with other methods. },
+  Doi                      = {http://dx.doi.org/10.1016/S0010-4655(00)00045-X},
+  File                     = {:Munz2000.pdf:PDF},
+  ISSN                     = {0010-4655},
+  Keywords                 = {Maxwell equations},
+  Owner                    = {daryl},
+  Timestamp                = {2015.12.14},
+  Url                      = {http://www.sciencedirect.com/science/article/pii/S001046550000045X}
+}
+
+@Article{Toro1994,
+  Title                    = {Restoration of the contact surface in the {HLL}-Riemann solver},
+  Author                   = {Toro, E. F. and Spruce, M. and Speares, W.},
+  Journal                  = {Shock Waves},
+  Year                     = {1994},
+  Number                   = {1},
+  Pages                    = {25--34},
+  Volume                   = {4},
+
+  Abstract                 = {The missing contact surface in the approximate Riemann solver of Harten, Lax, and van Leer is restored. This is achieved following the same principles as in the original solver. We also present new ways of obtaining wave-speed estimates. The resulting solver is as accurate and robust as the exact Riemann solver, but it is simpler and computationally more efficient than the latter, particulaly for non-ideal gases. The improved Riemann solver is implemented in the second-order WAF method and tested for one-dimensional problems with exact solutions and for a two-dimensional problem with experimental results.},
+  Doi                      = {10.1007/BF01414629},
+  File                     = {:Toro1994.pdf:PDF},
+  ISSN                     = {1432-2153},
+  Url                      = {http://dx.doi.org/10.1007/BF01414629}
+}
+
+@Article{Meier2012,
+  author  = {Meier,E. T. and Shumlak,U.},
+  title   = {A general nonlinear fluid model for reacting plasma-neutral mixtures},
+  journal = {Physics of Plasmas},
+  year    = {2012},
+  volume  = {19},
+  number  = {7},
+  pages   = {072508},
+  doi     = {10.1063/1.4736975},
+  eprint  = {https://doi.org/10.1063/1.4736975},
+  file    = {:Meier2012.pdf:PDF},
+  url     = { 
+        https://doi.org/10.1063/1.4736975
+    
+},
+}
+
+@Article{Leake2012,
+  author    = {James E. Leake and Vyacheslav S. Lukin and Mark G. Linton and Eric T. Meier},
+  title     = {{MULTI}-{FLUID} {SIMULATIONS} {OF} {CHROMOSPHERIC} {MAGNETIC} {RECONNECTION} {IN} A {WEAKLY} {IONIZED} {REACTING} {PLASMA}},
+  journal   = {The Astrophysical Journal},
+  year      = {2012},
+  volume    = {760},
+  number    = {2},
+  pages     = {109},
+  month     = {nov},
+  abstract  = {We present results from the first self-consistent multi-fluid simulations of chromospheric magnetic reconnection in a weakly ionized reacting plasma. We simulate two-dimensional magnetic reconnection in a Harris current sheet with a numerical model which includes ion-neutral scattering collisions, ionization, recombination, optically thin radiative loss, collisional heating, and thermal conduction. In the resulting tearing mode reconnection the neutral and ion fluids become decoupled upstream from the reconnection site, creating an excess of ions in the reconnection region and therefore an ionization imbalance. Ion recombination in the reconnection region, combined with Alfvénic outflows, quickly removes ions from the reconnection site, leading to a fast reconnection rate independent of Lundquist number. In addition to allowing fast reconnection, we find that these non-equilibria partial ionization effects lead to the onset of the nonlinear secondary tearing instability at lower values of the Lundquist number than has been found in fully ionized plasmas. These simulations provide evidence that magnetic reconnection in the chromosphere could be responsible for jet-like transient phenomena such as spicules and chromospheric jets.},
+  doi       = {10.1088/0004-637x/760/2/109},
+  file      = {:Leake2012.pdf:PDF},
+  publisher = {{IOP} Publishing},
+  url       = {https://doi.org/10.1088%2F0004-637x%2F760%2F2%2F109},
+}
+
+@Article{Braginskii1965,
+  author  = {Braginskii, S. I.},
+  title   = {Transport Processes in Plasma},
+  journal = {Reviews of Plasma Physics},
+  year    = {1965},
+  volume  = {1},
+  pages   = {205},
+  file    = {:Braginskii1965.pdf:PDF},
+}
+
+@PhdThesis{Meier2011,
+  author = {Meier,E. T.},
+  title  = {Modeling Plasmas with Strong Anisotropy, Neutral Fluid Effects, and Open Boundaries},
+  school = {University of Washington},
+  year   = {2011},
+  file   = {:Meier2011.pdf:PDF},
+}
+
+@Article{Voronov1997,
+  author   = {G.S. Voronov},
+  title    = {A PRACTICAL FIT FORMULA FOR IONIZATION RATE COEFFICIENTS OF ATOMS AND IONS BY ELECTRON IMPACT:Z=1-28},
+  journal  = {Atomic Data and Nuclear Data Tables},
+  year     = {1997},
+  volume   = {65},
+  number   = {1},
+  pages    = {1-35},
+  issn     = {0092-640X},
+  abstract = {Ionization rates for atoms and ions from H to Ni recommended by the Belfast group, supplemented by data derived from several other sources, are fitted to an analytical expression with four fit parameters. On the grounds of its very simple form and its ability to generally replicate the input data to within a few percentage points, we present this expression as a practical formula for use in computer modeling of plasma processes.},
+  doi      = {https://doi.org/10.1006/adnd.1997.0732},
+  file     = {:Voronov1997.pdf:PDF},
+  url      = {http://www.sciencedirect.com/science/article/pii/S0092640X97907324},
+}
+
+@Article{Rambo1995,
+  author  = {Rambo,P. W. and Procassini,R. J.},
+  title   = {A comparison of kinetic and multifluid simulations of laser‐produced colliding plasmas},
+  journal = {Physics of Plasmas},
+  year    = {1995},
+  volume  = {2},
+  number  = {8},
+  pages   = {3130-3145},
+  doi     = {10.1063/1.871145},
+  eprint  = {https://doi.org/10.1063/1.871145},
+  url     = { 
+        https://doi.org/10.1063/1.871145
+    
+},
+}
+
+@Article{Ghosh2019,
+  author   = {D. Ghosh and T.D. Chapman and R.L. Berger and A. Dimits and J.W. Banks},
+  title    = {A multispecies, multifluid model for laser-induced counterstreaming plasma simulations},
+  journal  = {Computers \& Fluids},
+  year     = {2019},
+  volume   = {186},
+  pages    = {38-57},
+  issn     = {0045-7930},
+  abstract = {The interpenetration of counterstreaming plasmas is an important phenomenon in several application areas, such as astrophysical flows, design of controlled fusion devices, and laser–induced plasma experiments. Multispecies “single-fluid” codes are unable to model this phenomenon due to the single velocity representation for all the species/fluids. Kinetic codes, though capable of modeling interpenetration, are computationally prohibitive for at-scale simulations. In this paper, we propose a multifluid model that solves the fluid equations for each ion fluid or stream. This allows distinct flows that interact with each other through electrostatic and collisional forces. We introduce and describe our code, EUCLID, that uses a conservative finite-difference formulation to discretize the governing equations in space. The 5th-order Monotonicity-Preserving WENO scheme is used for the upwind approximation of the hyperbolic flux, and the explicit 4th-order Runge–Kutta scheme is used for time integration. The code is verified for several benchmark cases and manufactured solutions. We simulate one- and two-dimensional interactions of counterstreaming plasmas in vacuum as well as in the presence of gas fill, where the setups are representative of laser-induced plasma experiments.},
+  doi      = {https://doi.org/10.1016/j.compfluid.2019.04.012},
+  keywords = {Plasma interpenetration, Multifluid plasma, Conservative finite-difference method, Laser–induced plasmas},
+  url      = {http://www.sciencedirect.com/science/article/pii/S0045793019301227},
+}
+
+@TechReport{Fundamenski2007,
+  author      = {W. Fundamenski and O.E. Garcia},
+  title       = {Comparison of Coulomb Collision Rates in the Plasma Physics and Magnetically Confined Fusion Literature},
+  institution = {EUROfusion Consortium},
+  year        = {2007},
+}
+
+@Other{Hindmarsh2005a,
+  author  = {Hindmarsh, A. C. and Petzold, L. R.},
+  title   = {LSODA, Ordinary Differential Equation Solver for Stiff or Non-Stiff System},
+  year    = {2005},
+  address = {Nuclear Energy Agency of the OECD (NEA)},
+  url     = {http://www.nea.fr/abs/html/uscd1227.html},
+}
+
+@Article{Hindmarsh2005,
+  author     = {Hindmarsh, Alan C. and Brown, Peter N. and Grant, Keith E. and Lee, Steven L. and Serban, Radu and Shumaker, Dan E. and Woodward, Carol S.},
+  title      = {SUNDIALS: Suite of Nonlinear and Differential/Algebraic Equation Solvers},
+  journal    = {ACM Trans. Math. Softw.},
+  year       = {2005},
+  volume     = {31},
+  number     = {3},
+  pages      = {363-396},
+  month      = sep,
+  issn       = {0098-3500},
+  address    = {New York, NY, USA},
+  doi        = {10.1145/1089014.1089020},
+  issue_date = {September 2005},
+  keywords   = {nonlinear systems, DAEs, sensitivity analysis, ODEs},
+  numpages   = {34},
+  publisher  = {Association for Computing Machinery},
+  url        = {https://doi.org/10.1145/1089014.1089020},
+}
+
+@Misc{Leal2018,
+  author       = {Leal, Allan M. M. and others},
+  title        = {autodiff, a modern, fast and expressive {C++} library for automatic differentiation},
+  howpublished = {\texttt{https://autodiff.github.io}},
+  year         = {2018},
+  url          = {https://autodiff.github.io},
+}
+
+@Book{Landau1987,
+  title     = {Fluid Mechanics},
+  publisher = {Butterworth-Heinemann},
+  year      = {1987},
+  author    = {L.D. Landau and E.M. Lifshitz},
+}
+
+@Article{Munoz2012,
+  author   = {Munoz, D. J. and Springel, V. and Marcus, R. and Vogelsberger, M. and Hernquist, L.},
+  title    = {{Multidimensional, compressible viscous flow on a moving Voronoi mesh}},
+  journal  = {Monthly Notices of the Royal Astronomical Society},
+  year     = {2012},
+  volume   = {428},
+  number   = {1},
+  pages    = {254-279},
+  month    = {10},
+  issn     = {0035-8711},
+  abstract = {{Numerous formulations of finite-volume schemes for the Euler and Navier–Stokes equations exist, but in the majority of cases they have been developed for structured and stationary meshes. In many applications, more flexible mesh geometries that can dynamically adjust to the problem at hand and move with the flow in a (quasi-)Lagrangian fashion would, however, be highly desirable, as this can allow a significant reduction of advection errors and an accurate realization of curved and moving boundary conditions. Here we describe a novel formulation of viscous continuum hydrodynamics that solves the equations of motion on a Voronoi mesh created by a set of mesh-generating points. The points can move in an arbitrary manner, but the most natural motion is that given by the fluid velocity itself, such that the mesh dynamically adjusts to the flow. Owing to the mathematical properties of the Voronoi tessellation, pathological mesh-twisting effects are avoided. Our implementation considers the full Navier–Stokes equations and has been realized in the arepo code both in two and three dimensions. We propose a new approach to compute accurate viscous fluxes for a dynamic Voronoi mesh, and use this to formulate a finite-volume solver of the Navier–Stokes equations. Through a number of test problems, including circular Couette flow and flow past a cylindrical obstacle, we show that our new scheme combines good accuracy with geometric flexibility, and hence promises to be competitive with other highly refined Eulerian methods. This will in particular allow astrophysical applications of the arepo code where physical viscosity is important, such as in the hot plasma in galaxy clusters, or for viscous accretion disc models.}},
+  doi      = {10.1093/mnras/sts015},
+  eprint   = {https://academic.oup.com/mnras/article-pdf/428/1/254/3572173/254.pdf},
+  url      = {https://doi.org/10.1093/mnras/sts015},
+}
+
+@Book{Harrington2001,
+  title     = {TIME-HARMONIC ELECTROMAGNETIC FIELDS},
+  publisher = {JOHN WILEY \& SONS, INC},
+  year      = {2001},
+  author    = {Roger F. Harrington},
+  editor    = {Stamatios V. Kartalopoulos},
+}
+
+@Article{Londrillo2000,
+  author        = {P. Londrillo and L. Del Zanna},
+  title         = {High-Order Upwind Schemes for Multidimensional Magnetohydrodynamics},
+  journal       = {The Astrophysical Journal},
+  year          = {2000},
+  volume        = {530},
+  number        = {1},
+  pages         = {508--524},
+  month         = {feb},
+  __markedentry = {[uqdbond1:]},
+  abstract      = {A general method for constructing high-order upwind schemes for multidimensional magnetohydrodynamics (MHD), having as a main built-in condition the divergence-free constraint 𝛁 ∙ = 0 for the magnetic field vector , is proposed. The suggested procedure is based on consistency arguments, by taking into account the specific operator structure of MHD equations with respect to the reference Euler equations of gasdynamics. This approach leads in a natural way to a staggered representation of the  field numerical data in which the divergence-free condition in the cell-averaged form, corresponding to second-order accurate numerical derivatives, is exactly fulfilled. To extend this property to higher order schemes, we then give general prescriptions to satisfy a (r + 1)th order accurate 𝛁 ∙ = 0 relation for any numerical  field having a rth order interpolation accuracy. Consistency arguments lead also to a proper formulation of the upwind procedures needed to integrate the induction equations, assuring the exact conservation in time of the divergence-free condition and the related continuity properties for the vector components. As an application, a third-order code to simulate multidimensional MHD flows of astrophysical interest is developed using essentially nonoscillatory-based reconstruction algorithms. Several test problems to illustrate and validate the proposed approach are finally presented.},
+  doi           = {10.1086/308344},
+  publisher     = {{IOP} Publishing},
+  url           = {https://doi.org/10.1086%2F308344},
+}
+
+@Article{BRIO1988400,
+  author        = {M Brio and C.C Wu},
+  title         = {An upwind differencing scheme for the equations of ideal magnetohydrodynamics},
+  journal       = {Journal of Computational Physics},
+  year          = {1988},
+  volume        = {75},
+  number        = {2},
+  pages         = {400 - 422},
+  issn          = {0021-9991},
+  __markedentry = {[uqdbond1:6]},
+  abstract      = {Recently, upwind differencing schemes have become very popular for solving hyperbolic partial differential equations, especially when discontinuities exist in the solutions. Among many upwind schemes successfully applied to the problems in gas dynamics, Roe's method stands out for its relative simplicity and clarity of the underlying physical model. In this paper, an upwind differencing scheme of Roe-type for the MHD equations is constructed. In each computational cell, the problem is first linearized around some averaged state which preserves the flux differences. Then the solution is advanced in time by computing the wave contributions to the flux at the cell interfaces. One crucial task of the linearization procedure is the construction of a Roe matrix. For the special case γ = 2, a Roe matrix in the form of a mean value Jacobian is found, and for the general case, a simple averaging procedure is introduced. All other necessary ingredients of the construction, which include eigenvalues, and a complete set of right eigenvectors of the Roe matrix and decomposition coefficients are presented. As a numerical example, we chose a coplanar MHD Riemann problem. The problem is solved by the newly constructed second-order upwind scheme as well as by the Lax-Friedrichs, the Lax-Wendroff, and the flux-corrected transport schemes. The results demonstrate several advantages of the upwind scheme. In this paper, we also show that the MHD equations are nonconvex. This is a contrast to the general belief that the fast and slow waves are like sound waves in the Euler equations. As a consequence, the wave structure becomes more complicated; for example, compound waves consisting of a shock and attached to it a rarefaction wave of the same family can exist in MHD.},
+  doi           = {https://doi.org/10.1016/0021-9991(88)90120-9},
+  url           = {http://www.sciencedirect.com/science/article/pii/0021999188901209},
+}
+
+@MastersThesis{Loverich2003,
+  author = {J. Loverich},
+  title  = {A finite volume algorithm for the two-fluid plasma system in one dimension},
+  school = {Univeristy of Washington},
+  year   = {2003},
+}
+
+@Comment{jabref-meta: databaseType:bibtex;}

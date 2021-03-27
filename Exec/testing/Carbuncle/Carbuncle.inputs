@@ -1,0 +1,150 @@
+#======== AMREX ==========
+amrex.fpe_trap_invalid=0
+amr.v = 0
+
+# ======== TIME ==========
+max_step  = 1000000
+stop_time = 1.0
+
+# ======== DOMAIN ==========
+geometry.is_periodic = 0 1 1
+geometry.coord_sys   = 0  # 0 => cart, 1 => RZ  2=>spherical
+
+# lo. res.
+geometry.prob_lo     =    -1 0 
+geometry.prob_hi     =     10 1 
+amr.n_cell           =     88 8
+
+# ======== LOAD BALANCE ==========
+amr.loadbalance_with_workestimates = 1
+amr.loadbalance_level0_int = 10
+
+# ======== GRID ==========
+amr.max_level       = 2     # maximum level number allowed
+amr.ref_ratio       = 2 2 2 2 2 2 2 # refinement ratio
+amr.regrid_int      = 2 2 2 2 2 2 2 # how often to regrid
+amr.blocking_factor = 8
+amr.max_grid_size   = 32
+amr.n_error_buf     = 4 4 4 4 4 4 4 # number of buffer cells in error est
+amr.grid_eff        = 0.99     # what constitutes an efficient grid
+amr.subcycling_mode = Auto # time sub-cycling (Auto, None, Manual, Optimal)
+
+# ======== GEOMETRY ==========
+eb2.geom_type = all_regular
+
+# ======== OUTPUT ==========
+
+# CHECKPOINT FILES
+amr.checkpoint_files_output = 0
+amr.check_file              = Carbuncle.chk    # root name of checkpoint file
+amr.check_int               = 1    # number of timesteps between checkpoints
+amr.check_per               = -1
+
+# PLOTFILES
+amr.plot_files_output = 1
+amr.plot_file         = Carbuncle.plt     # root name of plotfile
+amr.plot_int          = -1      # number of timesteps between plotfiles
+amr.plot_per          = 0.05
+
+# ======== PROBLEM DESCRIPTION ==========
+# Note that the problem description is defined as a lua script
+# Everything within the double quotes "..." must conform to lua standards
+# Note that any strings should therefore be defined by single quotes '...'
+
+mfp.lua = "
+
+
+verbosity = 1
+cfl = 0.8
+
+plot_shock_detector = 1
+
+force_dt = 0.0
+
+-- ======== PROBLEM ==========
+
+lightspeed = 1.0
+
+shock_x = 0.0
+
+shock_mach = 6.0
+
+gam = 5/3
+pressure = 1.0
+
+do_fluctuations = 1
+
+-- computations
+
+p1 = 1.0
+p0 = p1*(1 + ((2*gam)/(gam+1))*(shock_mach^2 - 1))
+
+rho1 = 1.0
+rho0 = rho1/(1 - (2/(gam+1))*(1 - 1/shock_mach^2))
+
+a0 = math.sqrt(gam*p0/rho0)
+a1 = math.sqrt(gam*p1/rho1)
+
+u1 = 0.0
+u0 = shock_mach*a1 - a0*math.sqrt(((gam-1)*shock_mach^2 + 2)/(2*gam*shock_mach^2 - (gam-1)))
+
+
+-- functions
+
+function RMI_interface_A(x, L, R)
+    r = math.random()*0.001 - 0.0005
+    if x <= shock_x then
+	    return L+r*do_fluctuations
+    else
+	    return R+r*do_fluctuations
+    end
+end
+
+-- fluids
+
+function number_density(dat)
+    x = dat['x']
+    n = RMI_interface_A(x, rho0, rho1)
+    return n
+end
+
+function tracer(dat)
+    x = dat['x']
+    t = RMI_interface_A(x, 0, 1)
+    return t
+end
+
+function pressure(dat)
+    x = dat['x']
+    return RMI_interface_A(x, p0, p1)
+end
+
+function velocity_x(dat)
+    x = dat['x']
+    return RMI_interface_A(x, u0, u1)
+end
+
+-- === DEFINE STATES ===
+
+states = {
+
+    neutral = {
+        type='hydro',
+        mass=1.0,  
+        charge=0.0, 
+        gamma=gam, 
+        reconstruction='minmod', 
+        flux='HLLE/HLLC',
+        shock_threshold=10.0,
+        refine_grad_threshold = {rho=0.1},
+        value = {
+            nd = number_density,
+            x_vel =   velocity_x,
+            p =   pressure,
+            alpha = tracer,
+        }
+    },
+}
+
+"
+

@@ -1,0 +1,146 @@
+#======== AMREX ==========
+amrex.fpe_trap_invalid=1
+amrex.fpe_trap_zero=1
+fpe_trap_overflow=1
+amr.v = 0
+
+# ======== TIME ==========
+max_step  = 1000000
+stop_time = 50.0
+
+# ======== DOMAIN ==========
+geometry.is_periodic = 0 0 0
+geometry.coord_sys   = 0  # 0 => cart, 1 => RZ  2=>spherical
+
+# lo. res.
+geometry.prob_lo     =     0 0 0
+geometry.prob_hi     =     1 1 1
+amr.n_cell           =     32 32 8
+
+# ======== LOAD BALANCE ==========
+amr.loadbalance_with_workestimates = 1
+amr.loadbalance_level0_int = 10
+
+# ======== GRID ==========
+amr.max_level       = 0   # maximum level number allowed
+amr.ref_ratio       = 2 2 2 2 2 2 2 # refinement ratio
+amr.regrid_int      = 2 2 2 2 2 2 2 # how often to regrid
+amr.blocking_factor = 2
+amr.max_grid_size   = 32
+amr.n_error_buf     = 2 2 2 2 2 2 0 # number of buffer cells in error est
+amr.grid_eff        = 0.75     # what constitutes an efficient grid
+amr.subcycling_mode = Auto # time sub-cycling (Auto, None, Manual, Optimal)
+
+# ======== GEOMETRY ==========
+eb2.geom_type = all_regular
+
+# ======== PARTICLES ==========
+particles.do_particles = 1
+particles.v = 0
+
+
+# ======== OUTPUT ==========
+
+# CHECKPOINT FILES
+amr.checkpoint_files_output = 0
+amr.check_file              = Cavity.chk    # root name of checkpoint file
+amr.check_int               = -1    # number of timesteps between checkpoints
+amr.check_per               = 1.0
+
+# PLOTFILES
+amr.plot_files_output = 1
+amr.plot_file         = Cavity.plt     # root name of plotfile
+amr.plot_int          = -1      # number of timesteps between plotfiles
+amr.plot_per          = 1.0
+
+
+#amr.restart = 
+
+
+# ======== PROBLEM DESCRIPTION ==========
+# Note that the problem description is defined as a lua script
+# Everything within the double quotes "..." must conform to lua standards
+# Note that any strings should therefore be defined by single quotes '...'
+
+mfp.lua = "
+
+-- ======== PROBLEM ==========
+
+ref_density = 1.20 -- kg/m^-3
+ref_mass = 4.65*10^-26  -- kg
+ref_temp = 273.0 -- K
+kB = 1.38064852*10^-23
+
+wall_velocity = 1.0
+Re = 1000.0
+
+Sutherland = {Pr=0.72, mu0=1.71e-5, T0=273, S=110.4, type='Sutherland'}
+
+ref_vel = math.sqrt(kB*ref_temp/ref_mass)
+ref_length = (Re*Sutherland.mu0)/(ref_density*wall_velocity*ref_vel)
+
+function pressure(v)
+    x = v['x']
+    y = v['y']
+    return 1.0 + math.exp(-100*((x-0.5)^2 + (y-0.5)^2))
+end
+
+function wall_state(S)
+    return wall_velocity
+end
+
+-- === SETTINGS ===
+
+verbosity = 1
+cfl = 0.75
+
+do_face_sources = 1
+do_CTU = 1
+
+-- === DEFINE STATES ===
+
+states = {
+
+    fluid = {
+        type='hydro',
+        mass=1.0,  
+        charge= 0.0, 
+        gamma=1.4, 
+        reconstruction='minmod', 
+        flux='HLLC',
+        refine_grad_threshold = {x_mom=0.5, y_mom=0.5},
+        viscosity=Sutherland,
+        value = {
+            rho = 1,
+            x_vel =   0,
+            y_vel =   0,
+            z_vel =   0,
+            p =   1,
+            alpha = 0.0,
+        },
+        particles = 'particle_file',
+        bc = {
+            x={
+                hi={
+                    fill_hydro_bc = 'noslipwall',
+                },
+                lo={
+                    fill_hydro_bc = 'noslipwall',
+                }
+            },
+            y={
+                hi={
+                    fill_hydro_bc = 'noslipwall',
+                    x_vel = wall_state,
+                },
+                lo={
+                    fill_hydro_bc = 'noslipwall',
+                },
+            },
+        },
+    },
+
+}
+
+"
+

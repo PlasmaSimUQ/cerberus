@@ -1,0 +1,7 @@
+CEXE_headers += matplotlibcpp.h
+CEXE_headers += MFP_diagnostics.H
+CEXE_sources += MFP_diagnostics.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/diagnostics
+VPATH_LOCATIONS   += $(TOP)/Source/diagnostics
+

@@ -1,0 +1,6 @@
+This folder contains all of the tests for ensuring that cerberus is performing
+as it should. Each test should be in a separate folder and contain a bash
+script called "run" that performs all of the necessary actions for that test. 
+It shall return a non-zero exit code if the test fails.  
+
+Run all tests by calling "python run_tests.py"

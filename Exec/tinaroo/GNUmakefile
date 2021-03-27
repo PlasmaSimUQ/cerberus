@@ -1,0 +1,19 @@
+AMREX_HOME := ../../amrex
+TOP := ../../
+COMP := GNU
+
+DIM = 2
+
+TINY_PROFILE = FALSE
+PROFILE = FALSE
+DEBUG = FALSE
+VERBOSE = TRUE
+
+HDF5_HOME   = /opt/hdf5/gnu/openmpi_ib
+USE_HDF5 = FALSE
+
+USE_EB = FALSE
+
+AMREX_PARTICLES = TRUE
+
+include ../Make.MFP

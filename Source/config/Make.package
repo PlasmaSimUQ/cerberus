@@ -1,0 +1,7 @@
+CEXE_headers += sol.hpp
+CEXE_headers += forward.hpp
+
+CEXE_headers += MFP_lua.hpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/config
+VPATH_LOCATIONS   += $(TOP)/Source/config

@@ -1,0 +1,9 @@
+
+CEXE_headers += MFP_field.H
+CEXE_sources += MFP_field.cpp
+
+CEXE_headers += MFP_field_bc.H
+CEXE_sources += MFP_field_bc.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/states/field
+VPATH_LOCATIONS   += $(TOP)/Source/states/field

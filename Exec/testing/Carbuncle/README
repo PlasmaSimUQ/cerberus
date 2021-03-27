@@ -1,0 +1,9 @@
+Carbuncle.inputs:
+A rectangular domain with normal shock processing a randomly perturbed fluid. 
+Showcases numerical instability of the shock solver. Suppression is performed 
+by using a hybrid HLLE/HLLC Riemann flux solver with an appropriately chosen 
+shock detection threshold (~100).
+
+Cheese.inputs:
+The affectionately named cheese-grater effect develops during the course of 
+an isotope RMI with relatively small plasma length scale.

@@ -1,0 +1,7 @@
+CEXE_headers += eigen.hpp
+CEXE_headers += forward.hpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/extern/autodiff
+VPATH_LOCATIONS   += $(TOP)/Source/extern/autodiff
+
+CXXFLAGS += -std=c++17

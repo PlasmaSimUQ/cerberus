@@ -1,0 +1,9 @@
+
+CEXE_headers += MFP_hydro.H
+CEXE_sources += MFP_hydro.cpp
+
+CEXE_headers += MFP_hydro_bc.H
+CEXE_sources += MFP_hydro_bc.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/states/hydro
+VPATH_LOCATIONS   += $(TOP)/Source/states/hydro

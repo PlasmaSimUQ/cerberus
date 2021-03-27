@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+(cd ../../local && make -j8 DIM=2 USE_EB=TRUE AMREX_PARTICLES=FALSE)
+
+EXE=../../local/MFP.2d.gnu.MPI.EB.ex
+
+INPUTS=*.inputs
+
+rm -r *plt* *chk* mov
+
+mpirun -n 8 ${EXE} ${INPUTS} 2>&1 | tee run_log.txt
+
+../visit.sh .
+
+python3 plot.py
+python3 movie.py

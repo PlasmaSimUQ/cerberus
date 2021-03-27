@@ -1,0 +1,4 @@
+The process for preparing an SVG is as follows:
+1) Draw your SVG image, probably in Inkscape
+2) Draw a circle and centre it at your origin and set its ID to 'origin' [right-click->Object Properties->ID]. This will ensure that your imported geometry is where it should be relative to the origin defined in the inputs file.
+3) Set the units of the SVG to whatever is desired [File->Document Properties or Shift+Ctrl+D, then set Display units] this will determine the imported dimensions in the simulation. For example, if the image is a 1x1 box (in whatever units) then in the simulation the geometry will be a 1x1 box also.

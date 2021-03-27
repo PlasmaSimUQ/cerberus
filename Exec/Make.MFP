@@ -1,0 +1,89 @@
+EBASE := MFP.
+
+DIM ?= 2
+
+LAZY ?= TRUE
+USE_MPI ?= TRUE
+DEBUG ?= FALSE
+WARN_ALL ?= FALSE
+
+#=== EB ===
+
+USE_EB ?= FALSE
+
+ifeq ($(DIM), 1)
+USE_EB := FALSE
+endif
+
+ifeq ($(USE_EB), TRUE)
+USERSuffix := $(USERSuffix).EB
+endif
+
+#=== PYTHON ===
+
+PYTHON_PLOT ?= FALSE
+
+ifeq ($(PYTHON_PLOT), TRUE)
+INCLUDE_LOCATIONS += $(PYTHON_INCLUDE)
+LIBRARY_LOCATIONS += $(PYTHON_LIB)
+LIBRARIES         += -l$(notdir $(PYTHON_INCLUDE))
+USERSuffix := $(USERSuffix).PYTHON
+DEFINES += -DPYTHON
+endif
+
+#=== PARTICLES ===
+
+AMREX_PARTICLES ?= FALSE
+
+ifeq ($(DIM), 1)
+AMREX_PARTICLES := FALSE
+endif
+
+ifeq ($(AMREX_PARTICLES), TRUE)
+DEFINES += -DAMREX_PARTICLES
+USERSuffix := $(USERSuffix).PARTICLES
+endif
+
+#=== HDF5 ===
+
+USE_HDF5 ?= FALSE
+
+ifeq ($(USE_HDF5), TRUE)
+DEFINES += -DAMREX_USE_HDF5
+INCLUDE_LOCATIONS += $(HDF5_HOME)/include
+LIBRARIES         += -lhdf5 -L$(HDF5_HOME)/lib
+USERSuffix := $(USERSuffix).HDF5
+endif
+
+CERBERUS_GIT_NAME := $(shell git branch | grep \* | sed 's/[(*) ]/_/g')
+CERBERUS_GIT_VERSION := $(shell git describe --abbrev=12 --dirty --always --tags)
+DEFINES += -DCERBERUS_GIT_VERSION=\"$(CERBERUS_GIT_VERSION)\" 
+DEFINES += -DCERBERUS_GIT_NAME=\"$(CERBERUS_GIT_NAME)\"
+
+DEFINES += -DAMREX_CRSEGRNDOMP
+
+include $(AMREX_HOME)/Tools/GNUMake/Make.defs
+
+include $(TOP)/Source/Make.package
+include $(AMREX_HOME)/Src/Base/Make.package
+include $(AMREX_HOME)/Src/Boundary/Make.package
+include $(AMREX_HOME)/Src/AmrCore/Make.package
+include $(AMREX_HOME)/Src/Amr/Make.package
+include $(AMREX_HOME)/Src/LinearSolvers/MLMG/Make.package
+
+ifeq ($(USE_EB), TRUE)
+include $(AMREX_HOME)/Src/EB/Make.package
+endif
+
+ifeq ($(AMREX_PARTICLES), TRUE)
+include $(AMREX_HOME)/Src/Particle/Make.package
+endif
+
+ifeq ($(USE_CVODE_LIBS), TRUE)
+DEFINES += -DUSE_CVODE
+USERSuffix := $(USERSuffix).CVODE
+INCLUDE_LOCATIONS += $(CVODE_LIB_DIR)/include
+LIBRARIES += -L$(CVODE_LIB_DIR)/lib -Wl,-rpath,${CVODE_LIB_DIR}/lib -lsundials_cvode -lsundials_nvecserial -lsundials_sunmatrixdense
+endif
+
+include $(AMREX_HOME)/Tools/GNUMake/Make.rules

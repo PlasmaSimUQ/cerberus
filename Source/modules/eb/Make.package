@@ -1,0 +1,19 @@
+
+CEXE_headers += MFP_read_geom.H
+CEXE_sources += MFP_read_geom.cpp
+
+CEXE_headers += MFP_eb_sdf.H
+
+CEXE_headers += MFP_polyspline.H
+CEXE_sources += MFP_polyspline.cpp
+
+CEXE_headers += MFP_eb_bc.H
+CEXE_sources += MFP_eb_bc.cpp
+
+CEXE_headers += MFP_eb_divergence.H
+CEXE_sources += MFP_eb_divergence.cpp
+
+CEXE_headers += MFP_fillcc_eb.H
+
+INCLUDE_LOCATIONS += $(TOP)/Source/modules/eb
+VPATH_LOCATIONS   += $(TOP)/Source/modules/eb

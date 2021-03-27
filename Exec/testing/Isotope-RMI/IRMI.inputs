@@ -1,0 +1,275 @@
+#======== AMREX ==========
+amrex.fpe_trap_invalid=1
+amrex.fpe_trap_zero=1
+fpe_trap_overflow=1
+amr.v = 0
+
+# ======== TIME ==========
+max_step  = 1000000
+stop_time = 0.3
+
+# ======== DOMAIN ==========
+geometry.is_periodic = 0 1 1
+geometry.coord_sys   = 0  # 0 => cart, 1 => RZ  2=>spherical
+
+# lo. res.
+geometry.prob_lo     =     -4 0.0 0.0
+geometry.prob_hi     =     4 1.0 1.0
+amr.n_cell           =     64 8 8
+
+# ======== LOAD BALANCE ==========
+amr.loadbalance_with_workestimates = 1
+amr.loadbalance_level0_int = 10
+
+# ======== GRID ==========
+amr.max_level       = 3    # maximum level number allowed
+amr.ref_ratio       = 2 2 2 2 2 2 2 # refinement ratio
+amr.regrid_int      = 2 2 2 2 2 2 2 # how often to regrid
+amr.blocking_factor = 8
+amr.max_grid_size   = 32
+amr.n_error_buf     = 2 2 2 2 2 2 0 # number of buffer cells in error est
+amr.grid_eff        = 0.99     # what constitutes an efficient grid
+amr.subcycling_mode = Auto # time sub-cycling (Auto, None, Manual, Optimal)
+
+# ======== PARTICLES ==========
+particles.do_particles = 1
+particles.v = 0
+
+
+# ======== OUTPUT ==========
+
+# CHECKPOINT FILES
+amr.checkpoint_files_output = 0
+amr.check_file              = IRMI.chk    # root name of checkpoint file
+amr.check_int               = 1    # number of timesteps between checkpoints
+amr.check_per               = -1
+amr.check_file_type              = HDF5
+
+# PLOTFILES
+amr.plot_files_output = 1
+amr.plot_file         = IRMI.plt     # root name of plotfile
+amr.plot_int          = -1      # number of timesteps between plotfiles
+amr.plot_per          = 0.002
+amr.plot_file_type         = HDF5
+
+# ======== PROBLEM DESCRIPTION ==========
+# Note that the problem description is defined as a lua script
+# Everything within the double quotes "..." must conform to lua standards
+# Note that any strings should therefore be defined by single quotes '...'
+
+mfp.lua = "
+
+verbosity = 1
+cfl = 0.3
+
+do_face_sources = 1
+do_CTU = 1
+
+force_dt = 0
+
+lightspeed = 20.0
+skin_depth = 1.0
+beta = 1.0
+
+
+-- ======== PROBLEM ==========
+
+shock_x = -0.2
+interface_x = 0.0
+interface_amplitude = 0.1
+interface_transition = 0.01
+
+gam = 5/3
+pressure = 0.5
+
+mass_ion_L = 1.0
+mass_ion_R = 2.0
+mass_electron = 0.01
+
+shock_mach = 2.0
+rho1 = 1.0 -- density to left of interface
+u1 = 0.0
+axis_beta = {0,0,0}
+
+-- computations
+
+p1 = pressure
+p2 = pressure
+p0 = p1*(1 + ((2*gam)/(gam+1))*(shock_mach^2 - 1))
+
+rho0 = rho1/(1 - (2/(gam+1))*(1 - 1/shock_mach^2))
+
+a0 = math.sqrt(gam*p0/rho0)
+a1 = math.sqrt(gam*p1/rho1)
+
+u0 = shock_mach*a1 - a0*math.sqrt(((gam-1)*shock_mach^2 + 2)/(2*gam*shock_mach^2 - (gam-1)))
+
+-- results
+
+nd_L = rho0/mass_ion_L
+nd_R = rho1/mass_ion_L
+
+rho2 = nd_R*mass_ion_R
+
+--  magnetic field strength
+B = {0,0,0}
+p = 2*pressure -- use total pressure
+for i, b in ipairs(axis_beta) do
+    if b > 0 then
+        B[i] = math.sqrt(p*beta/b)
+    end
+end
+
+
+-- functions
+
+local function islarge (x) return x > 2 ^ 28 end
+local function issmall (x) return x < 2 ^ (-28) end
+
+local function log1p (x) -- not very precise, but works well
+  local u = 1 + x
+  if u == 1 then return x end -- x < eps?
+  return math.log(u) * x / (u - 1)
+end
+
+function atanh (x)
+  y = math.abs(x)
+  if y < .5 then
+    if issmall(y) then return x end
+    a = 2 * y
+    a = .5 * log1p(a + a * y / (1 - y))
+  else
+    if y < 1 then
+      a = .5 * log1p(2 * y / (1 - y))
+    elseif y > 1 then
+      return (x - x) / (x - x) -- nan
+    else -- y == 1
+      return x / 0 -- inf with sign
+    end
+  end
+  return x < 0 and -a or a -- transfer sign
+end
+
+function RMI_interface_A(x, L, R)
+    if x <= shock_x then
+	    return L
+    else
+	    return R
+    end
+end
+
+function RMI_interface_B(x, y, L, R)
+    if math.abs(L - R)  < 1e-14 then
+        return L
+    end
+    
+    
+    rr = x
+
+    centre = interface_x + interface_amplitude*math.cos(2*math.pi*y)
+
+    if (L < R) then
+        at = (10.0*L - 9.0*R)/(10.0*(R-L))
+    else
+        at = (10.0*R - 9.0*L)/(10.0*(L-R))
+    end
+    
+    slope = (2.0/interface_transition)*atanh(at)
+    out = -((math.tanh(-slope*(rr - centre))-1.0)/2.0)*(L-R)+R
+
+    return out
+end
+
+-- fluids
+
+function number_density(dat)
+    x = dat['x']
+    n = RMI_interface_A(x, nd_L, nd_R)
+    
+    return n
+end
+
+function tracer(dat)
+    x = dat['x']
+    y = dat['y']
+    if (x <= shock_x) then
+        t = RMI_interface_A(x, 0, 1)
+    else
+        t = RMI_interface_B(x, y, 0, 1)
+    end
+    
+    return t
+end
+
+function pressure(dat)
+    x = dat['x']
+    return RMI_interface_A(x, p0, p1)
+end
+
+function velocity_x(dat)
+    x = dat['x']
+    return RMI_interface_A(x, u0, u1)
+end
+
+
+-- === DEFINE STATES ===
+
+states = {
+
+    ion = {
+        type='hydro',
+        mass={mass_ion_L, mass_ion_R},  
+        charge= 1.0, 
+        gamma=5/3, 
+        reconstruction='minmod', 
+        flux='HLLC',
+        refine_grad_threshold = {rho=0.1},
+        value = {
+            nd = number_density,
+            x_vel =   velocity_x,
+            p =   pressure,
+            alpha = tracer,
+        },
+        particles='particle_file'
+    },
+
+    electron = {
+        type='hydro',
+        mass=mass_electron, 
+        charge=-1.0, 
+        gamma=5/3, 
+        reconstruction='minmod',  
+        flux='HLLC',
+        refine_grad_threshold = {rho=0.1},
+        value = {
+            nd = number_density,
+            x_vel =   velocity_x,
+            p =   pressure,
+            alpha = tracer,
+        },
+        particles='particle_file'
+    },
+
+
+    field = {
+        type='field',
+        reconstruction='O6', 
+        flux='RankineHugoniot',
+        project_divergence = 1,
+    }
+}
+
+sources = {
+
+    plasma={
+        solver = 'explicit',
+        sources = {
+            plasma={'ion', 'electron', 'field',
+                type='plasma5',
+            },
+        },
+    },    
+}
+
+"
+

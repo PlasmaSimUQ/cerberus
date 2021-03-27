@@ -1,0 +1,5 @@
+CEXE_headers += AABB.h
+CEXE_sources += AABB.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/extern/AABB
+VPATH_LOCATIONS   += $(TOP)/Source/extern/AABB

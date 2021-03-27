@@ -1,0 +1,6 @@
+
+CEXE_headers += MFP_mhd.H
+CEXE_sources += MFP_mhd.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/states/mhd
+VPATH_LOCATIONS   += $(TOP)/Source/states/mhd

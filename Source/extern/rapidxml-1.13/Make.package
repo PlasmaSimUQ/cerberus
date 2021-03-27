@@ -1,0 +1,8 @@
+CEXE_headers += rapidxml.hpp
+CEXE_headers += rapidxml_iterators.hpp
+CEXE_headers += rapidxml_print.hpp
+CEXE_headers += rapidxml_utils.hpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/extern/rapidxml-1.13
+VPATH_LOCATIONS   += $(TOP)/Source/extern/rapidxml-1.13
+

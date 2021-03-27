@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+(cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE)
+
+EXE=../../local/MFP.1d.gnu.MPI.ex
+
+INPUTS=*.inputs
+
+rm -r *plt* *chk*
+
+mpirun -n 1 ${EXE} ${INPUTS} 2>&1 | tee run_log.txt
+
+python3 plot.py

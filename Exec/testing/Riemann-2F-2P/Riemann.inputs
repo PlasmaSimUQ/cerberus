@@ -1,0 +1,246 @@
+#======== AMREX ==========
+amrex.fpe_trap_invalid=1
+amrex.fpe_trap_zero=1
+fpe_trap_overflow=1
+amr.v = 0
+
+# ======== TIME ==========
+max_step  = 1000000
+stop_time = 0.1
+
+# ======== DOMAIN ==========
+geometry.is_periodic = 0 0 0
+geometry.coord_sys   = 0  # 0 => cart, 1 => RZ  2=>spherical
+
+# lo. res.
+geometry.prob_lo     =     0.0
+geometry.prob_hi     =     1.0
+amr.n_cell           =     256
+
+# ======== LOAD BALANCE ==========
+amr.loadbalance_with_workestimates = 0
+amr.loadbalance_level0_int = 10
+
+# ======== GRID ==========
+amr.max_level       = 0      # maximum level number allowed
+amr.ref_ratio       = 8 8 8 2 1 # refinement ratio
+amr.regrid_int      = 0 0 0 0 0 # how often to regrid
+amr.blocking_factor = 16
+amr.max_grid_size   = 256
+amr.n_error_buf     = 0 0 0 0 0 # number of buffer cells in error est
+amr.grid_eff        = 0.99     # what constitutes an efficient grid
+amr.subcycling_mode = Auto # time sub-cycling (Auto, None, Manual, Optimal)
+
+# ======== OUTPUT ==========
+
+# CHECKPOINT FILES
+amr.checkpoint_files_output = -1
+amr.check_file              = Riemann.chk    # root name of checkpoint file
+amr.check_int               = 100    # number of timesteps between checkpoints
+amr.check_per               = -0.005
+
+# PLOTFILES
+amr.plot_files_output = 1
+amr.plot_file         = Riemann.plt     # root name of plotfile
+amr.plot_int          = 100      # number of timesteps between plotfiles
+amr.plot_per          = -0.001
+
+#amr.restart = Riemann.chk00983
+
+# ======== PROBLEM DESCRIPTION ==========
+# Note that the problem description is defined as a lua script
+# Everything within the double quotes "..." must conform to lua standards
+# Note that any strings should therefore be defined by single quotes '...'
+
+mfp.lua = "
+verbosity = 2
+cfl = 0.25
+
+force_dt = 0.0
+do_CTU = 1
+
+refine_boxes = {
+    {{0.25}, {0.75}, type='force_refine'},
+}
+
+-- === DEFINE PROBLEM ===
+
+ref_length = 1.0 -- m
+ref_density = 1.0 -- kg/m^-3
+ref_mass =  1.0 -- kg
+
+lightspeed = 20.0
+Larmor = 1/300
+Debye = Larmor/100
+
+mass_ratio = 100.0
+
+interface_x = 0.5
+
+rho0 = 1.0
+p0 = 0.5
+u0 = 0.0
+v0 = 0.0
+w0 = 0.0
+
+Bx0 = 0.75
+By0 = 1.0
+Bz0 = 0.0
+
+rho1 = 0.125
+p1 = 0.05
+u1 = 0.0
+v1 = 0.0
+w1 = 0.0
+
+Bx1 = 0.75
+By1 = -1
+Bz1 = 0.0
+
+function step(A, B, x)
+    if (x <= interface_x) then
+        return A
+    else
+        return B
+    end
+end
+
+-- === DEFINE STATES ===
+
+states = {
+
+    -- standard
+
+    ions = {
+        type='hydro',
+        mass=1.0,  
+        charge= 1.0, 
+        gamma=5/3, 
+        reconstruction='vanLeer',
+        flux='HLLE',
+        value = {
+            rho   = function(dat) return step(rho0, rho1, dat['x']) end,
+            x_vel = function(dat) return step(u0,   u1,   dat['x']) end,
+            y_vel = function(dat) return step(v0,   v1,   dat['x']) end,
+            z_vel = function(dat) return step(w0,   w1,   dat['x']) end,
+            p     = function(dat) return step(p0,   p1,   dat['x']) end,
+            pp    = function(dat) return step(p0,   p1,   dat['x']) end,
+        },
+    },
+
+    electrons = {
+        type='hydro',
+        mass=1.0/mass_ratio,  
+        charge= -1.0, 
+        gamma=5/3, 
+        reconstruction='vanLeer',
+        flux='HLLE',
+        value = {
+            rho   = function(dat) return step(rho0/mass_ratio, rho1/mass_ratio, dat['x']) end,
+            x_vel = function(dat) return step(u0,   u1,   dat['x']) end,
+            y_vel = function(dat) return step(v0,   v1,   dat['x']) end,
+            z_vel = function(dat) return step(w0,   w1,   dat['x']) end,
+            p     = function(dat) return step(p0,   p1,   dat['x']) end,
+            pp    = function(dat) return step(p0,   p1,   dat['x']) end,
+        },
+    },
+
+    
+
+    field = {
+        type='field',
+        reconstruction='O6',
+        flux='RankineHugoniot',
+        value = {
+            x_B  = function(dat) return step(Bx0, Bx1, dat['x']) end,
+            y_B  = function(dat) return step(By0, By1, dat['x']) end,
+            z_B  = function(dat) return step(Bz0, Bz1, dat['x']) end,
+        },
+    },
+
+
+    -- two pressure
+
+    ions2p = {
+        type='hydro_2p',
+        mass=1.0,  
+        charge= 1.0, 
+        gamma=5/3, 
+        reconstruction='vanLeer',
+        flux='HLLE',
+        pressure_relaxation = 1e-2,
+        value = {
+            rho   = function(dat) return step(rho0, rho1, dat['x']) end,
+            x_vel = function(dat) return step(u0,   u1,   dat['x']) end,
+            y_vel = function(dat) return step(v0,   v1,   dat['x']) end,
+            z_vel = function(dat) return step(w0,   w1,   dat['x']) end,
+            p     = function(dat) return step(p0,   p1,   dat['x']) end,
+            pp    = function(dat) return step(p0,   p1,   dat['x']) end,
+        },
+    },
+
+    electrons2p = {
+        type='hydro_2p',
+        mass=1.0/mass_ratio,  
+        charge= -1.0, 
+        gamma=5/3, 
+        reconstruction='vanLeer',
+        flux='HLLE',
+        pressure_relaxation = 1e-2,
+        value = {
+            rho   = function(dat) return step(rho0/mass_ratio, rho1/mass_ratio, dat['x']) end,
+            x_vel = function(dat) return step(u0,   u1,   dat['x']) end,
+            y_vel = function(dat) return step(v0,   v1,   dat['x']) end,
+            z_vel = function(dat) return step(w0,   w1,   dat['x']) end,
+            p     = function(dat) return step(p0,   p1,   dat['x']) end,
+            pp    = function(dat) return step(p0,   p1,   dat['x']) end,
+        },
+    },
+
+    
+
+    field2p = {
+        type='field',
+        reconstruction='O6',
+        flux='RankineHugoniot',
+        value = {
+            x_B  = function(dat) return step(Bx0, Bx1, dat['x']) end,
+            y_B  = function(dat) return step(By0, By1, dat['x']) end,
+            z_B  = function(dat) return step(Bz0, Bz1, dat['x']) end,
+        },
+    },
+
+}
+
+sources = {
+
+    plasma={
+        solver = 'implicit',
+        sources = {
+            plasma={
+                'ions', 'electrons', 'field', type='plasma5',
+            },
+        },
+    },
+
+    plasma_2p={
+        solver = 'implicit',
+        sources = {
+            plasma2p={
+                'ions2p', 'electrons2p', 'field2p', type='plasma5',
+            },
+        },
+    }, 
+ 
+
+    parallel_prs={
+        solver = 'explicit',
+        sources = {
+            two_pressure={
+                'ions2p', 'electrons2p', 'field2p', type='two_pressure', reconstruction='vanLeer',
+            },  
+        },
+    }, 
+}
+
+"
