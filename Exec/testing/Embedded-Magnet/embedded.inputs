@@ -6,23 +6,23 @@ amr.v = 0
 
 # ======== TIME ==========
 max_step  = 1000000
-stop_time = 50.0
+stop_time = 10.0
 
 # ======== DOMAIN ==========
 geometry.is_periodic = 0 1 0
 geometry.coord_sys   = 0  # 0 => cart, 1 => RZ  2=>spherical
 
 # lo. res.
-geometry.prob_lo     =     -200 -100 0
-geometry.prob_hi     =      200  100 0
-amr.n_cell           =     64 32
+geometry.prob_lo     =     -400 -200 0
+geometry.prob_hi     =      200  200 0
+amr.n_cell           =     96 64
 
 # ======== LOAD BALANCE ==========
 amr.loadbalance_with_workestimates = 1
 amr.loadbalance_level0_int = 10
 
 # ======== GRID ==========
-amr.max_level       = 1   # maximum level number allowed
+amr.max_level       = 0   # maximum level number allowed
 amr.ref_ratio       = 2 2 2 2 2 2 2 # refinement ratio
 amr.regrid_int      = 2 2 2 2 2 2 2 # how often to regrid
 amr.blocking_factor = 8
@@ -47,8 +47,8 @@ amr.check_per               = 0.01
 # PLOTFILES
 amr.plot_files_output = 1
 amr.plot_file         = plt.embedded     # root name of plotfile
-amr.plot_int          = -1      # number of timesteps between plotfiles
-amr.plot_per          = 1.0
+amr.plot_int          = 1      # number of timesteps between plotfiles
+amr.plot_per          = -1.0
 
 
 # ======== PROBLEM DESCRIPTION ==========

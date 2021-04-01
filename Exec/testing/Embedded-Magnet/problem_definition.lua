@@ -2,10 +2,10 @@
 -- ======== PROBLEM ==========
 
 
-lightspeed = 100.0
+ref_temp = 273.0
 
-skin_depth = 10.0
-beta = 10.0
+Larmor = 0.1
+Debye = 0.1
 
 -- === SETTINGS ===
 
@@ -17,7 +17,7 @@ do_CTU = 1
 
 -- === DEFINE STATES ===
 
-shock_x = -30
+shock_x = -200
 
 shock_mach = 2.0
 density = 1.0
@@ -150,7 +150,7 @@ sources = {
       options = {order=3},
       sources = {
           plasma={'ion', 'electron', 'field',
-              type='plasma5',
+              type='Lorentz',
           },
       },
   },    
