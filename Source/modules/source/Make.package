@@ -20,6 +20,9 @@ CEXE_sources += MFP_udf.cpp
 CEXE_headers += MFP_plasma5.H
 CEXE_sources += MFP_plasma5.cpp
 
+CEXE_headers += MFP_lorentz.H
+CEXE_sources += MFP_lorentz.cpp
+
 CEXE_headers += MFP_reactions.H
 CEXE_sources += MFP_reactions.cpp
 

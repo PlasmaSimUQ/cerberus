@@ -536,13 +536,12 @@ void Plasma5::calc_charge_density(const Box& box,
 
                     cd4(i,j,k) += rho*r;
 
-                    // the current is only used in magnetostatics and these currents are instantaneous (invalid for statics)
-//                    mx   = src4(i,j,k,mom_idx+0);
-//                    my   = src4(i,j,k,mom_idx+1);
-//                    mz   = src4(i,j,k,mom_idx+2);
-//                    J4(i,j,k,0) += mx*r;
-//                    J4(i,j,k,1) += my*r;
-//                    J4(i,j,k,2) += mz*r;
+                    mx   = src4(i,j,k,mom_idx+0);
+                    my   = src4(i,j,k,mom_idx+1);
+                    mz   = src4(i,j,k,mom_idx+2);
+                    J4(i,j,k,0) += mx*r;
+                    J4(i,j,k,1) += my*r;
+                    J4(i,j,k,2) += mz*r;
                 }
             }
         }

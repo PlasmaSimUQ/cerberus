@@ -29,6 +29,7 @@ enum class SourceType : int {
     Plasma5,
     Collisions,
     Braginskii,
+    Lorentz,
     User,
     Ionisation,
     Recombination,

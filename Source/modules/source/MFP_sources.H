@@ -11,5 +11,6 @@
 #include "MFP_elastic.H"
 #include "MFP_acceleration.H"
 #include "MFP_braginskii.H"
+#include "MFP_lorentz.H"
 
 #endif // MFP_SOURCES_H

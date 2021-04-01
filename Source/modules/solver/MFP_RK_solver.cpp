@@ -81,6 +81,7 @@ int SolveRK::solve(Real x, Real y, Real z, Real t0, Real t1, int depth)
     if (!valid_solution()) {
 
         if (depth == max_depth) {
+            amrex::Abort("Source integration time reduction went too far");
             return 1;
         }
 
