@@ -19,33 +19,9 @@ Real Reconstruction::get_slope(Vector<Real>& stencil)
     return 0;
 }
 
-Real Reconstruction::get_slope(Vector<Real>& stencil, const int side)
-{
-    if (side == 0) {
-        return get_slope(stencil);
-    } else if (side == 1) {
-        return stencil[stencil_length/2+1] - stencil[stencil_length/2];
-    } else {
-        return stencil[stencil_length/2] - stencil[stencil_length/2-1];
-    }
-}
-
 void Reconstruction::get_face_values(Vector<Real>& stencil, Real& lo, Real& hi)
 {
     // do nothing
-}
-
-void Reconstruction::get_face_values(Vector<Real>& stencil, Real& lo, Real& hi, const int side)
-{
-    if (side == 0) {
-        get_face_values(stencil, lo, hi);
-    } else {
-
-        Real g = get_slope(stencil, side);
-
-        lo = stencil[stencil_length/2] - 0.5*g;
-        hi = stencil[stencil_length/2] + 0.5*g;
-    }
 }
 
 PhysicsFactory<Reconstruction>& GetReconstructionFactory()
@@ -247,6 +223,104 @@ void SixthOrderReconstruction::get_face_values(Vector<Real>& stencil, Real& lo, 
 {
     hi = (37.0/60.0)*(stencil[3] + stencil[4]) - (2.0/15.0)*(stencil[2] + stencil[5]) + (1.0/60.0)*(stencil[1] + stencil[6]);
     lo = (37.0/60.0)*(stencil[3] + stencil[2]) - (2.0/15.0)*(stencil[4] + stencil[1]) + (1.0/60.0)*(stencil[5] + stencil[0]);
+}
+
+//================================================================================
+
+// M.P. Martin et al. Journal of Computational Physics 220 (2006) 270-289
+
+std::string WENOReconstruction::tag = "WENO";
+bool WENOReconstruction::registered = GetReconstructionFactory().Register(WENOReconstruction::tag, ReconstructionBuilder<WENOReconstruction>);
+
+WENOReconstruction::WENOReconstruction()
+{
+    stencil_length = 7;
+    num_grow = 4;
+}
+
+Real WENOReconstruction::get_slope(Vector<Real>& stencil)
+{
+    // just use an approximation based on the cell edge values
+    Real lo, hi;
+    get_face_values(stencil, lo, hi);
+    return hi - lo;
+}
+
+Real WENOReconstruction::WENOSYMBO(Vector<Real>& stencil, int upwind)
+// i     : centre of stencil
+// upwind: direction of upwinding (1 = -->, -1 = <--)
+{
+
+    size_t i = stencil_length/2;
+
+    constexpr size_t r = 3;
+    constexpr Real C[4] = {0.094647545896, 0.428074212384, 0.408289331408, 0.068988910311};
+    constexpr Real akl[4][3] = {{2/6.0, -7/6.0, 11/6.0},
+                                {-1/6.0, 5/6.0, 2/6.0},
+                                {2/6.0, 5/6.0, -1/6.0},
+                                {11/6.0, -7/6.0, 2/6.0}};
+    constexpr Real b2 = std::sqrt(13/12.0);
+    constexpr Real dkml[4][2][3] = {{{ 1/2.0,-4/2.0, 3/2.0},{b2,-2*b2,b2}},
+                                    {{-1/2.0,     0, 1/2.0},{b2,-2*b2,b2}},
+                                    {{-3/2.0, 4/2.0,-1/2.0},{b2,-2*b2,b2}},
+                                    {{-5/2.0, 8/2.0,-3/2.0},{b2,-2*b2,b2}}};
+    const Real epsilon = 1e-10;
+
+    // calculate smoothness indicators
+    Real IS[r+1] = {0,0,0,0};
+    for (size_t k = 0; k<=r; ++k) {
+        for (size_t m = 0; m<r-1; ++m) {
+            Real is = 0.0;
+            for (size_t l=0; l<r; ++l) {
+                is += dkml[k][m][l]*stencil[i-upwind*(r-1-k-l)];
+            }
+            IS[k] += is*is;
+        }
+    }
+
+    if (upwind != 0) {
+        // limit the downwind indicator
+        Real max_IS = IS[0];
+        for (size_t k = 1; k<=r; ++k) {
+            max_IS = std::max(IS[k], max_IS);
+        }
+        IS[r] = max_IS;
+    }
+
+    // calculate alpha
+    Real alpha[r+1];
+    for (size_t k = 0; k<=r; ++k) {
+        alpha[k] = C[k]/(epsilon + IS[k]);
+    }
+
+    // sum of alpha (k < r)
+    Real sum_alpha = alpha[0] + alpha[1] + alpha[2];
+
+    // calculate omega
+    Real omega[r+1];
+    for (size_t k = 0; k<=r; ++k) {
+        omega[k] = alpha[k]/sum_alpha;
+    }
+
+    // calculate face value
+    Real face_value = 0.0;
+    Real q;
+    for (size_t k = 0; k<r; ++k) {
+        q = 0.0;
+        for (size_t l=0; l<r; ++l) {
+            q += akl[k][l]*stencil[i-upwind*(r-1-k-l)];
+        }
+        face_value += omega[k]*q;
+    }
+    return face_value;
+}
+
+void WENOReconstruction::get_face_values(Vector<Real>& stencil, Real& lo, Real& hi)
+{
+
+    hi = WENOSYMBO(stencil,  1);
+    lo = WENOSYMBO(stencil, -1);
+
 }
 
 //================================================================================

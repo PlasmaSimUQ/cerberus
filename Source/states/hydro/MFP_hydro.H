@@ -54,6 +54,8 @@ public:
     bool enforce_positivity = false;
     const Vector<int> enforce_positivity_idx = {+ConsIdx::Density, +ConsIdx::Eden};
 
+    bool extra_slope_limits = true;
+
     virtual void init_from_lua() override;
 #ifdef AMREX_USE_EB
     virtual void set_eb_bc(const sol::table &bc_def) override;

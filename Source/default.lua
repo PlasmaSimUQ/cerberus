@@ -194,6 +194,9 @@ Valid options for a hydro state are:
 - enforce_positivity : force Density and Eden > 0.0 when doing source terms [1 = apply, 0 = don't apply, default = 0]
                        currently only works for the CVODE source term solver and only if CVODE_apply_constraints=1.
 
+- extra_slope_limits : apply extra limits on reconstructed slopes
+                       according to Abgrall & Kumar (J Sci Comput (2014) 60:584–611, DOI 10.1007/s10915-013-9809-6)
+
 ======================================
 Valid options for the mhd state are:
 

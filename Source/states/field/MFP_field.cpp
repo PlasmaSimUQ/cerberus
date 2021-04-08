@@ -572,14 +572,13 @@ void FieldState::calc_reconstruction(const Box& box,
                         }
 
                         stencil_index.fill(0);
-                        int side = 0;
                         for (int s=0; s<reconstruction->stencil_length; ++s) {
                             stencil_index[d] = s - offset;
                             stencil[s] = s4(i+stencil_index[0], j+stencil_index[1], k+stencil_index[2], n);
                         }
 
                         // perform reconstruction
-                        reconstruction->get_face_values(stencil, lo_face, hi_face, side);
+                        reconstruction->get_face_values(stencil, lo_face, hi_face);
 
                         lo4(i,j,k,n) = lo_face;
                         hi4(i,j,k,n) = hi_face;

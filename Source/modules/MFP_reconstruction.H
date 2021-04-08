@@ -15,9 +15,7 @@ public:
   virtual ~Reconstruction();
 
   virtual Real get_slope(Vector<Real>& stencil);
-  Real get_slope(Vector<Real>& stencil, const int side);
   virtual void get_face_values(Vector<Real>& stencil, Real& lo, Real& hi);
-  void get_face_values(Vector<Real>& stencil, Real& lo, Real& hi, const int side);
   virtual int get_num_grow()=0;
 
   virtual const std::string& get_tag() const = 0;
@@ -130,6 +128,22 @@ class SixthOrderReconstruction : public Reconstruction
 {
 public:
   SixthOrderReconstruction();
+  virtual Real get_slope(Vector<Real>& stencil) override;
+  virtual void get_face_values(Vector<Real>& stencil, Real& lo, Real& hi) override;
+  virtual int get_num_grow() override {return num_grow;}
+
+  virtual const std::string& get_tag() const override {return tag;}
+  static std::string tag;
+  static bool registered;
+};
+
+//================================================================================
+
+class WENOReconstruction : public Reconstruction
+{
+public:
+  WENOReconstruction();
+  Real WENOSYMBO(Vector<Real>& stencil, int upwind);
   virtual Real get_slope(Vector<Real>& stencil) override;
   virtual void get_face_values(Vector<Real>& stencil, Real& lo, Real& hi) override;
   virtual int get_num_grow() override {return num_grow;}

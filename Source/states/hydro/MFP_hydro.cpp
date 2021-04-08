@@ -155,6 +155,8 @@ void HydroState::init_from_lua()
     //
     enforce_positivity = state_def["enforce_positivity"].get_or(0);
 
+    extra_slope_limits = state_def["extra_slope_limits"].get_or(1);
+
 }
 
 
@@ -576,6 +578,13 @@ void HydroState::calc_reconstruction(const Box& box,
                                      EB_OPTIONAL(,const FArrayBox &vfrac)
                                      ) const
 {
+
+    // if we don't want to apply extra limiting on the slopes (forced to 2nd order)
+    // we can use the default reconstruction scheme
+    if (!extra_slope_limits) {
+        State::calc_reconstruction(box, prim, rlo, rhi EB_OPTIONAL(,flag,vfrac));
+    }
+
     // convert pressure
     const Box &pbox = prim.box();
     const Dim3 p_lo = amrex::lbound(pbox);

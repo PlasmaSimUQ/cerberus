@@ -214,6 +214,103 @@ void plot_FAB_2d(const EBCellFlagFab& src, std::string title, bool block)
     plot_FAB_2d(src.box(), src, title, block);
     return;
 }
+
+void plot_FAB_eb(const Box &box, const FArrayBox& src, const FArrayBox &pts, const int n, std::string title, bool block)
+{
+    if (block)
+        plt::figure_size(1200, 780);
+
+    Array4<const Real> const& pts4 = pts.array();
+
+    // plot gradient
+    PlotData2D pd = get_2d_data(src.box(), src, n);
+    plt::imshow(pd.data.data(), pd.nr, pd.nc, 1, {{"origin","lower"}}, pd.extents);
+    plt::colorbar();
+
+    const Box &pts_box = pts.box();
+    Dim3 lo = amrex::lbound(pts_box);
+    Dim3 hi = amrex::ubound(pts_box);
+
+    for     (int k = lo.z; k <= hi.z; ++k) {
+        for   (int j = lo.y; j <= hi.y; ++j) {
+            AMREX_PRAGMA_SIMD
+                    for (int i = lo.x; i <= hi.x; ++i) {
+                // plot cells
+
+                Vector<double> box_x = {-0.5, 0.5, 0.5, -0.5, -0.5};
+                Vector<double> box_y = {-0.5, -0.5, 0.5, 0.5, -0.5};
+
+                for (int bi=0; bi<5; ++bi) {
+                    box_x[bi] += i;
+                    box_y[bi] += j;
+                }
+
+                std::map<std::string,std::string> string_args = {{"color","k"}, {"linestyle","dotted"}};
+                std::map<std::string,double> numeric_args = {{"alpha",0.3}};
+                plt::plot(box_x, box_y, string_args, numeric_args);
+
+                int cnt = (int) pts4(i,j,k,0);
+
+                if (cnt < 2) continue;
+
+                // plot the poly
+                Vector<double> plot_x, plot_y;
+
+
+                for (int n=0; n<cnt; ++n) {
+                    plot_x.push_back(pts4(i,j,k,n*AMREX_SPACEDIM + 1) + i);
+                    plot_y.push_back(pts4(i,j,k,n*AMREX_SPACEDIM + 2) + j);
+                }
+
+                plt::plot(plot_x, plot_y, "k");
+
+            }
+        }
+    }
+
+    // bounding box
+    lo = amrex::lbound(box);
+    hi = amrex::ubound(box);
+
+    Vector<double> box_x = {-0.5+lo.x, 0.5+hi.x, 0.5+hi.x, -0.5+lo.x, -0.5+lo.x};
+    Vector<double> box_y = {-0.5+lo.y, -0.5+lo.y, 0.5+hi.y, 0.5+hi.y, -0.5+lo.y};
+
+    plt::plot(box_x, box_y,"r--");
+
+    plt::suptitle(title);
+
+    if (block)
+        plt::show(block);
+}
+
+void plot_FAB_eb(const FArrayBox& src, const FArrayBox &pts, const int n, std::string title, bool block) {
+    plot_FAB_eb(src.box(), src, pts, n, title, block);
+}
+
+void plot_poly_spline(const PolySpline poly, const std::string title, bool block)
+{
+    plt::figure_size(1200, 780);
+
+    for (const auto& shape : poly.shapes) {
+
+        Vector<double> plot_x(shape.size()), plot_y(shape.size());
+
+        for (int n=0; n<shape.size(); ++n) {
+            plot_x[n] = shape[n][0];
+            plot_y[n] = shape[n][1];
+        }
+
+        plt::plot(plot_x, plot_y, ".-");
+    }
+
+
+    plt::title(title);
+
+
+    if (block)
+        plt::show(block);
+}
+
 #endif
 
 void plot_FABs_2d(const std::map<std::string,FArrayBox>& src, const int fi, bool log, bool block)
@@ -627,99 +724,4 @@ void plot_FABs_2d(const iMultiFab& src, const int fi, std::string title, bool lo
     return;
 }
 
-void plot_FAB_eb(const Box &box, const FArrayBox& src, const FArrayBox &pts, const int n, std::string title, bool block)
-{
-    if (block)
-        plt::figure_size(1200, 780);
-
-    Array4<const Real> const& pts4 = pts.array();
-
-    // plot gradient
-    PlotData2D pd = get_2d_data(src.box(), src, n);
-    plt::imshow(pd.data.data(), pd.nr, pd.nc, 1, {{"origin","lower"}}, pd.extents);
-    plt::colorbar();
-
-    const Box &pts_box = pts.box();
-    Dim3 lo = amrex::lbound(pts_box);
-    Dim3 hi = amrex::ubound(pts_box);
-
-    for     (int k = lo.z; k <= hi.z; ++k) {
-        for   (int j = lo.y; j <= hi.y; ++j) {
-            AMREX_PRAGMA_SIMD
-                    for (int i = lo.x; i <= hi.x; ++i) {
-                // plot cells
-
-                Vector<double> box_x = {-0.5, 0.5, 0.5, -0.5, -0.5};
-                Vector<double> box_y = {-0.5, -0.5, 0.5, 0.5, -0.5};
-
-                for (int bi=0; bi<5; ++bi) {
-                    box_x[bi] += i;
-                    box_y[bi] += j;
-                }
-
-                std::map<std::string,std::string> string_args = {{"color","k"}, {"linestyle","dotted"}};
-                std::map<std::string,double> numeric_args = {{"alpha",0.3}};
-                plt::plot(box_x, box_y, string_args, numeric_args);
-
-                int cnt = (int) pts4(i,j,k,0);
-
-                if (cnt < 2) continue;
-
-                // plot the poly
-                Vector<double> plot_x, plot_y;
-
-
-                for (int n=0; n<cnt; ++n) {
-                    plot_x.push_back(pts4(i,j,k,n*AMREX_SPACEDIM + 1) + i);
-                    plot_y.push_back(pts4(i,j,k,n*AMREX_SPACEDIM + 2) + j);
-                }
-
-                plt::plot(plot_x, plot_y, "k");
-
-            }
-        }
-    }
-
-    // bounding box
-    lo = amrex::lbound(box);
-    hi = amrex::ubound(box);
-
-    Vector<double> box_x = {-0.5+lo.x, 0.5+hi.x, 0.5+hi.x, -0.5+lo.x, -0.5+lo.x};
-    Vector<double> box_y = {-0.5+lo.y, -0.5+lo.y, 0.5+hi.y, 0.5+hi.y, -0.5+lo.y};
-
-    plt::plot(box_x, box_y,"r--");
-
-    plt::suptitle(title);
-
-    if (block)
-        plt::show(block);
-}
-
-void plot_FAB_eb(const FArrayBox& src, const FArrayBox &pts, const int n, std::string title, bool block) {
-    plot_FAB_eb(src.box(), src, pts, n, title, block);
-}
-
-void plot_poly_spline(const PolySpline poly, const std::string title, bool block)
-{
-    plt::figure_size(1200, 780);
-
-    for (const auto& shape : poly.shapes) {
-
-        Vector<double> plot_x(shape.size()), plot_y(shape.size());
-
-        for (int n=0; n<shape.size(); ++n) {
-            plot_x[n] = shape[n][0];
-            plot_y[n] = shape[n][1];
-        }
-
-        plt::plot(plot_x, plot_y, ".-");
-    }
-
-
-    plt::title(title);
-
-
-    if (block)
-        plt::show(block);
-}
 #endif

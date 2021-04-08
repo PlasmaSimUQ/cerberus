@@ -217,6 +217,21 @@ void plot_FAB_2d(const Box &box,
 void plot_FAB_2d(const EBCellFlagFab& src,
                  std::string title="",
                  bool block=false);
+
+void plot_FAB_eb(const FArrayBox& src,
+                 const FArrayBox &pts,
+                 const int n,
+                 std::string title="",
+                 bool block=false);
+
+void plot_FAB_eb(const Box &box,
+                 const FArrayBox& src,
+                 const FArrayBox &pts,
+                 const int n,
+                 std::string title="",
+                 bool block=false);
+
+void plot_poly_spline(const PolySpline poly, const std::string title, bool block=false);
 #endif
 
 void plot_FABs_2d(const std::map<std::string,FArrayBox>& src,
@@ -249,20 +264,7 @@ void plot_FABs_2d(const iMultiFab& src,
                   bool log=false,
                   bool block=false);
 
-void plot_FAB_eb(const FArrayBox& src,
-                 const FArrayBox &pts,
-                 const int n,
-                 std::string title="",
-                 bool block=false);
 
-void plot_FAB_eb(const Box &box,
-                 const FArrayBox& src,
-                 const FArrayBox &pts,
-                 const int n,
-                 std::string title="",
-                 bool block=false);
-
-void plot_poly_spline(const PolySpline poly, const std::string title, bool block=false);
 
 #endif // MFP_DIAGNOSTICS_H
 #endif
