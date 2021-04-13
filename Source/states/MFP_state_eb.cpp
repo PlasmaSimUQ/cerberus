@@ -388,10 +388,10 @@ void State::calc_wall_fluxes(const Box& box,
     Array<Array<Real,3>,3> wall_coord = {{{0,0,0},{0,0,0},{0,0,0}}};
     Array<Real,AMREX_SPACEDIM> wall_centre;
 
-    for     (int k = lo.z; k <= hi.z; ++k) {
-        for   (int j = lo.y; j <= hi.y; ++j) {
-            AMREX_PRAGMA_SIMD
-                    for (int i = lo.x; i <= hi.x; ++i) {
+    for (int k = lo.z-AMREX_D_PICK(0,0,2); k <= hi.z+AMREX_D_PICK(0,0,2); ++k) {
+            for (int j = lo.y-AMREX_D_PICK(0,2,2); j <= hi.y+AMREX_D_PICK(0,2,2); ++j) {
+                AMREX_PRAGMA_SIMD
+                    for (int i = lo.x-2; i <= hi.x+2; ++i) {
 
                 const EBCellFlag &cflag = flag4(i,j,k);
 

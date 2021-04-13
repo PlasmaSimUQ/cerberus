@@ -1,0 +1,14 @@
+Backtrace.*
+*.shelf
+Cell_D_*
+Cell_H
+DATA_*
+Header
+info
+inputs
+MFP_Lua_initialisation.lua
+*.pyc
+movie-level=*
+Particle_H
+*.h5
+run_log.txt
