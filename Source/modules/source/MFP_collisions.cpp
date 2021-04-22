@@ -80,7 +80,7 @@ Vector<dual> Collisions::collisions(const Vector<dual> &y0,
                                     const Vector<OffsetIndex> &offsets,
                                     const Vector<Vector<Real>> &ccs)
 {
-
+    BL_PROFILE("Collisions::collisions");
     Real Debye = GD::Debye;
     Real n0 = GD::n0;
 
@@ -208,7 +208,7 @@ Vector<dual> Collisions::collisions(const Vector<dual> &y0,
 
 int Collisions::fun_rhs(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &ydot, Real dt) const
 {
-
+    BL_PROFILE("Collisions::fun_rhs");
     const int n_terms = y0.size();
 
     // copy to eigen vector
@@ -230,7 +230,7 @@ int Collisions::fun_rhs(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector
 
 int Collisions::fun_jac(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &J) const
 {
-
+    BL_PROFILE("Collisions::fun_jac");
 //            Vector<Real> ydot;
 //            num_jac(x, y, z, t, y0, ydot, J);
 //            return 0;

@@ -48,6 +48,7 @@ CurrentSource::~CurrentSource()
 
 Array<Real,3> CurrentSource::get_current(Real x, Real y, Real z, Real t) const
 {
+    BL_PROFILE("CurrentSource::get_current");
     // calculate the current at this point in time and space
     Array<Real,3> j;
 
@@ -66,6 +67,7 @@ Vector<dual> CurrentSource::apply_current(const Vector<dual> &y0,
                                           const Vector<OffsetIndex> &offsets,
                                           const Array<Real,3> &j)
 {
+    BL_PROFILE("CurrentSource::apply_current");
     Vector<dual> ydot(y0.size());
 
     for (const auto &idx : offsets) {
@@ -83,7 +85,7 @@ Vector<dual> CurrentSource::apply_current(const Vector<dual> &y0,
 int CurrentSource::face_src(Real x, Real y, Real z, Real t, Vector<Real> &y0, Array<Vector<Real>, AMREX_SPACEDIM> &ydot_lo, Array<Vector<Real>, AMREX_SPACEDIM> &ydot_hi) const
 {
 
-
+    BL_PROFILE("CurrentSource::face_src");
     Array<Real,3> j = get_current(x,y,z,t);
 
     Real alpha, rho, r, q, m;
@@ -111,7 +113,7 @@ int CurrentSource::face_src(Real x, Real y, Real z, Real t, Vector<Real> &y0, Ar
 
 int CurrentSource::fun_rhs(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &ydot, Real dt) const
 {
-
+    BL_PROFILE("CurrentSource::fun_rhs");
 
     Array<Real,3> j = get_current(x,y,z,t);
 
@@ -144,6 +146,7 @@ void CurrentSource::calc_charge_density(const Box& box,
                                         EB_OPTIONAL(,const Vector<const EBCellFlagFab*>& flag)
                                         ) const
 {
+    BL_PROFILE("CurrentSource::calc_charge_density");
 
     cd.setVal(0.0);
     J.setVal(0.0);

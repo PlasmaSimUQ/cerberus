@@ -45,6 +45,7 @@ void State::set_eb_divergence()
 
 bool State::check_covered_stencil(Array4<const EBCellFlag> const& flag, int i, int j, int k, int d, int stencil_length)
 {
+    BL_PROFILE("State::check_covered_stencil");
     Array<int,3> stencil_index;
     int offset = stencil_length/2;
     // cell that references a covered cell doesn't need calculating
@@ -84,7 +85,7 @@ Vector<Real> State::calc_wall_normal_slopes(const Vector<int> &slope_idx,
                                             Array4<const Real> const &prim4,
                                             const int i, const int j, const int k) const
 {
-
+    BL_PROFILE("State::calc_wall_normal_slopes");
     Array<int,AMREX_SPACEDIM> index;
     index.fill(0);
 
@@ -352,7 +353,7 @@ void State::calc_wall_fluxes(const Box& box,
                              const Real *dx,
                              const Real dt) const
 {
-
+    BL_PROFILE("State::calc_wall_fluxes");
     int nc = n_cons();
     int np = n_prim();
 
@@ -460,7 +461,7 @@ void State::get_wall_value(const Box& box,
                            const Real* dx,
                            const Real* prob_lo) const
 {
-
+    BL_PROFILE("State::get_wall_value");
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 

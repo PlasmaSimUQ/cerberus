@@ -45,6 +45,7 @@ State::~State(){}
 
 void State::init_from_lua()
 {
+    BL_PROFILE("State::init_from_lua");
     //
     // get the initial flow state
     //
@@ -313,6 +314,7 @@ void State::set_num_grow(int n)
 
 Vector<Real> State::get_state_vector(const FArrayBox& U, const int i, const int j, const int k)
 {
+    BL_PROFILE("State::get_state_vector");
     Vector<Real> sv(U.nComp());
 
     Array4<const Real> const& U4 = U.array();
@@ -350,7 +352,9 @@ void State::calc_primitives(const Box& box,
                             const Real t,
                             const Real* prob_lo
                             EB_OPTIONAL(,const FArrayBox& vfrac)
-                            ) const {
+                            ) const
+{
+    BL_PROFILE("State::calc_primitives");
 
     Vector<Real> U;
 
@@ -481,6 +485,7 @@ void State::calc_reconstruction(const Box& box,
                                 EB_OPTIONAL(,const FArrayBox &vfrac)
                                 ) const
 {
+    BL_PROFILE("State::calc_reconstruction");
 
     // don't need to do this iota, could just use a loop, but useful for
     // when we don't need to do all components
@@ -580,7 +585,7 @@ void State::calc_slope(const Box& box,
                        int dim,
                        Reconstruction &reco)
 {
-
+    BL_PROFILE("State::calc_slope");
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
@@ -646,7 +651,7 @@ void State::calc_time_averaged_faces(const Box& box,
                                      const Real* dx,
                                      Real dt) const
 {
-
+    BL_PROFILE("State::calc_time_averaged_faces");
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
@@ -714,6 +719,8 @@ void State::calc_time_averaged_faces(const Box& box,
 Vector<BoundaryInfo> State::get_bc_limits(const Box& box,
                                           const Geometry &geom) const
 {
+    BL_PROFILE("State::get_bc_limits");
+
     Vector<BoundaryInfo> limits;
 
     if (AMREX_D_TERM(geom.isPeriodic(0), && geom.isPeriodic(1), && geom.isPeriodic(2)))
@@ -819,6 +826,8 @@ Vector<BoundaryInfo> State::get_bc_limits(const Box& box,
 void State::update_eb_vfrac(const Geometry &geom,
                       FArrayBox& vfrac) const
 {
+    BL_PROFILE("State::update_eb_vfrac");
+
     const BCRec& bc = boundary_conditions.eb_bc;
 
     // get supporting info for calling fillcc
@@ -858,6 +867,7 @@ void State::update_eb_vfrac(const Geometry &geom,
 void State::update_eb_flags(const Geometry &geom,
                       EBCellFlagFab& flags) const
 {
+    BL_PROFILE("State::update_eb_flags");
     const BCRec& bc = boundary_conditions.eb_bc;
 
     // get supporting info for calling fillcc
@@ -902,7 +912,7 @@ void State::update_boundary_cells(const Box& box,
                                   EB_OPTIONAL(const FArrayBox& vfrac,)
                                   const Real time) const
 {
-
+    BL_PROFILE("State::update_boundary_cells");
     Vector<BoundaryInfo> limits = get_bc_limits(box, geom);
 
     if (limits.empty())
@@ -995,6 +1005,7 @@ void State::face_bc(const int dir,
                     const Real time,
                     const bool do_all) const
 {
+    BL_PROFILE("State::face_bc");
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
@@ -1204,6 +1215,7 @@ void State::update_face_prim(const Box& box, const Geometry& geom,
                              EB_OPTIONAL(const EBCellFlagFab& flag,)
                              const Real time, const bool do_all) const
 {
+    BL_PROFILE("State::update_face_prim");
     const Box domain = geom.Domain();
     const int*     domainlo    = domain.loVect();
     const int*     domainhi    = domain.hiVect();
@@ -1274,6 +1286,7 @@ void State::update_face_prim(const Box& box, const Geometry& geom,
 Vector<Real> State::load_state_for_flux(Vector<Array4<const Real>> &face,
                                         int i, int j, int k) const
 {
+    BL_PROFILE("State::load_state_for_flux");
     const int np = n_prim();
     Vector<Real> S(np);
 
@@ -1295,7 +1308,7 @@ void State::calc_fluxes(const Box& box,
                         const Real dt,
                         FArrayBox *shock) const
 {
-
+    BL_PROFILE("State::calc_fluxes");
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
@@ -1390,7 +1403,7 @@ void State::correct_face_prim(const Box& box,
                               const Real *dx,
                               const Real dt) const
 {
-
+    BL_PROFILE("State::correct_face_prim");
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
@@ -1530,7 +1543,7 @@ void State::calc_divergence(const Box& box,
                             const Real *dx,
                             const Real dt) const
 {
-
+    BL_PROFILE("State::calc_divergence");
     // make sure du is empty
     du.setVal(0.0);
 
@@ -1585,7 +1598,7 @@ void State::calc_divergence(const Box& box,
                             EB_OPTIONAL(const EBCellFlagFab &flag,)
                             const Real *dx) const
 {
-
+    BL_PROFILE("State::calc_divergence");
 #ifdef AMREX_USE_EB
     Array4<const EBCellFlag> const& f4 = flag.array();
 

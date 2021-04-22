@@ -54,6 +54,7 @@ ConstantReconstruction::ConstantReconstruction()
 
 void ConstantReconstruction::get_face_values(Vector<Real>& stencil, Real& lo, Real& hi)
 {
+    BL_PROFILE("ConstantReconstruction::get_face_values");
     lo = stencil[0];
     hi = stencil[0];
 }
@@ -72,6 +73,7 @@ MinModReconstruction::MinModReconstruction()
 
 Real MinModReconstruction::get_slope(Vector<Real>& stencil)
 {
+    BL_PROFILE("MinModReconstruction::get_slope");
     Real a = stencil[1] - stencil[0];
     Real b = stencil[2] - stencil[1];
 
@@ -88,7 +90,7 @@ Real MinModReconstruction::get_slope(Vector<Real>& stencil)
 
 void MinModReconstruction::get_face_values(Vector<Real>& stencil, Real& lo, Real& hi)
 {
-
+    BL_PROFILE("MinModReconstruction::get_face_values");
     Real g = get_slope(stencil);
 
     lo = stencil[1] - 0.5*g;
@@ -108,6 +110,7 @@ VanLeerReconstruction::VanLeerReconstruction()
 
 Real VanLeerReconstruction::get_slope(Vector<Real>& stencil)
 {
+    BL_PROFILE("VanLeerReconstruction::get_slope");
     Real a = stencil[1] - stencil[0];
     Real b = stencil[2] - stencil[1];
 
@@ -122,7 +125,7 @@ Real VanLeerReconstruction::get_slope(Vector<Real>& stencil)
 
 void VanLeerReconstruction::get_face_values(Vector<Real>& stencil, Real& lo, Real& hi)
 {
-
+    BL_PROFILE("VanLeerReconstruction::get_face_values");
     Real g = get_slope(stencil);
 
     lo = stencil[1] - 0.5*g;
@@ -142,6 +145,7 @@ MCReconstruction::MCReconstruction()
 
 Real MCReconstruction::get_slope(Vector<Real>& stencil)
 {
+    BL_PROFILE("MCReconstruction::get_slope");
     Real x1 = stencil[0];
     Real x2 = stencil[1];
     Real x3 = stencil[2];
@@ -169,7 +173,7 @@ Real MCReconstruction::get_slope(Vector<Real>& stencil)
 
 void MCReconstruction::get_face_values(Vector<Real>& stencil, Real& lo, Real& hi)
 {
-
+    BL_PROFILE("MCReconstruction::get_face_values");
     Real g = get_slope(stencil);
 
     lo = stencil[1] - 0.5*g;
@@ -189,11 +193,13 @@ CentredReconstruction::CentredReconstruction()
 
 Real CentredReconstruction::get_slope(Vector<Real>& stencil)
 {
+    BL_PROFILE("CentredReconstruction::get_slope");
     return 0.5*(stencil[2] - stencil[0]);
 }
 
 void CentredReconstruction::get_face_values(Vector<Real>& stencil, Real& lo, Real& hi)
 {
+    BL_PROFILE("CentredReconstruction::get_face_values");
     Real g =get_slope(stencil);
 
     lo = stencil[1] - 0.5*g;
@@ -213,6 +219,7 @@ SixthOrderReconstruction::SixthOrderReconstruction()
 
 Real SixthOrderReconstruction::get_slope(Vector<Real>& stencil)
 {
+    BL_PROFILE("SixthOrderReconstruction::get_slope");
     // just use an approximation based on the cell edge values
     Real lo, hi;
     get_face_values(stencil, lo, hi);
@@ -221,6 +228,7 @@ Real SixthOrderReconstruction::get_slope(Vector<Real>& stencil)
 
 void SixthOrderReconstruction::get_face_values(Vector<Real>& stencil, Real& lo, Real& hi)
 {
+    BL_PROFILE("SixthOrderReconstruction::get_face_values");
     hi = (37.0/60.0)*(stencil[3] + stencil[4]) - (2.0/15.0)*(stencil[2] + stencil[5]) + (1.0/60.0)*(stencil[1] + stencil[6]);
     lo = (37.0/60.0)*(stencil[3] + stencil[2]) - (2.0/15.0)*(stencil[4] + stencil[1]) + (1.0/60.0)*(stencil[5] + stencil[0]);
 }
@@ -240,6 +248,7 @@ WENOReconstruction::WENOReconstruction()
 
 Real WENOReconstruction::get_slope(Vector<Real>& stencil)
 {
+    BL_PROFILE("WENOReconstruction::get_slope");
     // just use an approximation based on the cell edge values
     Real lo, hi;
     get_face_values(stencil, lo, hi);
@@ -250,7 +259,7 @@ Real WENOReconstruction::WENOSYMBO(Vector<Real>& stencil, int upwind)
 // i     : centre of stencil
 // upwind: direction of upwinding (1 = -->, -1 = <--)
 {
-
+    BL_PROFILE("WENOReconstruction::WENOSYMBO");
     size_t i = stencil_length/2;
 
     constexpr size_t r = 3;
@@ -317,7 +326,7 @@ Real WENOReconstruction::WENOSYMBO(Vector<Real>& stencil, int upwind)
 
 void WENOReconstruction::get_face_values(Vector<Real>& stencil, Real& lo, Real& hi)
 {
-
+    BL_PROFILE("WENOReconstruction::get_face_values");
     hi = WENOSYMBO(stencil,  1);
     lo = WENOSYMBO(stencil, -1);
 

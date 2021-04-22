@@ -45,6 +45,7 @@ public:
     AMREX_GPU_HOST_DEVICE inline
     Real operator() (AMREX_D_DECL(Real x, Real y=0.0, Real z=0.0)) const noexcept
     {
+        BL_PROFILE("FunctionIF::operator()");
         Real val = invert[0]*m_f[0]->operator()(AMREX_D_DECL(x, y, z));
         for (int i=1; i<m_f.size(); ++i) {
             if (action[i] < 0) {
@@ -125,6 +126,7 @@ public:
 
     Real operator() (AMREX_D_DECL(Real x, Real y=0.0, Real z=0.0)) const noexcept
     {
+        BL_PROFILE("LuaSplineIF::operator()");
         return EB2::SplineIF::operator()(RealArray({AMREX_D_DECL(x, y, z)}));
     }
 

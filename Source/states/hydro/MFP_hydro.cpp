@@ -64,6 +64,7 @@ HydroState::~HydroState(){}
 
 void HydroState::init_from_lua()
 {
+    BL_PROFILE("HydroState::init_from_lua");
 
     State::init_from_lua();
 
@@ -311,6 +312,7 @@ const Vector<set_bc>& HydroState::get_bc_set() const
 
 Real HydroState::get_mass(Real alpha) const
 {
+    BL_PROFILE("HydroState::get_mass");
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -329,6 +331,7 @@ Real HydroState::get_mass(const Vector<Real> &U) const
 
 Real HydroState::get_charge(Real alpha) const
 {
+    BL_PROFILE("HydroState::get_charge");
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -350,6 +353,7 @@ Real HydroState::get_charge(const Vector<Real> &U) const
 
 Real HydroState::get_gamma(Real alpha) const
 {
+    BL_PROFILE("HydroState::get_gamma");
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -377,6 +381,7 @@ Real HydroState::get_gamma(const Vector<Real> &U) const
 
 Real HydroState::get_cp(Real alpha) const
 {
+    BL_PROFILE("HydroState::get_cp");
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -402,6 +407,7 @@ Real HydroState::get_cp(const Vector<Real> &U) const
 // in place conversion from conserved to primitive
 bool HydroState::cons2prim(Vector<Real>& U) const
 {
+    BL_PROFILE("HydroState::cons2prim");
     U.resize(+PrimIdx::NUM);
 
     // move tracer
@@ -430,6 +436,7 @@ bool HydroState::cons2prim(Vector<Real>& U) const
 // in place conversion from conserved to primitive
 bool HydroState::cons2prim(Vector<autodiff::dual>& U) const
 {
+    BL_PROFILE("HydroState::cons2prim");
     U.resize(+PrimIdx::NUM); // expand
 
     autodiff::dual rhoinv = 1/U[+ConsIdx::Density];
@@ -460,7 +467,7 @@ bool HydroState::cons2prim(Vector<autodiff::dual>& U) const
 // in-place conversion from primitive to conserved variables
 void HydroState::prim2cons(Vector<Real>& U) const
 {
-
+    BL_PROFILE("HydroState::prim2cons");
     Real kineng = 0.5*U[+PrimIdx::Density]*(
                       U[+PrimIdx::Xvel]*U[+PrimIdx::Xvel]
                   + U[+PrimIdx::Yvel]*U[+PrimIdx::Yvel]
@@ -539,6 +546,7 @@ RealArray HydroState::get_speed_from_cons(const Vector<Real>& U) const
 
 RealArray HydroState::get_speed_from_prim(const Vector<Real>& Q) const
 {
+    BL_PROFILE("HydroState::get_speed_from_prim");
 
     Real g = get_gamma(Q[+PrimIdx::Alpha]);
 
@@ -555,6 +563,7 @@ RealArray HydroState::get_speed_from_prim(const Vector<Real>& Q) const
 
 RealArray HydroState::get_current_from_cons(const Vector<Real> &U) const
 {
+    BL_PROFILE("HydroState::get_current_from_cons");
     Real q = get_charge(U);
     Real m = get_mass(U);
     Real r = q/m;
@@ -578,7 +587,7 @@ void HydroState::calc_reconstruction(const Box& box,
                                      EB_OPTIONAL(,const FArrayBox &vfrac)
                                      ) const
 {
-
+    BL_PROFILE("HydroState::calc_reconstruction");
     // if we don't want to apply extra limiting on the slopes (forced to 2nd order)
     // we can use the default reconstruction scheme
     if (!extra_slope_limits) {
@@ -838,6 +847,7 @@ void HydroState::calc_reconstruction(const Box& box,
 Real HydroState::local_shock_detector(const Vector<Real> &L,
                                       const Vector<Real> &R) const
 {
+    BL_PROFILE("HydroState::local_shock_detector");
     Real pL = L[+PrimIdx::Prs];
     Real pR = R[+PrimIdx::Prs];
     Real varphi = std::abs(pR - pL)/(pR + pL);
@@ -854,6 +864,7 @@ void HydroState::get_state_values(const Box& box,
                                   EB_OPTIONAL(,const FArrayBox& vfrac)
                                   ) const
 {
+    BL_PROFILE("HydroState::get_state_values");
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
@@ -967,6 +978,7 @@ void HydroState::calc_velocity(const Box& box,
                                EB_OPTIONAL(,const EBCellFlagFab& flag)
                                ) const
 {
+    BL_PROFILE("HydroState::calc_velocity");
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
@@ -1014,7 +1026,7 @@ void HydroState::calc_viscous_fluxes(const Box& box,
                                      #endif
                                      const Real* dx) const
 {
-
+    BL_PROFILE("HydroState::calc_viscous_fluxes");
     // now calculate viscous fluxes and load them into the flux arrays
     if (viscous) {
 
@@ -1061,7 +1073,7 @@ void HydroState::calc_neutral_diffusion_terms(const Box& box,
                                               EB_OPTIONAL(,const EBCellFlagFab& flag)
                                               ) const
 {
-
+    BL_PROFILE("HydroState::calc_neutral_diffusion_terms");
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
@@ -1114,6 +1126,7 @@ void HydroState::calc_neutral_viscous_fluxes_eb(const Box& box, Array<FArrayBox,
                                                 EB_OPTIONAL(const EBCellFlagFab& flag,)
                                                 const Real* dx) const
 {
+    BL_PROFILE("HydroState::calc_neutral_viscous_fluxes_eb");
     FArrayBox diff(pbox, Viscous::NUM_NEUTRAL_DIFF_COEFFS);
     calc_neutral_diffusion_terms(pbox,
                                  prim,
@@ -1363,7 +1376,7 @@ void HydroState::calc_neutral_viscous_fluxes(const Box& box, Array<FArrayBox,
                                              EB_OPTIONAL(const EBCellFlagFab& flag,)
                                              const Real* dx) const
 {
-
+    BL_PROFILE("HydroState::calc_neutral_viscous_fluxes");
 #ifdef AMREX_USE_EB
     if (flag.getType() != FabType::regular) {
         calc_neutral_viscous_fluxes_eb(box, fluxes, pbox, prim, flag, dx);
@@ -1560,6 +1573,7 @@ void HydroState::calc_ion_diffusion_terms(const Box& box,const Vector<FArrayBox>
                                           EB_OPTIONAL(,const EBCellFlagFab& flag)
                                           ) const {
 
+    BL_PROFILE("HydroState::calc_ion_diffusion_terms");
     return;
 }
 
@@ -1569,6 +1583,7 @@ void HydroState::calc_ion_viscous_fluxes(const Box& box,
                                          EB_OPTIONAL(const EBCellFlagFab& flag,)
                                          const Real* dx) const {
 
+    BL_PROFILE("HydroState::calc_ion_viscous_fluxes");
     return;
 }
 
@@ -1582,6 +1597,7 @@ void HydroState::calc_electron_diffusion_terms(const Box& box,const Vector<FArra
                                                FArrayBox& diff
                                                EB_OPTIONAL(,const EBCellFlagFab& flag)
                                                ) const {
+    BL_PROFILE("HydroState::calc_electron_diffusion_terms");
     return;
 }
 
@@ -1590,6 +1606,7 @@ void HydroState::calc_electron_viscous_fluxes(const Box& box,
                                               const Box& pbox, const Vector<FArrayBox>& prim,
                                               EB_OPTIONAL(const EBCellFlagFab& flag,)
                                               const Real* dx) const {
+    BL_PROFILE("HydroState::calc_electron_viscous_fluxes");
     return;
 }
 
@@ -1605,6 +1622,7 @@ void HydroState::calc_charged_viscous_fluxes(int passed_idx,
                                              const Vector<FArrayBox>& prim,
                                              EB_OPTIONAL(const EBCellFlagFab& flag,)
                                              const Real* dx, FArrayBox& diff) const {
+    BL_PROFILE("HydroState::calc_charged_viscous_fluxes");
     return;
 }
 

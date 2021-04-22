@@ -52,6 +52,7 @@ Hydro2PState::~Hydro2PState(){}
 
 void Hydro2PState::init_from_lua()
 {
+    BL_PROFILE("Hydro2PState::init_from_lua");
 
     State::init_from_lua();
 
@@ -298,6 +299,7 @@ const Vector<set_bc>& Hydro2PState::get_bc_set() const
 
 Real Hydro2PState::get_mass(Real alpha) const
 {
+    BL_PROFILE("Hydro2PState::get_mass");
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -316,6 +318,7 @@ Real Hydro2PState::get_mass(const Vector<Real> &U) const
 
 Real Hydro2PState::get_charge(Real alpha) const
 {
+    BL_PROFILE("Hydro2PState::get_charge");
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -337,6 +340,8 @@ Real Hydro2PState::get_charge(const Vector<Real> &U) const
 
 Real Hydro2PState::get_gamma(Real alpha) const
 {
+    BL_PROFILE("Hydro2PState::get_gamma");
+
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -364,6 +369,8 @@ Real Hydro2PState::get_gamma(const Vector<Real> &U) const
 
 Real Hydro2PState::get_cp(Real alpha) const
 {
+    BL_PROFILE("Hydro2PState::get_cp");
+
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -387,8 +394,10 @@ Real Hydro2PState::get_cp(const Vector<Real> &U) const
 
 
 // in place conversion from conserved to primitive
-bool Hydro2PState::Hydro2PState::cons2prim(Vector<Real>& U) const
+bool Hydro2PState::cons2prim(Vector<Real>& U) const
 {
+    BL_PROFILE("Hydro2PState::cons2prim");
+
     Real rhoinv = 1/U[+ConsIdx::Density];
     U[+PrimIdx::Xvel] = U[+ConsIdx::Xmom]*rhoinv;
     U[+PrimIdx::Yvel] = U[+ConsIdx::Ymom]*rhoinv;
@@ -408,8 +417,10 @@ bool Hydro2PState::Hydro2PState::cons2prim(Vector<Real>& U) const
 }
 
 // in-place conversion from primitive to conserved variables
-void Hydro2PState::Hydro2PState::prim2cons(Vector<Real>& U) const
+void Hydro2PState::prim2cons(Vector<Real>& U) const
 {
+    BL_PROFILE("Hydro2PState::prim2cons");
+
     Vector<Real> Q = U;
 
     U[+ConsIdx::Xmom] *= Q[+PrimIdx::Density];
@@ -431,8 +442,10 @@ void Hydro2PState::Hydro2PState::prim2cons(Vector<Real>& U) const
 }
 
 
-bool Hydro2PState::Hydro2PState::prim_valid(Vector<Real> &Q) const
+bool Hydro2PState::prim_valid(Vector<Real> &Q) const
 {
+    BL_PROFILE("Hydro2PState::prim_valid");
+
     if (   (Q[+PrimIdx::Density] <= 0.0)
            || (Q[+PrimIdx::Prs] <= 0.0)
            || (Q[+PrimIdx::PrsP] <= 0.0)
@@ -445,6 +458,8 @@ bool Hydro2PState::Hydro2PState::prim_valid(Vector<Real> &Q) const
 
 bool Hydro2PState::cons_valid(Vector<Real> &U) const
 {
+    BL_PROFILE("Hydro2PState::cons_valid");
+
     if ((U[+ConsIdx::Density] <= 0.0) ||  (U[+ConsIdx::Eden] <= 0.0)
             ) {
         //        amrex::Abort("Primitive values outside of physical bounds!!");
@@ -502,9 +517,9 @@ RealArray Hydro2PState::Hydro2PState::get_speed_from_cons(const Vector<Real> &U)
 
 }
 
-RealArray Hydro2PState::Hydro2PState::get_speed_from_prim(const Vector<Real> &Q) const
+RealArray Hydro2PState::get_speed_from_prim(const Vector<Real> &Q) const
 {
-
+    BL_PROFILE("Hydro2PState::get_speed_from_prim");
     Real g = get_gamma(Q[+PrimIdx::Alpha]);
 
     Real a = std::sqrt(g*Q[+PrimIdx::Prs]/Q[+PrimIdx::Density]);
@@ -520,6 +535,7 @@ RealArray Hydro2PState::Hydro2PState::get_speed_from_prim(const Vector<Real> &Q)
 
 RealArray Hydro2PState::get_current_from_cons(const Vector<Real> &U) const
 {
+    BL_PROFILE("Hydro2PState::get_current_from_cons");
     Real q = get_charge(U);
     Real m = get_mass(U);
     Real r = q/m;
@@ -536,6 +552,8 @@ RealArray Hydro2PState::get_current_from_cons(const Vector<Real> &U) const
 Real Hydro2PState::local_shock_detector(const Vector<Real> &L,
                                         const Vector<Real> &R) const
 {
+    BL_PROFILE("Hydro2PState::local_shock_detector");
+
     Real pL = L[+PrimIdx::Prs];
     Real pR = R[+PrimIdx::Prs];
     Real varphi = std::abs(pR - pL)/(pR + pL);
@@ -552,7 +570,7 @@ void Hydro2PState::get_state_values(const Box& box,
                                     EB_OPTIONAL(,const FArrayBox& vfrac)
                                     ) const
 {
-
+    BL_PROFILE("Hydro2PState::get_state_values");
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
@@ -666,6 +684,8 @@ void Hydro2PState::calc_velocity(const Box& box,
                                  EB_OPTIONAL(,const EBCellFlagFab& flag)
                                  ) const
 {
+    BL_PROFILE("Hydro2PState::calc_velocity");
+
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
@@ -708,6 +728,8 @@ void Hydro2PState::calc_velocity(const Box& box,
 Vector<Real> Hydro2PState::load_state_for_flux(Vector<Array4<const Real>> &face,
                                                int i, int j, int k) const
 {
+    BL_PROFILE("Hydro2PState::load_state_for_flux");
+
     const int np = +PrimIdx::NUM;
     const int nf = +FluxIdx::NUM;
     Vector<Real> S(nf);

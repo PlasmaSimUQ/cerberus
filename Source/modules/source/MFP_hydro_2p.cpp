@@ -77,7 +77,7 @@ void HydroTwoPressure::calc_slopes(const Box& box,
                                    EB_OPTIONAL(Vector<const EBCellFlagFab*> &flags,)
                                    const Real *dx) const
 {
-
+    BL_PROFILE("HydroTwoPressure::calc_slopes");
     slopes.resize(num_slopes());
     int cnt = 0;
 
@@ -128,7 +128,7 @@ void HydroTwoPressure::retrieve_slopes(
         const int j,
         const int k)
 {
-
+    BL_PROFILE("HydroTwoPressure::retrieve_slopes");
     slope.resize(num_slopes());
     int cnt = 0;
 
@@ -145,7 +145,7 @@ void HydroTwoPressure::retrieve_slopes(
 
 int HydroTwoPressure::fun_rhs(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &ydot, Real dt) const
 {
-
+    BL_PROFILE("HydroTwoPressure::fun_rhs");
     // get any magnetic field
 
     Real bx = 0.0;
@@ -262,7 +262,7 @@ int HydroTwoPressure::fun_rhs(Real x, Real y, Real z, Real t, Vector<Real> &y0, 
 
 int HydroTwoPressure::fun_jac(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &J) const
 {
-
+    BL_PROFILE("HydroTwoPressure::fun_jac");
     const int n_terms = y0.size();
 
     Vector<Real> ydot(n_terms);

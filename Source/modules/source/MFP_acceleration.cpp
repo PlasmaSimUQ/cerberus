@@ -48,6 +48,7 @@ Acceleration::~Acceleration()
 
 Vector<Real> Acceleration::get_acc(Real x, Real y, Real z, Real t) const
 {
+    BL_PROFILE("Acceleration::get_acc");
     // calculat the acceleration at this point in time and space
     Vector<Real> a(AMREX_SPACEDIM);
 
@@ -64,6 +65,7 @@ Vector<dual> Acceleration::accelerate(const Vector<dual> &y0,
                                     const Vector<OffsetIndex> &offsets,
                                     const Vector<Real> &a)
 {
+    BL_PROFILE("Acceleration::accelerate");
     Vector<dual> ydot(y0.size());
 
     for (const auto &idx : offsets) {
@@ -91,7 +93,7 @@ Vector<dual> Acceleration::accelerate(const Vector<dual> &y0,
 int Acceleration::fun_rhs(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &ydot, Real dt) const
 {
 
-
+    BL_PROFILE("Acceleration::fun_rhs");
     Vector<Real> a = get_acc(x,y,z,t);
 
     const int n_terms = y0.size();
@@ -115,6 +117,7 @@ int Acceleration::fun_rhs(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vect
 
 int Acceleration::fun_jac(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &J) const
 {
+    BL_PROFILE("Acceleration::fun_jac");
 
 //            Vector<Real> ydot;
 //            num_jac(x, y, z, t, y0, ydot, J);

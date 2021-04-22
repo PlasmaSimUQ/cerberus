@@ -25,6 +25,7 @@ int SolveODE::init_data(Vector<Real> *y,
 
 bool SolveODE::valid_solution()
 {
+    BL_PROFILE("SolveODE::valid_solution");
     // check for validity of state vector y1
     bool valid = true;
     int of = 0;

@@ -25,7 +25,9 @@ bool Optional3D1VFunction::has_func() const
 }
 
 Real Optional3D1VFunction::operator()(Real x, Real y, Real z, Real t,
-                                      const Vector<std::string> &names, const Vector<Real> &data) const {
+                                      const Vector<std::string> &names, const Vector<Real> &data) const
+{
+    BL_PROFILE("Optional3D1VFunction::operator()");
     if (f) {
         std::map<std::string, Real> in = {
             {"x",x},
@@ -43,7 +45,9 @@ Real Optional3D1VFunction::operator()(Real x, Real y, Real z, Real t,
         return value;
     }
 }
-Real Optional3D1VFunction::operator()(const std::map<std::string, Real> &data) const {
+Real Optional3D1VFunction::operator()(const std::map<std::string, Real> &data) const
+{
+    BL_PROFILE("Optional3D1VFunction::operator()");
     if (f) {
         return f(data);
     } else {

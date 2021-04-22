@@ -132,6 +132,7 @@ void RedistributeEB::calc_eb_divergence(const Box& box,
                                         const Real *dx,
                                         const Real dt) const
 {
+    BL_PROFILE("RedistributeEB::calc_eb_divergence");
     State &istate = GD::get_state(global_idx);
 
     // make sure arrays are empty
@@ -574,6 +575,7 @@ void MergeEB::calc_eb_divergence(const Box& box,
                                  const Real *dx,
                                  const Real dt) const
 {
+    BL_PROFILE("MergeEB::calc_eb_divergence");
     // make sure du is empty
     du.setVal(0.0);
 
@@ -655,6 +657,7 @@ void MergeEB::merge_cells(const Box& box,
                           FArrayBox &dm_as_fine,
                           const IArrayBox& levmsk) const
 {
+    BL_PROFILE("MergeEB::merge_cells");
     int nc = du.nComp();
 
     Array<int,3> index = {0,0,0};

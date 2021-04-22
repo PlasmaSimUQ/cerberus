@@ -49,7 +49,7 @@ FieldState::~FieldState(){}
 
 void FieldState::init_from_lua()
 {
-
+    BL_PROFILE("FieldState::init_from_lua");
     sol::state& lua = GD::lua;
 
     const sol::table state_def = lua["states"][name];
@@ -193,7 +193,7 @@ RealArray FieldState::get_speed_from_cons(const Vector<Real>& U) const
 
 RealArray FieldState::get_speed_from_prim(const Vector<Real> &Q) const
 {
-
+    BL_PROFILE("FieldState::get_speed_from_prim");
     RealArray s;
     Real cf;
     if (is_static) {
@@ -216,6 +216,7 @@ void FieldState::get_state_values(const Box& box,
                                   EB_OPTIONAL(,const FArrayBox& vfrac)
                                 ) const
 {
+    BL_PROFILE("FieldState::get_state_values");
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
@@ -299,7 +300,7 @@ void FieldState::calc_primitives(const Box& box,
                             EB_OPTIONAL(,const FArrayBox& vfrac)
                             ) const
 {
-
+    BL_PROFILE("FieldState::calc_primitives");
     Vector<Real> U;
 
     const Dim3 lo = amrex::lbound(box);
@@ -448,7 +449,7 @@ void FieldState::calc_reconstruction(const Box& box,
                                      EB_OPTIONAL(,const FArrayBox &vfrac)
                                      ) const
 {
-
+    BL_PROFILE("FieldState::calc_reconstruction");
     // only operate over the components that need transporting
     const Array<int,8> transport_index = {+FieldState::PrimIdx::Dx,
                                           +FieldState::PrimIdx::Dy,

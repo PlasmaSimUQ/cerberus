@@ -9,13 +9,13 @@
 
 Real refine_criteria(Array<Real,3> S, Real low_val=1e-12)
 {
-  Real a = S[2] - 2*S[1] + S[0];
-  Real b = std::abs(S[2] - S[1]) + std::abs(S[1] - S[0]) + 0.01*(S[2] + 2*S[1] + S[0]);
-  if (std::abs(b) <= low_val) {
-    return 0.0;
-  } else {
-    return std::abs(a/b);
-  }
+    Real a = S[2] - 2*S[1] + S[0];
+    Real b = std::abs(S[2] - S[1]) + std::abs(S[1] - S[0]) + 0.01*(S[2] + 2*S[1] + S[0]);
+    if (std::abs(b) <= low_val) {
+        return 0.0;
+    } else {
+        return std::abs(a/b);
+    }
 }
 
 void MFP::tag_refinement(const Box& box,
@@ -28,54 +28,55 @@ void MFP::tag_refinement(const Box& box,
                          const char tagval,
                          const char clearval)
 {
+    BL_PROFILE("MFP::tag_refinement");
+    const Dim3 lo = amrex::lbound(box);
+    const Dim3 hi = amrex::ubound(box);
 
-  const Dim3 lo = amrex::lbound(box);
-  const Dim3 hi = amrex::ubound(box);
+    Array4<Real const> const& src4 = src.array();
+    Array4<char> const& tag = tags.array();
 
-  Array4<Real const> const& src4 = src.array();
-  Array4<char> const& tag = tags.array();
-
-  Real val;
-  Array<Real,3> S;
-  Array<int,3> index;
-
-#ifdef AMREX_USE_EB
-  Array4<const EBCellFlag> const& flag4 = flags.array();
-#endif
-
-  for     (int k = lo.z; k <= hi.z; ++k) {
-    for   (int j = lo.y; j <= hi.y; ++j) {
-      AMREX_PRAGMA_SIMD
-      for (int i = lo.x; i <= hi.x; ++i) {
+    Real val;
+    Array<Real,3> S;
+    Array<int,3> index;
 
 #ifdef AMREX_USE_EB
-          if (flag4(i,j,k).isCovered())
-              continue;
+    Array4<const EBCellFlag> const& flag4 = flags.array();
 #endif
-        val = 0.0;
-        for (int d=0; d<AMREX_SPACEDIM; ++d) {
-          // fill our stencil
-          index.fill(0);
-          index[d] = 1;
-          S[0] = src4(i-index[0], j-index[1], k-index[2], n);
-          S[1] = src4(i, j, k, n);
-          S[2] = src4(i+index[0], j+index[1], k+index[2], n);
-          // calculate the refinement criteria and compare it to previous value
-          val = std::max(val, refine_criteria(S, min_val));
-        }
 
-        // check against threshold and mark for refinement if necessary
-        if (val >= threshold) {
-          tag(i,j,k) = tagval;
+    for     (int k = lo.z; k <= hi.z; ++k) {
+        for   (int j = lo.y; j <= hi.y; ++j) {
+            AMREX_PRAGMA_SIMD
+                    for (int i = lo.x; i <= hi.x; ++i) {
+
+#ifdef AMREX_USE_EB
+                if (flag4(i,j,k).isCovered())
+                    continue;
+#endif
+                val = 0.0;
+                for (int d=0; d<AMREX_SPACEDIM; ++d) {
+                    // fill our stencil
+                    index.fill(0);
+                    index[d] = 1;
+                    S[0] = src4(i-index[0], j-index[1], k-index[2], n);
+                    S[1] = src4(i, j, k, n);
+                    S[2] = src4(i+index[0], j+index[1], k+index[2], n);
+                    // calculate the refinement criteria and compare it to previous value
+                    val = std::max(val, refine_criteria(S, min_val));
+                }
+
+                // check against threshold and mark for refinement if necessary
+                if (val >= threshold) {
+                    tag(i,j,k) = tagval;
+                }
+            }
         }
-      }
     }
-  }
 }
 
 #ifdef AMREX_USE_EB
 void MFP::tag_cut_cells (TagBoxArray& tags, const int idx)
 {
+    BL_PROFILE("MFP::tag_cut_cells");
     const char   tagval = TagBox::SET;
 
     EBData &eb_data = getEBData(idx);
@@ -100,10 +101,10 @@ void MFP::tag_cut_cells (TagBoxArray& tags, const int idx)
             Array4<EBCellFlag const> const& flagarr = flag.const_array();
             AMREX_HOST_DEVICE_FOR_3D (bx, i, j, k,
             {
-                if (flagarr(i,j,k).isSingleValued()) {
-                    tagarr(i,j,k) = tagval;
-                }
-            });
+                                          if (flagarr(i,j,k).isSingleValued()) {
+                                              tagarr(i,j,k) = tagval;
+                                          }
+                                      });
         }
     }
 }

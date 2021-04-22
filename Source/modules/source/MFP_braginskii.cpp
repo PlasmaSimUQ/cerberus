@@ -76,6 +76,7 @@ void BraginskiiSource::calc_slopes(const Box& box,
                                    EB_OPTIONAL(Vector<const EBCellFlagFab*> &flags,)
                                    const Real *dx) const
 {
+    BL_PROFILE("BraginskiiSource::num_slopes");
 
     slopes.resize(num_slopes());
     int cnt = 0;
@@ -129,7 +130,7 @@ void BraginskiiSource::retrieve_slopes(
         const int j,
         const int k)
 {
-
+    BL_PROFILE("BraginskiiSource::retrieve_slopes");
     slope.resize(num_slopes());
     int cnt = 0;
 
@@ -141,6 +142,7 @@ void BraginskiiSource::retrieve_slopes(
 }
 
 Vector<Real> BraginskiiSource::source(const Vector<Real>& y, const Vector<OffsetIndex> &index) const {
+    BL_PROFILE("BraginskiiSource::source");
     /*Would like to have kept this general like Daryls above but BRaginskii stuff is very 
     prescriptive and only really accounts for a fully ionised simple plasma or a three 
     component plasam of ion, neutral, and electrons. The current set up is to allow reversion
@@ -153,7 +155,7 @@ Vector<Real> BraginskiiSource::source(const Vector<Real>& y, const Vector<Offset
 
 int BraginskiiSource::fun_rhs(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &ydot, Real dt) const
 {
-
+    BL_PROFILE("BraginskiiSource::fun_rhs");
     ydot = source(y0, offsets);
 
     return 0;
@@ -161,11 +163,13 @@ int BraginskiiSource::fun_rhs(Real x, Real y, Real z, Real t, Vector<Real> &y0, 
 
 int BraginskiiSource::fun_jac(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &J) const
 {
-
+    BL_PROFILE("BraginskiiSource::fun_jac");
     return 0;
 }
 
-Real BraginskiiSource::get_max_freq(Vector<Real> &y) const{
+Real BraginskiiSource::get_max_freq(Vector<Real> &y) const
+{
+    BL_PROFILE("BraginskiiSource::get_max_freq");
     // get any magnetic field
 
     Real Bx=0., By=0., Bz=0.;

@@ -1,10 +1,11 @@
 #include "MFP_transforms.H"
 
 #include <math.h>
+#include "AMReX_BLProfiler.H"
 
 void transform_global2local(Vector<Real> &U, const int idir, const Vector<int> &vi)
 {
-
+    BL_PROFILE("transform_global2local");
     // iterate over the passed in index and rotate the 3-vectors in-place
 
     if (idir == 0) {
@@ -30,7 +31,7 @@ void transform_global2local(Vector<Real> &U, const int idir, const Vector<int> &
 
 void transform_local2global(Vector<Real> &U, const int idir, const Vector<int> &vi)
 {
-
+    BL_PROFILE("transform_local2global");
     if (idir == 0) {
         return;
     }
@@ -58,7 +59,7 @@ void transform_global2local(Vector<Real> &U,
             const Array<Array<Real,3>,3> C,
             const Vector<int> &vi)
 {
-
+    BL_PROFILE("transform_global2local");
     // iterate over the passed in index and rotate the 3-vectors in-place
 
     Real x, y, z;
@@ -78,7 +79,7 @@ void transform_local2global(Vector<Real> &U,
                 const Array<Array<Real,3>,3> C,
                 const Vector<int> &vi)
 {
-
+    BL_PROFILE("transform_local2global");
     Real x, y, z;
 
     for (const int& v : vi) {
@@ -95,6 +96,7 @@ void transform_local2global(Vector<Real> &U,
 
 Array<Real,3> facefrac2normal(const Array<Array<Real,2>,AMREX_SPACEDIM> &alpha)
 {
+    BL_PROFILE("facefrac2normal");
     Array<Real,3> normal = {0,0,0};
 
     for (int d=0; d<AMREX_SPACEDIM; ++d) {
@@ -117,6 +119,7 @@ Array<Real,3> facefrac2normal(const Array<Array<Real,2>,AMREX_SPACEDIM> &alpha)
 
 void expand_coord(Array<Array<Real,3>,3> &coord)
 {
+    BL_PROFILE("expand_coord");
     // assume coord[0] is the normal
     // now get an orthogonal vector
 #if AMREX_SPACEDIM == 2
@@ -138,6 +141,7 @@ void expand_coord(Array<Array<Real,3>,3> &coord)
 
 Array<Array<Real,3>,3> normal2coord(const Array<Real,3> &normal)
 {
+    BL_PROFILE("normal2coord");
     Array<Array<Real,3>,3> coord = {{normal,{{0.0,0.0,0.0}},{{0.0,0.0,0.0}}}};
 
     expand_coord(coord);

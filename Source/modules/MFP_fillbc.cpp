@@ -148,6 +148,7 @@ void FillBC::operator() (Box const& bx, FArrayBox& dest,
                          const Vector<BCRec>& bcr, const int bcomp,
                          const int orig_comp) const
 {
+    BL_PROFILE("FillBC::operator()");
     const int* lo = dest.loVect();
     const Box& domain = geom.Domain();
     const int* dom_lo = domain.loVect();

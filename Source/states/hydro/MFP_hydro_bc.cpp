@@ -22,7 +22,7 @@ void HydroSlipWall::solve(Array<Array<Real,3>,3> &wall_coord,
                           Array<Vector<Real>,AMREX_SPACEDIM> &F,
                           const Real* dx) const
 {
-
+    BL_PROFILE("HydroSlipWall::solve");
     //
     // get the inviscid flux
     //
@@ -63,6 +63,7 @@ HydroNoSlipWall::HydroNoSlipWall(RiemannSolver *flux,
                                  Viscous *visc,
                                  const sol::table &bc_def)
 {
+    BL_PROFILE("HydroNoSlipWall::HydroNoSlipWall");
     flux_solver = flux;
     viscous = visc;
 
@@ -89,7 +90,7 @@ void HydroNoSlipWall::solve(Array<Array<Real,3>,3> &wall_coord,
                             Array<Vector<Real>, AMREX_SPACEDIM> &F,
                             const Real *dx) const
 {
-
+    BL_PROFILE("HydroNoSlipWall::solve");
     //
     // get the inviscid flux
     //

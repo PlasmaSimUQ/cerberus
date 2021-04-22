@@ -38,7 +38,7 @@ std::string MFP::getVersion()
 void MFP::getPlotData(MultiFab &plot_data,
                       std::vector<std::string> &plot_names)
 {
-
+    BL_PROFILE("MFP::getPlotData");
     int nv = 0; // specified variables
     int nf = gd.plot_functions.size(); // user defined functions
     int N = 0; // total outputs
@@ -212,7 +212,7 @@ MFP::writePlotFile (const std::string& dir,
                     std::ostream&      os,
                     VisMF::How         how)
 {
-
+    BL_PROFILE("MFP::writePlotFile");
     MultiFab plot_data;
     Vector<std::string> plot_names;
 
@@ -352,7 +352,7 @@ MFP::writePlotFile (const std::string& dir,
 
 void MFP::archive_folder(const std::string &dir)
 {
-
+    BL_PROFILE("MFP::archive_folder");
     // make sure everyone has finished writing to the directory
     ParallelDescriptor::Barrier();
 
@@ -401,7 +401,7 @@ void MFP::archive_folder(const std::string &dir)
 
 void MFP::writePlotFilePost(const std::string &dir, std::ostream &os)
 {
-
+    BL_PROFILE("MFP::writePlotFilePost");
 #ifdef AMREX_PARTICLES
     writeParticles(dir);
 #endif
@@ -486,6 +486,7 @@ void MFP::writePlotFilePost(const std::string &dir, std::ostream &os)
 
 void MFP::checkPointPost (const std::string& dir,std::ostream& os)
 {
+    BL_PROFILE("MFP::checkPointPost");
 #ifdef AMREX_PARTICLES
     writeParticles(dir);
 #endif

@@ -81,7 +81,7 @@ Plasma5::~Plasma5()
 
 int Plasma5::fun_rhs(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &ydot, Real dt) const
 {
-
+    BL_PROFILE("Plasma5::fun_rhs");
     ydot.resize(y0.size());
     std::fill(ydot.begin(), ydot.end(),0.0);
 
@@ -195,7 +195,7 @@ int Plasma5::fun_rhs(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Re
 
 int Plasma5::fun_jac(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &J) const
 {
-
+    BL_PROFILE("Plasma5::fun_jac");
     //    Vector<Real> ydot;
     //    num_jac(x, y, z, t, y0, ydot, J);
     //    return 0;
@@ -335,7 +335,7 @@ int Plasma5::fun_jac(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Re
 
 int Plasma5::face_src(Real x, Real y, Real z, Real t, Vector<Real> &y0, Array<Vector<Real>, AMREX_SPACEDIM> &ydot_lo, Array<Vector<Real>, AMREX_SPACEDIM> &ydot_hi) const
 {
-
+    BL_PROFILE("Plasma5::face_src");
     // J. Moreno, E. Oliva, P. Velarde, J.C.P. 2020, In Press
 
     Array<Real, AMREX_SPACEDIM> current;
@@ -396,6 +396,7 @@ int Plasma5::face_src(Real x, Real y, Real z, Real t, Vector<Real> &y0, Array<Ve
 
 Real Plasma5::get_max_freq(Vector<Real> &y) const
 {
+    BL_PROFILE("Plasma5::get_max_freq");
     // get any magnetic field
 
     Real Bx=0, By=0, Bz=0;
@@ -473,6 +474,7 @@ void Plasma5::calc_charge_density(const Box& box,
                                   EB_OPTIONAL(,const Vector<const EBCellFlagFab*>& flag)
                                   ) const
 {
+    BL_PROFILE("Plasma5::calc_charge_density");
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 

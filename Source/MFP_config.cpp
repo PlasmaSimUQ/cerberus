@@ -16,6 +16,7 @@ using namespace amrex;
 typedef void (*state_config)(const std::string &name, const int idx);
 
 void MFP::read_params() {
+    BL_PROFILE("MFP::read_params()");
 
     ParmParse mfp("mfp");
     std::string lua_script;

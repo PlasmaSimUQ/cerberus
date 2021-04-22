@@ -120,6 +120,7 @@ void GlobalData::set_num_levels(int n)
 
 void GlobalData::set_lua_script(const std::string &script)
 {
+    BL_PROFILE("GlobalData::set_lua_script");
     lua_script =
         #include "default.lua"
             ;
@@ -132,7 +133,7 @@ void GlobalData::set_lua_script(const std::string &script)
 
 void GlobalData::read_config(const Vector<int> &is_periodic, const bool plot_output)
 {
-
+    BL_PROFILE("GlobalData::read_config");
     // periodicity
     for (int d=0; d<AMREX_SPACEDIM; ++d) {
         periodic[d] = (bool) is_periodic[d];
@@ -507,6 +508,7 @@ void GlobalData::read_config(const Vector<int> &is_periodic, const bool plot_out
 
 void GlobalData::update_ref()
 {
+    BL_PROFILE("GlobalData::update_ref");
     x_ref = lua["ref_length"];
     rho_ref = lua["ref_density"];
     m_ref = lua["ref_mass"];
@@ -588,6 +590,7 @@ void GlobalData::update_ref()
 
 void GlobalData::resize(const int size)
 {
+    BL_PROFILE("GlobalData::resize");
     num_solve_state = size;
 
     state_names.resize(num_solve_state);
@@ -597,11 +600,13 @@ void GlobalData::resize(const int size)
 
 State& GlobalData::get_state(const int idx)
 {
+    BL_PROFILE("GlobalData::get_state");
     return *states[idx];
 }
 
 State& GlobalData::get_state(const std::string& name)
 {
+    BL_PROFILE("GlobalData::get_state");
     if ( state_index.find(name) == state_index.end() ) {
         Abort("Attempting to reference a state that doesn't exist");
     }
@@ -611,6 +616,7 @@ State& GlobalData::get_state(const std::string& name)
 
 Vector<int> GlobalData::get_states_index(const Vector<std::string>& names)
 {
+    BL_PROFILE("GlobalData::get_states_index");
     Vector<int> index;
     for (const auto& name : names) {
         if ( state_index.find(name) == state_index.end() ) {
@@ -625,7 +631,7 @@ Vector<int> GlobalData::get_states_index(const Vector<std::string>& names)
 
 void GlobalData::write_info(nlohmann::json &js) const
 {
-
+    BL_PROFILE("GlobalData::write_info");
     // write out globally defined data
 
     js["num_state"] = num_solve_state;
@@ -647,6 +653,7 @@ void GlobalData::write_info(nlohmann::json &js) const
 
 void GlobalData::clean_up()
 {
+    BL_PROFILE("GlobalData::clean_up");
 #ifdef AMREX_USE_EB
     eb_data.clear();
 #endif

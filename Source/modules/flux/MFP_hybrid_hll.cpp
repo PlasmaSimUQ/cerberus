@@ -22,6 +22,7 @@ void HydroHybridHLL::solve(Vector<Real> &L,
                            Vector<Real> &F,
                            Real* shk) const
 {
+    BL_PROFILE("HydroHybridHLL::solve");
     const Real eps = 1e-14;
 
     if (*shk < eps) {

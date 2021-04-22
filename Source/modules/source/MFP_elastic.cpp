@@ -54,7 +54,7 @@ Elastic::~Elastic()
 
 Vector<Real> Elastic::elastic(const Vector<Real> &y0, const Vector<OffsetIndex> &offsets, const Interp2D &mom_interp, const Interp2D &nrg_interp)
 {
-
+    BL_PROFILE("Elastic::elastic");
     Vector<Real> ydot(y0.size());
 
     const Real T_ref = GD::T_ref;
@@ -165,6 +165,7 @@ Vector<Real> Elastic::elastic(const Vector<Real> &y0, const Vector<OffsetIndex> 
 
 int Elastic::fun_rhs(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &ydot, Real dt) const
 {
+    BL_PROFILE("Elastic::fun_rhs");
     const int n_terms = y0.size();
 
     // copy to eigen vector
@@ -181,7 +182,7 @@ int Elastic::fun_rhs(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Re
 
 int Elastic::fun_jac(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &J) const
 {
-
+    BL_PROFILE("Elastic::fun_jac");
     const int n_terms = y0.size();
 
     Vector<Real> ydot(n_terms);

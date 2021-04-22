@@ -51,7 +51,7 @@ UserDefinedSource::~UserDefinedSource()
 
 int UserDefinedSource::fun_rhs(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &ydot, Real dt) const
 {
-
+    BL_PROFILE("UserDefinedSource::fun_rhs");
     // cycle through the states and apply source terms
 
     std::map<std::string, Real> Q{{"x",x}, {"y",y}, {"z",z}, {"t",t}};

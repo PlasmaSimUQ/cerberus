@@ -1,6 +1,7 @@
 #ifdef AMREX_USE_EB
 #include "MFP_eb_bc.H"
 #include "MFP_transforms.H"
+#include "AMReX_BLProfiler.H"
 
 BoundaryEB::BoundaryEB(){};
 BoundaryEB::~BoundaryEB(){};
@@ -32,6 +33,7 @@ DirichletWall::DirichletWall(RiemannSolver *flux,
                              const Vector<int> &vec_idx,
                              const sol::table &bc_def)
 {
+    BL_PROFILE("DirichletWall::DirichletWall");
     flux_solver = flux;
 
     // grab the wall state from the lua definition
@@ -56,7 +58,7 @@ void DirichletWall::solve(Array<Array<Real,3>,3> &wall_coord,
                           Array<Vector<Real>, AMREX_SPACEDIM> &F,
                           const Real *dx) const
 {
-
+    BL_PROFILE("DirichletWall::solve");
     //
     // get the inviscid flux
     //

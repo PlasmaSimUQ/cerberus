@@ -33,6 +33,7 @@ void Bezier::generate_coeffs()
 
 RealVect Bezier::at(Real t) const
 {
+    BL_PROFILE("Bezier::at");
     RealVect pt;
     pt  = coeffs[3];
     pt += coeffs[2]*t;
@@ -45,6 +46,7 @@ RealVect Bezier::at(Real t) const
 // sample Bezier curve with minimum arc length between sample points
 Vector<RealVect> Bezier::sample(Real min_length, const int N, bool include_start) const
 {
+    BL_PROFILE("Bezier::sample");
     min_length *= min_length; // deal in length squared
 
     std::list<std::pair<Real, RealVect>> points;
@@ -105,7 +107,7 @@ PolySpline::PolySpline()
 
 void PolySpline::add_spline_element_lua(const sol::table& points, const Real dx)
 {
-
+    BL_PROFILE("PolySpline::add_spline_element_lua");
     Vector<RealVect> pts;
     sol::table pt;
     int n_pts = points.size();
@@ -144,7 +146,7 @@ void PolySpline::add_spline_element_lua(const sol::table& points, const Real dx)
 
 void PolySpline::add_line_element_lua(const sol::table& points)
 {
-
+    BL_PROFILE("PolySpline::add_line_element_lua");
     Vector<amrex::RealVect> pts;
     sol::table pt;
     int n_pts = points.size();
@@ -160,7 +162,7 @@ void PolySpline::add_line_element_lua(const sol::table& points)
 
 void PolySpline::add_spline_element(const Vector<Array<RealVect,4>>& points, const Real dx)
 {
-
+    BL_PROFILE("PolySpline::add_spline_element");
     Vector<RealVect> pts;
 
     size_t offset = 0;
@@ -192,6 +194,7 @@ void PolySpline::add_polyspline(const PolySpline& poly)
 
 void PolySpline::add_shape(const Vector<RealVect> shape)
 {
+    BL_PROFILE("PolySpline::add_shape");
     size_t n_vec = shape.size() - 1;
     Vector<RealVect> vec(n_vec);
     Vector<Real> len(n_vec);
@@ -215,7 +218,7 @@ void PolySpline::add_shape(const Vector<RealVect> shape)
  */
 Real PolySpline::operator() (AMREX_D_DECL(Real x, Real y, Real z)) const noexcept
 {
-
+    BL_PROFILE("PolySpline::operator()");
 //    plot_poly_spline(*this, "poly", true);
 
 

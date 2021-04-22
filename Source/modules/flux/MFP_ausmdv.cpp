@@ -20,7 +20,7 @@ void HydroAUSMDV::solve(Vector<Real> &L,
                         Vector<Real> &F,
                         Real* shk) const
 {
-
+    BL_PROFILE("HydroAUSMDV::solve");
     State &istate = GD::get_state(idx);
 
     // get the data out of the passed in arrays

@@ -31,7 +31,7 @@ ODESystem::~ODESystem()
 
 void ODESystem::add_source(std::unique_ptr<SourceTerm> src)
 {
-
+    BL_PROFILE("ODESystem::add_source");
     src->parent = this;
     // now assign local index values
     // each source that is added is checked for what states it has
@@ -75,6 +75,7 @@ bool ODESystem::empty()
 
 int ODESystem::fun_rhs(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &ydot, Real dt)
 {
+    BL_PROFILE("ODESystem::fun_rhs");
     // initialise to zero
     ydot.resize(n_components);
     std::fill(ydot.begin(), ydot.end(), 0);
@@ -99,7 +100,7 @@ int ODESystem::fun_rhs(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<
 
 int ODESystem::fun_jac(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &J)
 {
-
+    BL_PROFILE("ODESystem::fun_jac");
     // initialise
     J.resize(n_components*n_components);
     std::fill(J.begin(), J.end(), 0);
@@ -125,6 +126,7 @@ int ODESystem::fun_jac(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<
 #ifdef USE_CVODE
 int ODESystem::fun_rhs_cvode(realtype t, N_Vector y, N_Vector ydot, void *user_data)
 {
+    BL_PROFILE("ODESystem::fun_rhs_cvode");
     UserData* data = (UserData*) user_data;
     ODESystem* s = data->sys;
 
@@ -155,7 +157,7 @@ int ODESystem::fun_rhs_cvode(realtype t, N_Vector y, N_Vector ydot, void *user_d
 int ODESystem::fun_jac_cvode(realtype tn, N_Vector y, N_Vector fy, SUNMatrix J,
                                void *user_data, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3)
 {
-
+    BL_PROFILE("ODESystem::fun_jac_cvode");
     UserData* data = (UserData*) user_data;
     ODESystem* s = data ->sys;
 

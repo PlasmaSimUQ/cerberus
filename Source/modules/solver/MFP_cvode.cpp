@@ -194,6 +194,7 @@ void SolveCVODE::clear()
 
 bool SolveCVODE::valid_solution()
 {
+    BL_PROFILE("SolveCVODE::valid_solution");
     // check for validity of state vector y1
     bool valid = true;
     int of = 0;

@@ -16,7 +16,9 @@ namespace plt = matplotlibcpp;
 #endif
 
 
-void MFP::apply_cell_transport(Real time, Real dt) {
+void MFP::apply_cell_transport(Real time, Real dt)
+{
+    BL_PROFILE("MFP::apply_cell_transport");
 
 
 #ifdef AMREX_USE_EB

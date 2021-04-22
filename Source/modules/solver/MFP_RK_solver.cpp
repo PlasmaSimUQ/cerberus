@@ -32,7 +32,7 @@ SolveRK::~SolveRK(){}
 
 int SolveRK::solve(Real x, Real y, Real z, Real t0, Real t1, int depth)
 {
-
+    BL_PROFILE("SolveRK::solve");
     Real dt = t1 - t0;
     int n_terms = parent->n_components;
 
@@ -131,7 +131,7 @@ SolveExplicit::~SolveExplicit(){}
 
 void SolveExplicit::euler_step_solve(Real x, Real y, Real z, Real t0, Real dt, Vector<Real>& y0, Vector<Real>& y1)
 {
-
+    BL_PROFILE("SolveExplicit::euler_step_solve");
     int n_terms = parent->n_components;
 
     parent->fun_rhs(x, y, z, t0, y0, y1, dt);
@@ -157,7 +157,7 @@ SolveImplicit::~SolveImplicit(){}
 
 void SolveImplicit::euler_step_solve(Real x, Real y, Real z, Real t0, Real dt, Vector<Real>& y0, Vector<Real>& y1)
 {
-
+    BL_PROFILE("SolveImplicit::euler_step_solve");
 
     int n_terms = parent->n_components;
 

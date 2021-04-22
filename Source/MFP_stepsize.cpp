@@ -20,6 +20,7 @@ void MFP::estimate_dt (const Box& box,
                        const Real* dx,
                        Real& dt)
 {
+    BL_PROFILE("MFP::estimate_dt");
 
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);

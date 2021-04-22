@@ -62,7 +62,7 @@ MhdState::~MhdState(){}
 
 void MhdState::init_from_lua()
 {
-
+    BL_PROFILE("MhdState::init_from_lua");
     State::init_from_lua();
 
     sol::state& lua = GD::lua;
@@ -193,6 +193,7 @@ const Vector<set_bc>& MhdState::get_bc_set() const
 
 Real MhdState::get_mass(Real alpha) const
 {
+    BL_PROFILE("MhdState::get_mass");
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -211,6 +212,7 @@ Real MhdState::get_mass(const Vector<Real> &U) const
 
 Real MhdState::get_gamma(Real alpha) const
 {
+    BL_PROFILE("MhdState::get_gamma");
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -238,6 +240,7 @@ Real MhdState::get_gamma(const Vector<Real> &U) const
 
 Real MhdState::get_cp(Real alpha) const
 {
+    BL_PROFILE("MhdState::get_cp");
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -264,6 +267,8 @@ Real MhdState::get_cp(const Vector<Real> &U) const
 // in place conversion from conserved to primitive
 bool MhdState::cons2prim(Vector<Real>& U) const
 {
+    BL_PROFILE("MhdState::cons2prim");
+
     Real rho = U[+ConsIdx::Density];
     Real rhoinv = 1/rho;
     Real u = U[+ConsIdx::Xmom]*rhoinv;
@@ -292,6 +297,8 @@ bool MhdState::cons2prim(Vector<Real>& U) const
 // in-place conversion from primitive to conserved variables
 void MhdState::prim2cons(Vector<Real>& U) const
 {
+    BL_PROFILE("MhdState::prim2cons");
+
     Real rho = U[+PrimIdx::Density];
     Real mx = rho*U[+PrimIdx::Xvel];
     Real my = rho*U[+PrimIdx::Yvel];
@@ -315,6 +322,7 @@ void MhdState::prim2cons(Vector<Real>& U) const
 
 bool MhdState::prim_valid(Vector<Real> &Q) const
 {
+    BL_PROFILE("MhdState::prim_valid");
     if ((Q[+PrimIdx::Density] <= 0.0) ||  (Q[+PrimIdx::Prs] <= 0.0)
             ) {
         //        amrex::Abort("Primitive values outside of physical bounds!!");
@@ -325,6 +333,7 @@ bool MhdState::prim_valid(Vector<Real> &Q) const
 
 bool MhdState::cons_valid(Vector<Real> &U) const
 {
+    BL_PROFILE("MhdState::cons_valid");
     if ((U[+ConsIdx::Density] <= 0.0) ||  (U[+ConsIdx::Eden] <= 0.0)
             ) {
         //        amrex::Abort("Primitive values outside of physical bounds!!");
@@ -371,7 +380,7 @@ RealArray MhdState::get_speed_from_cons(const Vector<Real>& U) const
 
 RealArray MhdState::get_speed_from_prim(const Vector<Real>& Q) const
 {
-
+    BL_PROFILE("MhdState::get_speed_from_prim");
     Real g = get_gamma(Q[+PrimIdx::Alpha]);
 
     Real rho = Q[+PrimIdx::Density];
@@ -396,6 +405,7 @@ RealArray MhdState::get_speed_from_prim(const Vector<Real>& Q) const
 Real MhdState::local_shock_detector(const Vector<Real> &L,
                                     const Vector<Real> &R) const
 {
+    BL_PROFILE("MhdState::local_shock_detector");
     Real pL = L[+PrimIdx::Prs];
     Real pR = R[+PrimIdx::Prs];
     Real varphi = std::abs(pR - pL)/(pR + pL);
@@ -412,7 +422,7 @@ void MhdState::get_state_values(const Box& box,
                                 EB_OPTIONAL(,const FArrayBox& vfrac)
                                 ) const
 {
-
+    BL_PROFILE("MhdState::get_state_values");
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
@@ -517,6 +527,7 @@ void MhdState::calc_velocity(const Box& box,
                              EB_OPTIONAL(,const EBCellFlagFab& flag)
                              ) const
 {
+    BL_PROFILE("MhdState::calc_velocity");
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 

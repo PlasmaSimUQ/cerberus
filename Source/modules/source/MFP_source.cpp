@@ -29,7 +29,7 @@ SourceTerm::~SourceTerm(){}
 
 void SourceTerm::get_includes(const sol::table& def, state_valid valid, Vector<std::string>& includes, Vector<int>& index)
 {
-
+    BL_PROFILE("SourceTerm::get_includes");
     // get the type
     std::string source_type = def["type"].get_or<std::string>("");
 
@@ -140,6 +140,7 @@ int SourceTerm::fun_jac(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector
 
 int SourceTerm::num_jac(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &ydot, Vector<Real> &J) const
 {
+    BL_PROFILE("SourceTerm::num_jac");
     int n_terms = y0.size();
 
     Vector<Real> f_p(n_terms);
@@ -166,7 +167,7 @@ int SourceTerm::num_jac(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector
 
 bool SourceTerm::get_hydro_prim(Vector<Real> &y, Vector<Real> &hydro_prim, const int offset)
 {
-
+    BL_PROFILE("SourceTerm::get_hydro_prim");
     int y_cnt = 0; // offset within the y vector
     int h_cnt = 0; // offset within the hydro_prim vector
 

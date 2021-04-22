@@ -88,6 +88,7 @@ void set_field_bcs(Array<LinOpBCType, AMREX_SPACEDIM> &bc_lo,
 
 void MFP::solve_static_fields(const Real time)
 {
+    BL_PROFILE("MFP::solve_static_fields()");
 #if AMREX_SPACEDIM > 1
     for (auto &istate : gd.states) {
 
@@ -526,6 +527,7 @@ void MFP::solve_static_fields(const Real time)
 
 void MFP::correct_dynamic_fields(const Real time)
 {
+    BL_PROFILE("MFP::correct_dynamic_fields");
     //#if AMREX_SPACEDIM > 1
     //    for (auto &istate : gd.states) {
 
@@ -1089,6 +1091,7 @@ void MFP::correct_dynamic_fields(const Real time)
 
 void MFP::project_divergence(const Real time)
 {
+    BL_PROFILE("MFP::project_divergence");
     // MLNodeLaplacian not implemented for 1D
 #if AMREX_SPACEDIM > 1
     for (auto &istate : gd.states) {
@@ -1204,7 +1207,7 @@ void MFP::solve_divergence(const int state_idx,
                            const BCRec &bc,
                            Vector<MultiFab*> S_cc_ptr)
 {
-
+    BL_PROFILE("MFP::solve_divergence");
     Amr& amr = *parent;
 
     //

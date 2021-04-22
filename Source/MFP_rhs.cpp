@@ -17,7 +17,7 @@ void MFP::calc_face_source (const Box& box,
                             Real time,
                             Real dt)
 {
-
+    BL_PROFILE("MFP::calc_face_source");
 
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
@@ -145,7 +145,7 @@ void MFP::calc_cell_source (const Box& box,
                             Real time, Real dt)
 {
 
-
+    BL_PROFILE("MFP::calc_cell_source");
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 

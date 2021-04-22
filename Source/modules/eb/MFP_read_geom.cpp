@@ -224,6 +224,7 @@ void ReadSTL::register_with_lua(sol::state& lua)
 
 std::vector<std::string> split(const std::string &s, char delim)
 {
+    BL_PROFILE("MFP_read_geom: split");
     std::vector<std::string> elems;
     std::stringstream ss(s+' ');
     std::string item;
@@ -235,6 +236,7 @@ std::vector<std::string> split(const std::string &s, char delim)
 }
 
 std::vector<double> get_numbers(std::string s) {
+    BL_PROFILE("MFP_read_geom: get_numbers");
     // get all of the numbers that are present in the string
     std::smatch m;
     std::regex re("[-+]?\\d*\\.?\\d+[eE]?[-+]?\\d*");
@@ -250,6 +252,7 @@ std::vector<double> get_numbers(std::string s) {
 }
 
 double get_number(std::string s, const double fallback=0.0) {
+    BL_PROFILE("MFP_read_geom: get_number");
     // get all of the numbers that are present in the string
     std::smatch m;
     std::regex re("[-+]?\\d*\\.?\\d+[eE]?[-+]?\\d*");
@@ -261,6 +264,7 @@ double get_number(std::string s, const double fallback=0.0) {
 }
 
 std::vector<double> get_n_numbers(std::vector<std::string> words, int n, size_t* i) {
+    BL_PROFILE("MFP_read_geom: get_n_numbers");
     std::vector<double> numbers;
 
     while (numbers.size() < n) {
@@ -276,6 +280,7 @@ std::vector<double> get_n_numbers(std::vector<std::string> words, int n, size_t*
 
 void insert_segment(Vector<Array<RealVect,4>>& curve, const Array<RealVect,4>& seg)
 {
+    BL_PROFILE("MFP_read_geom: insert_segment");
 
     if (!curve.empty()) {
         Array<RealVect,4>& prev = curve.back();
@@ -318,6 +323,7 @@ void insert_segment(Vector<Array<RealVect,4>>& curve, const Array<RealVect,4>& s
 
 Vector<Array<RealVect,4>> get_bezier_circle(const double& cx, const double& cy, const double& r)
 {
+    BL_PROFILE("MFP_read_geom: get_bezier_circle");
     // magic number for roundness, https://spencermortensen.com/articles/bezier-circle/
     const double c = r*0.551915024494;
 
@@ -357,6 +363,7 @@ Vector<Array<RealVect,4>> get_bezier_circle(const double& cx, const double& cy, 
 
 float svg_angle( Real ux, Real uy, Real vx, Real vy )
 {
+    BL_PROFILE("MFP_read_geom: svg_angle");
     RealVect u(AMREX_D_DECL(ux, uy, 0.0));
     RealVect v(AMREX_D_DECL(vx, vy, 0.0));
     Real dot = u.dotProduct(v);
@@ -368,8 +375,9 @@ float svg_angle( Real ux, Real uy, Real vx, Real vy )
 
 RealVect elliptic_arc_point( RealVect c, RealVect r, float phi, float t )
 {
-     Real a = std::sin(phi);
-     Real b = std::cos(phi);
+    BL_PROFILE("MFP_read_geom: elliptic_arc_point");
+    Real a = std::sin(phi);
+    Real b = std::cos(phi);
     return RealVect(AMREX_D_DECL(
             c[0] + r[0] * b * std::cos(t) - r[1] * a * std::sin(t),
             c[1] + r[0] * a * std::cos(t) + r[1] * b * std::sin(t),
@@ -378,6 +386,7 @@ RealVect elliptic_arc_point( RealVect c, RealVect r, float phi, float t )
 
  RealVect elliptic_arc_derivative(RealVect r, float phi, float t )
  {
+     BL_PROFILE("MFP_read_geom: elliptic_arc_derivative");
      Real a = std::sin(phi);
      Real b = std::cos(phi);
      Real st = std::sin(t);
@@ -393,7 +402,7 @@ Vector<Array<RealVect,4>> get_bezier_elliptical_arc(Real x1, Real y1,
                                                     Real fA, Real fS,
                                                     Real x2, Real y2)
 {
-
+    BL_PROFILE("MFP_read_geom: get_bezier_elliptical_arc");
     // calculate the centre of the ellipse
     // https://mortoray.com/2017/02/16/rendering-an-svg-elliptical-arc-as-bezier-curves/
     static constexpr Real pi = acos(-1);
@@ -488,7 +497,7 @@ ReadSVG::ReadSVG()
 
 ReadSVG::ReadSVG(const std::string &path, const Real dx)
 {
-
+    BL_PROFILE("ReadSVG::ReadSVG");
     // Read the file
     rxml::xml_document<> doc;
     std::ifstream theFile (path);
@@ -576,7 +585,7 @@ ReadSVG::ReadSVG(const std::string &path, const Real dx)
 
 std::map<std::string, Vector<Array<RealVect,4>>> ReadSVG::get_elements(rxml::xml_node<> * node, const std::string& parent_name)
 {
-
+    BL_PROFILE("ReadSVG::get_elements");
     std::map<std::string, Vector<Array<RealVect,4>>> curves;
 
     // we're probably going to use inkscape so test for inkscape labels before falling back to the generic id
@@ -897,6 +906,7 @@ std::map<std::string, Vector<Array<RealVect,4>>> ReadSVG::get_elements(rxml::xml
 
 Real ReadSVG::query(AMREX_D_DECL(Real x, Real y, Real z), std::string layer)
 {
+    BL_PROFILE("ReadSVG::query");
     // check layer exists
     if (polysplines.find(layer) == polysplines.end()) {
         std::vector<std::string> names;

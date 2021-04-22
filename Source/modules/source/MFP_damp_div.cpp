@@ -54,7 +54,7 @@ DampDivergenceCorrection::~DampDivergenceCorrection()
 
 int DampDivergenceCorrection::fun_rhs(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &ydot, Real dt) const
 {
-
+    BL_PROFILE("DampDivergenceCorrection::fun_rhs");
     int i;
     Real ch, cd;
 
@@ -85,7 +85,7 @@ int DampDivergenceCorrection::fun_rhs(Real x, Real y, Real z, Real t, Vector<Rea
 
 int DampDivergenceCorrection::fun_jac(Real x, Real y, Real z, Real t, Vector<Real> &y0, Vector<Real> &J) const
 {
-
+    BL_PROFILE("DampDivergenceCorrection::fun_jac");
     //  num_jac(t, y, ydot, J);
 
     const int n_terms = y0.size();

@@ -67,7 +67,7 @@ MFP::init_particles ()
 
 void MFP::writeParticles(const std::string& dir)
 {
-
+    BL_PROFILE("MFP::writeParticles");
     if (gd.do_tracer_particles) {
 
         for (int idx=0; idx<particles.size(); ++idx) {
@@ -83,6 +83,7 @@ void MFP::writeParticles(const std::string& dir)
 void
 MFP::ParticlePostRestart (const std::string& dir)
 {
+    BL_PROFILE("MFP::ParticlePostRestart");
     if ((level == 0) && gd.do_tracer_particles) {
 
         // handle if we have archived level data in a restart folder
@@ -168,7 +169,7 @@ MFP::push_particles (ParTileType& ptile,
                      EB_OPTIONAL(,const EBCellFlagFab& flag)
                      )
 {
-
+    BL_PROFILE("MFP::push_particles");
 
     // advance particle locations
 

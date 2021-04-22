@@ -20,7 +20,7 @@ void FieldHLLE::solve(Vector<Real> &L,
                       Vector<Real> &F,
                       Real* shk) const
 {
-
+    BL_PROFILE("FieldHLLE::solve");
     State &istate = GD::get_state(idx);
 
     // vvv this could all be static, maybe move to init?? vvv

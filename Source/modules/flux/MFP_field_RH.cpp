@@ -22,7 +22,7 @@ void FieldRH::solve(Vector<Real> &L,
                     Vector<Real> &F,
                     Real* shk) const
 {
-
+    BL_PROFILE("FieldRH::solve");
     std::fill(F.begin(), F.end(), 0);
 
     State &istate = GD::get_state(idx);

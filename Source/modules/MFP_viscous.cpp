@@ -90,6 +90,7 @@ int Sutherland::get_num(){return NUM_NEUTRAL_DIFF_COEFFS;}
 
 void Sutherland::get_neutral_coeffs(const Vector<Real> &Q, Real &T, Real &mu, Real &kappa)
 {
+    BL_PROFILE("Sutherland::get_neutral_coeffs");
     State &istate = GD::get_state(idx);
 
     T = istate.get_temperature_from_prim(Q);
@@ -106,7 +107,7 @@ void Sutherland::get_neutral_coeffs(const Vector<Real> &Q, Real &T, Real &mu, Re
 
 Real Sutherland::get_max_speed(const Vector<Vector<amrex::Real> > &U)
 {
-
+    BL_PROFILE("Sutherland::get_max_speed");
     State &istate = GD::get_state(idx);
 
     Real rho = istate.get_density_from_cons(U[0]);
@@ -172,7 +173,7 @@ PowerLaw::PowerLaw(const int global_idx, const sol::table& def)
 
 void PowerLaw::get_neutral_coeffs(const Vector<Real> &Q, Real &T, Real &mu, Real &kappa)
 {
-
+    BL_PROFILE("PowerLaw::get_neutral_coeffs");
     State &istate = GD::get_state(idx);
 
     T = istate.get_temperature_from_prim(Q);
@@ -188,7 +189,7 @@ void PowerLaw::get_neutral_coeffs(const Vector<Real> &Q, Real &T, Real &mu, Real
 
 Real PowerLaw::get_max_speed(const Vector<Vector<amrex::Real> > &U)
 {
-
+    BL_PROFILE("PowerLaw::get_max_speed");
     State &istate = GD::get_state(idx);
 
     Real rho = istate.get_density_from_cons(U[0]);
@@ -240,7 +241,7 @@ UserDefinedViscosity::UserDefinedViscosity(const int global_idx, const sol::tabl
 
 void UserDefinedViscosity::get_neutral_coeffs(const Vector<Real> &Q, Real &T, Real &mu, Real &kappa)
 {
-
+    BL_PROFILE("UserDefinedViscosity::get_neutral_coeffs");
     State &istate = GD::get_state(idx);
 
     T = istate.get_temperature_from_prim(Q);
@@ -256,7 +257,7 @@ void UserDefinedViscosity::get_neutral_coeffs(const Vector<Real> &Q, Real &T, Re
 
 Real UserDefinedViscosity::get_max_speed(const Vector<Vector<amrex::Real> >& U)
 {
-
+    BL_PROFILE("UserDefinedViscosity::get_max_speed");
     State &istate = GD::get_state(idx);
 
     Real rho = istate.get_density_from_cons(U[0]);
