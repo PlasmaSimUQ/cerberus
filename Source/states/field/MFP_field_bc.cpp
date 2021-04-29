@@ -77,7 +77,7 @@ void ConductingWall::solve(Array<Array<Real,3>,3> &wall_coord,
     // get the inviscid flux
     //
 
-    transform_global2local(state, wall_coord, vector_idx);
+    transform_global2local(state, wall_coord,  FieldState::flux_vector_idx);
 
     // fabricate a state for inside the wall based on the provided state
     Vector<Real> W = state;
@@ -109,7 +109,7 @@ void ConductingWall::solve(Array<Array<Real,3>,3> &wall_coord,
     flux_solver->solve(state, W, normal_flux, nullptr);
 
     // convert back to global coordinate system
-    transform_local2global(normal_flux, wall_coord, vector_idx);
+    transform_local2global(normal_flux, wall_coord, FieldState::cons_vector_idx);
 
     // split it up into components
     for (int d=0; d<AMREX_SPACEDIM; ++d) {

@@ -37,6 +37,21 @@ public:
         NUM,
     };
 
+    enum class FluxIdx : int {
+        Density=0,
+        Xvel,
+        Yvel,
+        Zvel,
+        Prs,
+        Alpha,
+        Gamma,
+        NUM
+    };
+
+    static Vector<int> flux_vector_idx;
+    static Vector<int> cons_vector_idx;
+    static Vector<int> prim_vector_idx;
+
     const std::map<std::string, int> bc_names = {{"interior",  PhysBCType::interior},
                                                  {"inflow",    PhysBCType::inflow},
                                                  {"outflow",   PhysBCType::outflow},
@@ -100,10 +115,15 @@ public:
         return +ConsIdx::Density;
     }
     virtual const Vector<int> get_prim_vector_idx() const override {
-        return {+PrimIdx::Xvel};
+        return prim_vector_idx;
     }
+
+    virtual const Vector<int> get_flux_vector_idx() const override {
+        return flux_vector_idx;
+    }
+
     virtual const Vector<int> get_cons_vector_idx() const override {
-        return {+ConsIdx::Xmom};
+        return cons_vector_idx;
     }
 
     virtual const Vector<int> get_prs_idx() const override {
@@ -178,6 +198,9 @@ public:
                        FArrayBox& vel
                        EB_OPTIONAL(,const EBCellFlagFab& flag)
                        ) const override;
+
+    virtual Vector<Real> load_state_for_flux(Vector<Array4<const Real> > &face,
+                                             int i, int j, int k) const override;
 
     virtual void calc_viscous_fluxes(const Box& box,
                                      Array<FArrayBox, AMREX_SPACEDIM> &fluxes,

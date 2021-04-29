@@ -48,6 +48,10 @@ Vector<set_bc> HydroState::bc_set = {
     &set_scalar_bc
 };
 
+Vector<int> HydroState::flux_vector_idx = {+HydroState::FluxIdx::Xvel};
+Vector<int> HydroState::cons_vector_idx = {+HydroState::ConsIdx::Xmom};
+Vector<int> HydroState::prim_vector_idx = {+HydroState::PrimIdx::Xvel};
+
 //-----------------------------------------------------------------------------
 
 std::string HydroState::tag = "hydro";
@@ -82,6 +86,10 @@ void HydroState::init_from_lua()
     expand(state_def["mass"], mass);
     expand(state_def["charge"], charge);
     expand(state_def["gamma"], gamma);
+
+    mass_const = mass[0] == mass[1];
+    charge_const = charge[0] == charge[1];
+    gamma_const = gamma[0] == gamma[1];
 
     //
     // viscous terms coefficients
@@ -313,6 +321,9 @@ const Vector<set_bc>& HydroState::get_bc_set() const
 Real HydroState::get_mass(Real alpha) const
 {
     BL_PROFILE("HydroState::get_mass");
+
+    if (mass_const) return mass[0];
+
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -324,6 +335,10 @@ Real HydroState::get_mass(Real alpha) const
 
 Real HydroState::get_mass(const Vector<Real> &U) const
 {
+    BL_PROFILE("HydroState::get_mass");
+
+    if (mass_const) return mass[0];
+
     // clamp alpha
     Real alpha = get_alpha_from_cons(U);
     return get_mass(alpha);
@@ -332,6 +347,9 @@ Real HydroState::get_mass(const Vector<Real> &U) const
 Real HydroState::get_charge(Real alpha) const
 {
     BL_PROFILE("HydroState::get_charge");
+
+    if (charge_const) return charge[0];
+
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -346,6 +364,10 @@ Real HydroState::get_charge(Real alpha) const
 
 Real HydroState::get_charge(const Vector<Real> &U) const
 {
+    BL_PROFILE("HydroState::get_charge");
+
+    if (charge_const) return charge[0];
+
     // clamp alpha
     Real alpha = get_alpha_from_cons(U);
     return get_charge(alpha);
@@ -354,6 +376,9 @@ Real HydroState::get_charge(const Vector<Real> &U) const
 Real HydroState::get_gamma(Real alpha) const
 {
     BL_PROFILE("HydroState::get_gamma");
+
+    if (gamma_const) return gamma[0];
+
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -374,6 +399,10 @@ Real HydroState::get_gamma(Real alpha) const
 
 Real HydroState::get_gamma(const Vector<Real> &U) const
 {
+    BL_PROFILE("HydroState::get_gamma_U");
+
+    if (gamma_const) return gamma[0];
+
     // clamp alpha
     Real alpha = get_alpha_from_cons(U);
     return get_gamma(alpha);
@@ -382,6 +411,10 @@ Real HydroState::get_gamma(const Vector<Real> &U) const
 Real HydroState::get_cp(Real alpha) const
 {
     BL_PROFILE("HydroState::get_cp");
+
+    if (gamma_const && mass_const) return gamma[0]/(mass[0]*(gamma[0]-1));
+
+
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -399,6 +432,10 @@ Real HydroState::get_cp(Real alpha) const
 
 Real HydroState::get_cp(const Vector<Real> &U) const
 {
+    BL_PROFILE("HydroState::get_cp");
+
+    if (gamma_const && mass_const) return gamma[0]/(mass[0]*(gamma[0]-1));
+
     Real alpha = get_alpha_from_cons(U);
     return get_cp(alpha);
 }
@@ -1015,6 +1052,29 @@ void HydroState::calc_velocity(const Box& box,
     }
 
     return;
+}
+
+// given all of the available face values load the ones expected by the flux calc into a vector
+Vector<Real> HydroState::load_state_for_flux(Vector<Array4<const Real>> &face,
+                                               int i, int j, int k) const
+{
+    BL_PROFILE("HydroState::load_state_for_flux");
+
+    const int nf = +FluxIdx::NUM;
+    Vector<Real> S(nf);
+
+    // first get the primitives of this state
+    Array4<const Real> const &f4 = face[global_idx];
+
+    S[+FluxIdx::Density] = f4(i,j,k,+PrimIdx::Density);
+    S[+FluxIdx::Xvel] = f4(i,j,k,+PrimIdx::Xvel);
+    S[+FluxIdx::Yvel] = f4(i,j,k,+PrimIdx::Yvel);
+    S[+FluxIdx::Zvel] = f4(i,j,k,+PrimIdx::Zvel);
+    S[+FluxIdx::Prs] = f4(i,j,k,+PrimIdx::Prs);
+    S[+FluxIdx::Alpha] = f4(i,j,k,+PrimIdx::Alpha);
+    S[+FluxIdx::Gamma] = get_gamma(S[+FluxIdx::Alpha]);
+
+    return S;
 }
 
 void HydroState::calc_viscous_fluxes(const Box& box,

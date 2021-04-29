@@ -360,7 +360,12 @@ void State::calc_wall_fluxes(const Box& box,
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
-    Array4<const Real> const& prim4 = prim[global_idx].array();
+    Vector<Array4<const Real>> prim4(prim.size());
+    for (size_t idx=0; idx<prim.size(); ++idx) {
+        prim4[idx] = prim[idx].array();
+    }
+
+    Array4<const Real> const& p4 = prim4[global_idx];
     Array4<const Real> const& bcent4 = bcent.array();
     Array4<const Real> const& bnorm4 = bnorm.array();
 
@@ -400,9 +405,7 @@ void State::calc_wall_fluxes(const Box& box,
 
 
                     // grab a vector of the local state
-                    for (int ni=0; ni<np; ++ni) {
-                        cell_state[ni] = prim4(i,j,k,ni);
-                    }
+                    cell_state = load_state_for_flux(prim4, i, j, k);
 
                     for (int d=0; d<AMREX_SPACEDIM; ++d) {
 
@@ -429,7 +432,7 @@ void State::calc_wall_fluxes(const Box& box,
                                                          wall_value,
                                                          wall_normal,
                                                          wall_centre,
-                                                         prim4,
+                                                         p4,
                                                          i, j, k);
                     }
 

@@ -27,7 +27,7 @@ void HydroSlipWall::solve(Array<Array<Real,3>,3> &wall_coord,
     // get the inviscid flux
     //
 
-    transform_global2local(state, wall_coord, {+HydroState::PrimIdx::Xvel});
+    transform_global2local(state, wall_coord, HydroState::flux_vector_idx);
 
     // fabricate a state for inside the wall based on the provided state
     Vector<Real> W = state;
@@ -40,7 +40,7 @@ void HydroSlipWall::solve(Array<Array<Real,3>,3> &wall_coord,
     flux_solver->solve(state, W, normal_flux, &shk);
 
     // convert back to global coordinate system
-    transform_local2global(normal_flux, wall_coord, {+HydroState::ConsIdx::Xmom});
+    transform_local2global(normal_flux, wall_coord, HydroState::cons_vector_idx);
 
     // split it up into components
     for (int d=0; d<AMREX_SPACEDIM; ++d) {
@@ -95,7 +95,7 @@ void HydroNoSlipWall::solve(Array<Array<Real,3>,3> &wall_coord,
     // get the inviscid flux
     //
 
-    transform_global2local(state, wall_coord, {+HydroState::PrimIdx::Xvel});
+    transform_global2local(state, wall_coord,  HydroState::flux_vector_idx);
 
     // fabricate a state for inside the wall based on the provided state
     Vector<Real> W = state;
@@ -108,7 +108,7 @@ void HydroNoSlipWall::solve(Array<Array<Real,3>,3> &wall_coord,
     flux_solver->solve(state, W, normal_flux, &shk);
 
     // convert back to global coordinate system
-    transform_local2global(normal_flux, wall_coord, {+HydroState::ConsIdx::Xmom});
+    transform_local2global(normal_flux, wall_coord,  HydroState::cons_vector_idx);
 
     // split it up into components
     for (int d=0; d<AMREX_SPACEDIM; ++d) {

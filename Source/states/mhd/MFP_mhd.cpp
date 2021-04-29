@@ -46,6 +46,10 @@ Vector<set_bc> MhdState::bc_set = {
     &set_scalar_bc
 };
 
+Vector<int> MhdState::flux_vector_idx = {+MhdState::FluxIdx::Xvel, +MhdState::FluxIdx::Bx};
+Vector<int> MhdState::cons_vector_idx = {+MhdState::ConsIdx::Xmom, +MhdState::ConsIdx::Bx};
+Vector<int> MhdState::prim_vector_idx = {+MhdState::PrimIdx::Xvel, +MhdState::PrimIdx::Bx};
+
 std::string MhdState::tag = "mhd";
 bool MhdState::registered = GetStateFactory().Register(MhdState::tag, StateBuilder<MhdState>);
 
@@ -75,6 +79,9 @@ void MhdState::init_from_lua()
     //
     expand(state_def["mass"], mass);
     expand(state_def["gamma"], gamma);
+
+    mass_const = mass[0] == mass[1];
+    gamma_const = gamma[0] == gamma[1];
 
     //
     // boundary conditions
@@ -194,6 +201,9 @@ const Vector<set_bc>& MhdState::get_bc_set() const
 Real MhdState::get_mass(Real alpha) const
 {
     BL_PROFILE("MhdState::get_mass");
+
+    if (mass_const) return mass[0];
+
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -205,6 +215,10 @@ Real MhdState::get_mass(Real alpha) const
 
 Real MhdState::get_mass(const Vector<Real> &U) const
 {
+    BL_PROFILE("MhdState::get_mass");
+
+    if (mass_const) return mass[0];
+
     // clamp alpha
     Real alpha = get_alpha_from_cons(U);
     return get_mass(alpha);
@@ -213,6 +227,9 @@ Real MhdState::get_mass(const Vector<Real> &U) const
 Real MhdState::get_gamma(Real alpha) const
 {
     BL_PROFILE("MhdState::get_gamma");
+
+    if (gamma_const) return gamma[0];
+
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -233,6 +250,10 @@ Real MhdState::get_gamma(Real alpha) const
 
 Real MhdState::get_gamma(const Vector<Real> &U) const
 {
+    BL_PROFILE("MhdState::get_gamma");
+
+    if (gamma_const) return gamma[0];
+
     // clamp alpha
     Real alpha = get_alpha_from_cons(U);
     return get_gamma(alpha);
@@ -241,6 +262,9 @@ Real MhdState::get_gamma(const Vector<Real> &U) const
 Real MhdState::get_cp(Real alpha) const
 {
     BL_PROFILE("MhdState::get_cp");
+
+    if (gamma_const && mass_const) return gamma[0]/(mass[0]*(gamma[0]-1));
+
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -258,6 +282,10 @@ Real MhdState::get_cp(Real alpha) const
 
 Real MhdState::get_cp(const Vector<Real> &U) const
 {
+    BL_PROFILE("MhdState::get_cp");
+
+    if (gamma_const && mass_const) return gamma[0]/(mass[0]*(gamma[0]-1));
+
     Real alpha = get_alpha_from_cons(U);
     return get_cp(alpha);
 }
@@ -563,6 +591,34 @@ void MhdState::calc_velocity(const Box& box,
     }
 
     return;
+}
+
+// given all of the available face values load the ones expected by the flux calc into a vector
+Vector<Real> MhdState::load_state_for_flux(Vector<Array4<const Real>> &face,
+                                               int i, int j, int k) const
+{
+    BL_PROFILE("MhdState::load_state_for_flux");
+
+    const int nf = +FluxIdx::NUM;
+    Vector<Real> S(nf);
+
+    // first get the primitives of this state
+    Array4<const Real> const &f4 = face[global_idx];
+
+    S[+FluxIdx::Density] = f4(i,j,k,+PrimIdx::Density);
+    S[+FluxIdx::Xvel] = f4(i,j,k,+PrimIdx::Xvel);
+    S[+FluxIdx::Yvel] = f4(i,j,k,+PrimIdx::Yvel);
+    S[+FluxIdx::Zvel] = f4(i,j,k,+PrimIdx::Zvel);
+    S[+FluxIdx::Prs] = f4(i,j,k,+PrimIdx::Prs);
+    S[+FluxIdx::Alpha] = f4(i,j,k,+PrimIdx::Alpha);
+    S[+FluxIdx::Gamma] = get_gamma(S[+FluxIdx::Alpha]);
+    S[+FluxIdx::Mass] = get_mass(S[+FluxIdx::Alpha]);
+    S[+FluxIdx::Bx] = f4(i,j,k,+PrimIdx::Bx);
+    S[+FluxIdx::By] = f4(i,j,k,+PrimIdx::By);
+    S[+FluxIdx::Bz] = f4(i,j,k,+PrimIdx::Bz);
+    S[+FluxIdx::psi] = f4(i,j,k,+PrimIdx::psi);
+
+    return S;
 }
 
 void MhdState::update_div_clean(const Real* dx)

@@ -31,7 +31,7 @@ void MFP::variableSetUp() {
         comp_names.resize(nc);
 
         // get the list of bc setting functions that applies to this type of state
-        const Vector<set_bc> &setbc = gd.states[idx]->get_bc_set();
+        const Vector<set_bc> &setbc = istate.get_bc_set();
         const Vector<std::string> &cons_names = gd.states[idx]->get_cons_names();
 
         istate.boundary_conditions.fill_bc.resize(np);

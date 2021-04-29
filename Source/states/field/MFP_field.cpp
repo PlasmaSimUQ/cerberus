@@ -34,6 +34,10 @@ Vector<set_bc> FieldState::bc_set = {
     &set_scalar_bc,
 };
 
+Vector<int> FieldState::flux_vector_idx = {+FieldState::FluxIdx::Bx, +FieldState::FluxIdx::Dx};
+Vector<int> FieldState::cons_vector_idx = {+FieldState::ConsIdx::Bx, +FieldState::ConsIdx::Dx};
+Vector<int> FieldState::prim_vector_idx = {+FieldState::PrimIdx::Bx, +FieldState::PrimIdx::Dx};
+
 std::string FieldState::tag = "field";
 bool FieldState::registered = GetStateFactory().Register(FieldState::tag, StateBuilder<FieldState>);
 
@@ -619,6 +623,32 @@ void FieldState::calc_reconstruction(const Box& box,
 
 
     return;
+}
+
+// given all of the available face values load the ones expected by the flux calc into a vector
+Vector<Real> FieldState::load_state_for_flux(Vector<Array4<const Real>> &face,
+                                               int i, int j, int k) const
+{
+    BL_PROFILE("FieldState::load_state_for_flux");
+
+    const int nf = +FluxIdx::NUM;
+    Vector<Real> S(nf);
+
+    // first get the primitives of this state
+    Array4<const Real> const &f4 = face[global_idx];
+
+    S[+FluxIdx::Dx] = f4(i,j,k,+PrimIdx::Dx);
+    S[+FluxIdx::Dy] = f4(i,j,k,+PrimIdx::Dy);
+    S[+FluxIdx::Dz] = f4(i,j,k,+PrimIdx::Dz);
+    S[+FluxIdx::Bx] = f4(i,j,k,+PrimIdx::Bx);
+    S[+FluxIdx::By] = f4(i,j,k,+PrimIdx::By);
+    S[+FluxIdx::Bz] = f4(i,j,k,+PrimIdx::Bz);
+    S[+FluxIdx::phi] = f4(i,j,k,+PrimIdx::phi);
+    S[+FluxIdx::psi] = f4(i,j,k,+PrimIdx::psi);
+    S[+FluxIdx::mu] = f4(i,j,k,+PrimIdx::mu);
+    S[+FluxIdx::ep] = f4(i,j,k,+PrimIdx::ep);
+
+    return S;
 }
 
 void FieldState::write_info(nlohmann::json &js) const

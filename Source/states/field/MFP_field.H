@@ -43,6 +43,24 @@ struct FieldState : public State
             NUM
         };
 
+        enum class FluxIdx : int {
+            Dx=0,
+            Dy,
+            Dz,
+            Bx,
+            By,
+            Bz,
+            phi,
+            psi,
+            mu,
+            ep,
+            NUM
+        };
+
+        static Vector<int> flux_vector_idx;
+        static Vector<int> cons_vector_idx;
+        static Vector<int> prim_vector_idx;
+
         const std::map<std::string, int> bc_names = {{"interior",  PhysBCType::interior},
                                                      {"inflow",    PhysBCType::inflow},
                                                      {"outflow",   PhysBCType::outflow},
@@ -94,11 +112,17 @@ struct FieldState : public State
         virtual void prim2cons(Vector<Real>& U) const override;
 
         virtual int get_cons_density_idx() const override {return -1;}
+
         virtual const Vector<int> get_prim_vector_idx() const override {
-            return {+PrimIdx::Bx, +PrimIdx::Dx};
+            return prim_vector_idx;
         }
+
+        virtual const Vector<int> get_flux_vector_idx() const override {
+            return flux_vector_idx;
+        }
+
         virtual const Vector<int> get_cons_vector_idx() const override {
-            return {+ConsIdx::Bx, +ConsIdx::Dx};
+            return cons_vector_idx;
         }
 
         virtual const int get_cons_D_idx() const override {return +ConsIdx::Dx;}
@@ -135,6 +159,9 @@ struct FieldState : public State
                                  EB_OPTIONAL(,const EBCellFlagFab &flag)
                                  EB_OPTIONAL(,const FArrayBox &vfrac)
                                  ) const override;
+
+        virtual Vector<Real> load_state_for_flux(Vector<Array4<const Real> > &face,
+                                                 int i, int j, int k) const override;
 
 
         virtual void write_info(nlohmann::json& js) const override;

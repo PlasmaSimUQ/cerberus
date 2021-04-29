@@ -38,6 +38,10 @@ Vector<set_bc> Hydro2PState::bc_set = {
     &set_scalar_bc
 };
 
+Vector<int> Hydro2PState::flux_vector_idx = {+Hydro2PState::FluxIdx::Xvel, +Hydro2PState::FluxIdx::Bx};
+Vector<int> Hydro2PState::cons_vector_idx = {+Hydro2PState::ConsIdx::Xmom};
+Vector<int> Hydro2PState::prim_vector_idx = {+Hydro2PState::PrimIdx::Xvel};
+
 std::string Hydro2PState::tag = "hydro_2p";
 bool Hydro2PState::registered = GetStateFactory().Register(Hydro2PState::tag, StateBuilder<Hydro2PState>);
 
@@ -68,6 +72,10 @@ void Hydro2PState::init_from_lua()
     expand(state_def["mass"], mass);
     expand(state_def["charge"], charge);
     expand(state_def["gamma"], gamma);
+
+    mass_const = mass[0] == mass[1];
+    charge_const = charge[0] == charge[1];
+    gamma_const = gamma[0] == gamma[1];
 
     //
     // viscous terms coefficients
@@ -300,6 +308,9 @@ const Vector<set_bc>& Hydro2PState::get_bc_set() const
 Real Hydro2PState::get_mass(Real alpha) const
 {
     BL_PROFILE("Hydro2PState::get_mass");
+
+    if (mass_const) return mass[0];
+
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -311,6 +322,10 @@ Real Hydro2PState::get_mass(Real alpha) const
 
 Real Hydro2PState::get_mass(const Vector<Real> &U) const
 {
+    BL_PROFILE("Hydro2PState::get_mass");
+
+    if (mass_const) return mass[0];
+
     // clamp alpha
     Real alpha = get_alpha_from_cons(U);
     return get_mass(alpha);
@@ -319,6 +334,9 @@ Real Hydro2PState::get_mass(const Vector<Real> &U) const
 Real Hydro2PState::get_charge(Real alpha) const
 {
     BL_PROFILE("Hydro2PState::get_charge");
+
+    if (charge_const) return charge[0];
+
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -333,6 +351,10 @@ Real Hydro2PState::get_charge(Real alpha) const
 
 Real Hydro2PState::get_charge(const Vector<Real> &U) const
 {
+    BL_PROFILE("Hydro2PState::get_charge");
+
+    if (charge_const) return charge[0];
+
     // clamp alpha
     Real alpha = get_alpha_from_cons(U);
     return get_charge(alpha);
@@ -341,6 +363,8 @@ Real Hydro2PState::get_charge(const Vector<Real> &U) const
 Real Hydro2PState::get_gamma(Real alpha) const
 {
     BL_PROFILE("Hydro2PState::get_gamma");
+
+    if (gamma_const) return gamma[0];
 
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
@@ -362,6 +386,10 @@ Real Hydro2PState::get_gamma(Real alpha) const
 
 Real Hydro2PState::get_gamma(const Vector<Real> &U) const
 {
+    BL_PROFILE("Hydro2PState::get_gamma");
+
+    if (gamma_const) return gamma[0];
+
     // clamp alpha
     Real alpha = get_alpha_from_cons(U);
     return get_gamma(alpha);
@@ -370,6 +398,8 @@ Real Hydro2PState::get_gamma(const Vector<Real> &U) const
 Real Hydro2PState::get_cp(Real alpha) const
 {
     BL_PROFILE("Hydro2PState::get_cp");
+
+    if (gamma_const && mass_const) return gamma[0]/(mass[0]*(gamma[0]-1));
 
     // clamp alpha
     alpha = clamp(alpha, 0.0, 1.0);
@@ -388,6 +418,10 @@ Real Hydro2PState::get_cp(Real alpha) const
 
 Real Hydro2PState::get_cp(const Vector<Real> &U) const
 {
+    BL_PROFILE("Hydro2PState::get_cp");
+
+    if (gamma_const && mass_const) return gamma[0]/(mass[0]*(gamma[0]-1));
+
     Real alpha = get_alpha_from_cons(U);
     return get_cp(alpha);
 }
@@ -730,16 +764,20 @@ Vector<Real> Hydro2PState::load_state_for_flux(Vector<Array4<const Real>> &face,
 {
     BL_PROFILE("Hydro2PState::load_state_for_flux");
 
-    const int np = +PrimIdx::NUM;
     const int nf = +FluxIdx::NUM;
     Vector<Real> S(nf);
 
     // first get the primitives of this state
     Array4<const Real> const &f4 = face[global_idx];
 
-    for (int n=0; n<np; ++n ) {
-        S[n] = f4(i,j,k,n);
-    }
+    S[+FluxIdx::Density] = f4(i,j,k,+PrimIdx::Density);
+    S[+FluxIdx::Xvel] = f4(i,j,k,+PrimIdx::Xvel);
+    S[+FluxIdx::Yvel] = f4(i,j,k,+PrimIdx::Yvel);
+    S[+FluxIdx::Zvel] = f4(i,j,k,+PrimIdx::Zvel);
+    S[+FluxIdx::Prs] = f4(i,j,k,+PrimIdx::Prs);
+    S[+FluxIdx::PrsP] = f4(i,j,k,+PrimIdx::PrsP);
+    S[+FluxIdx::Alpha] = f4(i,j,k,+PrimIdx::Alpha);
+    S[+FluxIdx::Gamma] = get_gamma(S[+FluxIdx::Alpha]);
 
     // then get the magnetic field from the attached field state
     S[+FluxIdx::Bx] = face[linked_em](i,j,k,+FieldState::PrimIdx::Bx);

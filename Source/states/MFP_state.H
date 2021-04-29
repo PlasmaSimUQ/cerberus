@@ -96,6 +96,7 @@ class State
 
         BoundaryState boundary_conditions;
 
+        bool mass_const, charge_const, gamma_const;
         Array<Real,2> mass, charge, gamma;
 
         int num_grow;

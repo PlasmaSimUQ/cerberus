@@ -45,11 +45,16 @@ public:
         Prs,
         PrsP,
         Alpha,
+        Gamma,
         Bx,
         By,
         Bz,
         NUM
     };
+
+    static Vector<int> flux_vector_idx;
+    static Vector<int> cons_vector_idx;
+    static Vector<int> prim_vector_idx;
 
     const std::map<std::string, int> bc_names = {{"interior",  PhysBCType::interior},
                                                  {"inflow",    PhysBCType::inflow},
@@ -110,15 +115,15 @@ public:
     virtual int get_cons_density_idx() const override {return +ConsIdx::Density;}
 
     virtual const Vector<int> get_prim_vector_idx() const override {
-        return {+PrimIdx::Xvel};
+        return prim_vector_idx;
     }
 
     virtual const Vector<int> get_flux_vector_idx() const override {
-        return {+FluxIdx::Xvel, +FluxIdx::Bx};
+        return flux_vector_idx;
     }
 
     virtual const Vector<int> get_cons_vector_idx() const override {
-        return {+ConsIdx::Xmom};
+        return cons_vector_idx;
     }
 
     virtual const Vector<int> get_prs_idx() const override {

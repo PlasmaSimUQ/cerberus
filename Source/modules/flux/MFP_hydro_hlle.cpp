@@ -25,27 +25,25 @@ void HydroHLLE::solve(Vector<Real> &L,
     State &istate = GD::get_state(idx);
 
     // get the data out of the passed in arrays
-    Real rhoL = L[+HydroState::PrimIdx::Density];
-    Real uL = L[+HydroState::PrimIdx::Xvel];
-    Real vL = L[+HydroState::PrimIdx::Yvel];
-    Real wL = L[+HydroState::PrimIdx::Zvel];
-    Real pL = L[+HydroState::PrimIdx::Prs];
-    Real apL = L[+HydroState::PrimIdx::Alpha];
-
-    Real gamL = istate.get_gamma(apL);
+    Real rhoL = L[+HydroState::FluxIdx::Density];
+    Real uL = L[+HydroState::FluxIdx::Xvel];
+    Real vL = L[+HydroState::FluxIdx::Yvel];
+    Real wL = L[+HydroState::FluxIdx::Zvel];
+    Real pL = L[+HydroState::FluxIdx::Prs];
+    Real apL = L[+HydroState::FluxIdx::Alpha];
+    Real gamL = L[+HydroState::FluxIdx::Gamma];
     Real nrgL = pL/(gamL - 1) + 0.5*rhoL*(uL*uL + vL*vL + wL*wL);
     Real tL = apL*rhoL;
     Real aL = sqrt(gamL*pL/rhoL);
 
     // get the data out of the passed in arrays
-    Real rhoR = R[+HydroState::PrimIdx::Density];
-    Real uR = R[+HydroState::PrimIdx::Xvel];
-    Real vR = R[+HydroState::PrimIdx::Yvel];
-    Real wR = R[+HydroState::PrimIdx::Zvel];
-    Real pR = R[+HydroState::PrimIdx::Prs];
-    Real apR = R[+HydroState::PrimIdx::Alpha];
-
-    Real gamR = istate.get_gamma(apR);
+    Real rhoR = R[+HydroState::FluxIdx::Density];
+    Real uR = R[+HydroState::FluxIdx::Xvel];
+    Real vR = R[+HydroState::FluxIdx::Yvel];
+    Real wR = R[+HydroState::FluxIdx::Zvel];
+    Real pR = R[+HydroState::FluxIdx::Prs];
+    Real apR = R[+HydroState::FluxIdx::Alpha];
+    Real gamR = R[+HydroState::FluxIdx::Gamma];
     Real nrgR = pR/(gamR-1) + 0.5*rhoR*(uR*uR + vR*vR + wR*wR);
     Real tR = apR*rhoR;
     Real aR = sqrt(gamR*pR/rhoR);

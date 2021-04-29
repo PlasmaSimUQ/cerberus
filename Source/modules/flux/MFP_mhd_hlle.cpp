@@ -23,40 +23,38 @@ void MhdHLLE::solve(Vector<Real> &L,
     State &istate = GD::get_state(idx);
 
     // get the data out of the passed in arrays
-    Real rhoL = L[+MhdState::PrimIdx::Density];
-    Real uL =  L[+MhdState::PrimIdx::Xvel];
-    Real vL =  L[+MhdState::PrimIdx::Yvel];
-    Real wL =  L[+MhdState::PrimIdx::Zvel];
-    Real pL =   L[+MhdState::PrimIdx::Prs];
-    Real apL =  L[+MhdState::PrimIdx::Alpha];
-    Real BxL = L[+MhdState::PrimIdx::Bx];
-    Real ByL = L[+MhdState::PrimIdx::By];
-    Real BzL = L[+MhdState::PrimIdx::Bz];
-    Real psiL = L[+MhdState::PrimIdx::psi];
+    Real rhoL = L[+MhdState::FluxIdx::Density];
+    Real uL =  L[+MhdState::FluxIdx::Xvel];
+    Real vL =  L[+MhdState::FluxIdx::Yvel];
+    Real wL =  L[+MhdState::FluxIdx::Zvel];
+    Real pL =   L[+MhdState::FluxIdx::Prs];
+    Real apL =  L[+MhdState::FluxIdx::Alpha];
+    Real BxL = L[+MhdState::FluxIdx::Bx];
+    Real ByL = L[+MhdState::FluxIdx::By];
+    Real BzL = L[+MhdState::FluxIdx::Bz];
+    Real psiL = L[+MhdState::FluxIdx::psi];
+    Real mL =   L[+MhdState::FluxIdx::Mass];
+    Real gamL = L[+MhdState::FluxIdx::Gamma];
 
-    Real rhoR = R[+MhdState::PrimIdx::Density];
-    Real uR =  R[+MhdState::PrimIdx::Xvel];
-    Real vR =  R[+MhdState::PrimIdx::Yvel];
-    Real wR =  R[+MhdState::PrimIdx::Zvel];
-    Real pR =   R[+MhdState::PrimIdx::Prs];
-    Real apR =  R[+MhdState::PrimIdx::Alpha];
-    Real BxR = R[+MhdState::PrimIdx::Bx];
-    Real ByR = R[+MhdState::PrimIdx::By];
-    Real BzR = R[+MhdState::PrimIdx::Bz];
-    Real psiR = R[+MhdState::PrimIdx::psi];
+    Real rhoR = R[+MhdState::FluxIdx::Density];
+    Real uR =  R[+MhdState::FluxIdx::Xvel];
+    Real vR =  R[+MhdState::FluxIdx::Yvel];
+    Real wR =  R[+MhdState::FluxIdx::Zvel];
+    Real pR =   R[+MhdState::FluxIdx::Prs];
+    Real apR =  R[+MhdState::FluxIdx::Alpha];
+    Real BxR = R[+MhdState::FluxIdx::Bx];
+    Real ByR = R[+MhdState::FluxIdx::By];
+    Real BzR = R[+MhdState::FluxIdx::Bz];
+    Real psiR = R[+MhdState::FluxIdx::psi];
+    Real mR =   R[+MhdState::FluxIdx::Mass];
+    Real gamR = R[+MhdState::FluxIdx::Gamma];
 
     // compute some stuff
-    Real mL =   istate.get_mass(apL);
-    Real gamL = istate.get_gamma(apL);
-
     Real trL = apL*rhoL;
     Real tL = pL/(rhoL/mL);
     Real RgasL = pL / (rhoL * tL);
     Real cvL = RgasL/(gamL - 1);
     Real rLsqrt = sqrt(rhoL);
-
-    Real mR =   istate.get_mass(apR);
-    Real gamR = istate.get_gamma(apR);
 
     Real trR = apR*rhoR;
     Real tR = pR/(rhoR/mR);

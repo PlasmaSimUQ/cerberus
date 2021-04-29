@@ -600,13 +600,13 @@ void GlobalData::resize(const int size)
 
 State& GlobalData::get_state(const int idx)
 {
-    BL_PROFILE("GlobalData::get_state");
+    BL_PROFILE("GlobalData::get_state(idx)");
     return *states[idx];
 }
 
 State& GlobalData::get_state(const std::string& name)
 {
-    BL_PROFILE("GlobalData::get_state");
+    BL_PROFILE("GlobalData::get_state(name)");
     if ( state_index.find(name) == state_index.end() ) {
         Abort("Attempting to reference a state that doesn't exist");
     }

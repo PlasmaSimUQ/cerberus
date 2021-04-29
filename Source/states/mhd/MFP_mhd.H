@@ -43,6 +43,26 @@ class MhdState : public State
             NUM,
         };
 
+        enum class FluxIdx : int {
+            Density=0,
+            Xvel,
+            Yvel,
+            Zvel,
+            Prs,
+            Alpha,
+            Gamma,
+            Mass,
+            Bx,
+            By,
+            Bz,
+            psi,
+            NUM
+        };
+
+        static Vector<int> flux_vector_idx;
+        static Vector<int> cons_vector_idx;
+        static Vector<int> prim_vector_idx;
+
         const std::map<std::string, int> bc_names = {{"interior",  PhysBCType::interior},
                                                      {"inflow",    PhysBCType::inflow},
                                                      {"outflow",   PhysBCType::outflow},
@@ -100,10 +120,13 @@ class MhdState : public State
         virtual int get_cons_density_idx() const override {return +ConsIdx::Density;}
 
         virtual const Vector<int> get_prim_vector_idx() const override {
-            return {+PrimIdx::Xvel, +PrimIdx::Bx};
+            return prim_vector_idx;
+        }
+        virtual const Vector<int> get_flux_vector_idx() const override {
+            return flux_vector_idx;
         }
         virtual const Vector<int> get_cons_vector_idx() const override {
-            return {+ConsIdx::Xmom, +ConsIdx::Bx};
+            return cons_vector_idx;
         }
 
         virtual const Vector<int> get_prs_idx() const override {
@@ -164,6 +187,9 @@ class MhdState : public State
                                    FArrayBox& vel
                                    EB_OPTIONAL(,const EBCellFlagFab& flag)
                                    ) const override;
+
+        virtual Vector<Real> load_state_for_flux(Vector<Array4<const Real> > &face,
+                                                 int i, int j, int k) const override;
 
         virtual void write_info(nlohmann::json& js) const override;
 

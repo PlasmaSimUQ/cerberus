@@ -26,7 +26,7 @@ void HLLE2P::solve(Vector<Real> &L,
     // get the data out of the passed in arrays
     Real apL = L[+Hydro2PState::FluxIdx::Alpha];
     //    Real qL = GD::get_charge(apL, idx);
-    Real gamL = istate.get_gamma(apL);
+    Real gamL = L[+Hydro2PState::FluxIdx::Gamma];
     Real rhoL = L[+Hydro2PState::FluxIdx::Density];
     Real uL = L[+Hydro2PState::FluxIdx::Xvel];
     Real vL = L[+Hydro2PState::FluxIdx::Yvel];
@@ -58,7 +58,7 @@ void HLLE2P::solve(Vector<Real> &L,
     // get the data out of the passed in arrays
     Real apR = R[+Hydro2PState::FluxIdx::Alpha];
     //    Real qR = GD::get_charge(apR, idx);
-    Real gamR = istate.get_gamma(apR);
+    Real gamR = R[+Hydro2PState::FluxIdx::Gamma];
     Real rhoR = R[+Hydro2PState::FluxIdx::Density];
     Real uR = R[+Hydro2PState::FluxIdx::Xvel];
     Real vR = R[+Hydro2PState::FluxIdx::Yvel];
