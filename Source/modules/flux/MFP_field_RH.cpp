@@ -15,20 +15,19 @@ FieldRH::FieldRH(){}
 FieldRH::FieldRH(const int i)
 {
     idx = i;
+    istate = GD::get_state_ptr(i);
 }
 
 void FieldRH::solve(Vector<Real> &L,
                     Vector<Real> &R,
                     Vector<Real> &F,
-                    Real* shk) const
+                    Real* shk)
 {
     BL_PROFILE("FieldRH::solve");
     std::fill(F.begin(), F.end(), 0);
 
-    State &istate = GD::get_state(idx);
-
     Real c0 = GD::lightspeed;
-    Real ch = istate.div_speed;
+    Real ch = istate->div_speed;
     Real ch2 = ch*ch;
 
     Real Dr, Dl; // y- & z- D fields

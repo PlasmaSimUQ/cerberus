@@ -759,13 +759,10 @@ void Hydro2PState::calc_velocity(const Box& box,
 
 
 // given all of the available face values load the ones expected by the flux calc into a vector
-Vector<Real> Hydro2PState::load_state_for_flux(Vector<Array4<const Real>> &face,
-                                               int i, int j, int k) const
+void Hydro2PState::load_state_for_flux(Vector<Array4<const Real>> &face,
+                                               int i, int j, int k, Vector<Real> &S) const
 {
     BL_PROFILE("Hydro2PState::load_state_for_flux");
-
-    const int nf = +FluxIdx::NUM;
-    Vector<Real> S(nf);
 
     // first get the primitives of this state
     Array4<const Real> const &f4 = face[global_idx];
@@ -785,7 +782,7 @@ Vector<Real> Hydro2PState::load_state_for_flux(Vector<Array4<const Real>> &face,
     S[+FluxIdx::Bz] = face[linked_em](i,j,k,+FieldState::PrimIdx::Bz);
 
 
-    return S;
+    return;
 }
 
 void Hydro2PState::write_info(nlohmann::json& js) const

@@ -889,7 +889,7 @@ Real HydroState::local_shock_detector(const Vector<Real> &L,
     Real pR = R[+PrimIdx::Prs];
     Real varphi = std::abs(pR - pL)/(pR + pL);
 
-    Real shk = 0.5 + 0.5*std::tanh(5*(varphi - 0.75*shock_threshold)/shock_threshold);
+    Real shk = 0.5 + 0.5*tanh_approx(5*(varphi - 0.75*shock_threshold)/shock_threshold);
 
     return shk;
 }
@@ -1055,13 +1055,11 @@ void HydroState::calc_velocity(const Box& box,
 }
 
 // given all of the available face values load the ones expected by the flux calc into a vector
-Vector<Real> HydroState::load_state_for_flux(Vector<Array4<const Real>> &face,
-                                               int i, int j, int k) const
+void HydroState::load_state_for_flux(Vector<Array4<const Real>> &face,
+                                               int i, int j, int k, Vector<Real> &S) const
 {
     BL_PROFILE("HydroState::load_state_for_flux");
 
-    const int nf = +FluxIdx::NUM;
-    Vector<Real> S(nf);
 
     // first get the primitives of this state
     Array4<const Real> const &f4 = face[global_idx];
@@ -1074,7 +1072,7 @@ Vector<Real> HydroState::load_state_for_flux(Vector<Array4<const Real>> &face,
     S[+FluxIdx::Alpha] = f4(i,j,k,+PrimIdx::Alpha);
     S[+FluxIdx::Gamma] = get_gamma(S[+FluxIdx::Alpha]);
 
-    return S;
+    return;
 }
 
 void HydroState::calc_viscous_fluxes(const Box& box,

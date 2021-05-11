@@ -20,7 +20,7 @@ RiemannSolver::~RiemannSolver()
 void RiemannSolver::solve(Vector<Real> &L,
                                Vector<Real> &R,
                                Vector<Real> &F,
-                               Real* shk) const
+                               Real* shk)
 {
     // do nothing
 }

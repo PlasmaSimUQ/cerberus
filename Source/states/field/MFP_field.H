@@ -91,6 +91,7 @@ struct FieldState : public State
         virtual AssociatedType get_association_type() const override {return AssociatedType::Field;}
         virtual int n_prim() const override {return +PrimIdx::NUM;}
         virtual int n_cons() const override {return +ConsIdx::NUM;}
+        virtual int n_flux() const override {return +FluxIdx::NUM;}
         virtual bool prim_valid(Vector<Real>& Q) const override {return true;}
         virtual bool cons_valid(Vector<Real>& U) const override {return true;}
 
@@ -160,8 +161,8 @@ struct FieldState : public State
                                  EB_OPTIONAL(,const FArrayBox &vfrac)
                                  ) const override;
 
-        virtual Vector<Real> load_state_for_flux(Vector<Array4<const Real> > &face,
-                                                 int i, int j, int k) const override;
+        virtual void load_state_for_flux(Vector<Array4<const Real> > &face,
+                                                 int i, int j, int k, Vector<Real> &S) const override;
 
 
         virtual void write_info(nlohmann::json& js) const override;

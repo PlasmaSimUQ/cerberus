@@ -596,7 +596,11 @@ void GlobalData::resize(const int size)
     state_names.resize(num_solve_state);
 }
 
-
+State* GlobalData::get_state_ptr(const int idx)
+{
+    BL_PROFILE("GlobalData::get_state(idx)");
+    return states[idx].get();
+}
 
 State& GlobalData::get_state(const int idx)
 {

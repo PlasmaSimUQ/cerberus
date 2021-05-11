@@ -1283,20 +1283,17 @@ void State::update_face_prim(const Box& box, const Geometry& geom,
 }
 
 // given all of the available face values load the ones expected by the flux calc into a vector
-Vector<Real> State::load_state_for_flux(Vector<Array4<const Real>> &face,
-                                        int i, int j, int k) const
+void State::load_state_for_flux(Vector<Array4<const Real>> &face,
+                                        int i, int j, int k, Vector<Real> &S) const
 {
     BL_PROFILE("State::load_state_for_flux");
     const int np = n_prim();
-    Vector<Real> S(np);
 
     Array4<const Real> const &f4 = face[global_idx];
 
     for (int n=0; n<np; ++n ) {
         S[n] = f4(i,j,k,n);
     }
-
-    return S;
 }
 
 void State::calc_fluxes(const Box& box,
@@ -1315,11 +1312,12 @@ void State::calc_fluxes(const Box& box,
     int ns = r_lo.size();
     int nc = n_cons();
     int np = n_prim();
+    int nf = n_flux();
     Vector<int> rotate_idx_flux = get_flux_vector_idx();
     Vector<int> rotate_idx_cons = get_cons_vector_idx();
 
     Array<int, 3> index;
-    Vector<Real> L(np), R(np), F(nc);
+    Vector<Real> L(nf), R(nf), F(nc);
     Real shk;
 
 #ifdef AMREX_USE_EB
@@ -1360,8 +1358,8 @@ void State::calc_fluxes(const Box& box,
 #endif
 
                     // get left and right states
-                    L = load_state_for_flux(hi4, i-index[0],j-index[1],k-index[2]);
-                    R = load_state_for_flux(lo4, i,j,k);
+                    load_state_for_flux(hi4, i-index[0],j-index[1],k-index[2], L);
+                    load_state_for_flux(lo4, i,j,k, R);
 
 
                     // rotate the vectors

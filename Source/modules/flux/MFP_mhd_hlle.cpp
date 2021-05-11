@@ -12,15 +12,15 @@ MhdHLLE::MhdHLLE(){}
 MhdHLLE::MhdHLLE(const int i)
 {
     idx = i;
+    istate = GD::get_state_ptr(i);
 }
 
 void MhdHLLE::solve(Vector<Real> &L,
                     Vector<Real> &R,
                     Vector<Real> &F,
-                    Real* shk) const
+                    Real* shk)
 {
     BL_PROFILE("MhdHLLE::solve");
-    State &istate = GD::get_state(idx);
 
     // get the data out of the passed in arrays
     Real rhoL = L[+MhdState::FluxIdx::Density];
@@ -147,7 +147,7 @@ void MhdHLLE::solve(Vector<Real> &L,
     Real blm = std::min(bl, 0.0);
     Real brp = std::max(br, 0.0);
 
-    Real ch = istate.div_speed;
+    Real ch = istate->div_speed;
     blm = std::min(blm, -ch);
     brp = std::max(brp, ch);
 

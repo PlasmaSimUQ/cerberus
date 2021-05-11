@@ -17,6 +17,10 @@
 #include "MFP.H"
 #include "MFP_global.H"
 
+#ifdef PPROF
+#include <gperftools/profiler.h>
+#endif
+
 using namespace amrex;
 
 amrex::LevelBld* getLevelBld ();
@@ -26,6 +30,9 @@ int main(int argc, char* argv[]) {
     amrex::Initialize(argc, argv);
 
     BL_PROFILE_VAR("main()", pmain);
+#ifdef PPROF
+    ProfilerStart("gperftools_profile.prof");
+#endif
 
     Real timer_tot = ParallelDescriptor::second();
     Real timer_init = 0.;
@@ -187,6 +194,10 @@ int main(int argc, char* argv[]) {
     BL_PROFILE_VAR_STOP(pmain);
 
     GlobalData::clean_up();
+
+#ifdef PPROF
+    ProfilerStop();
+#endif
 
     amrex::Finalize();
 

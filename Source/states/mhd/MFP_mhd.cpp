@@ -594,13 +594,10 @@ void MhdState::calc_velocity(const Box& box,
 }
 
 // given all of the available face values load the ones expected by the flux calc into a vector
-Vector<Real> MhdState::load_state_for_flux(Vector<Array4<const Real>> &face,
-                                               int i, int j, int k) const
+void MhdState::load_state_for_flux(Vector<Array4<const Real>> &face,
+                                               int i, int j, int k, Vector<Real> &S) const
 {
     BL_PROFILE("MhdState::load_state_for_flux");
-
-    const int nf = +FluxIdx::NUM;
-    Vector<Real> S(nf);
 
     // first get the primitives of this state
     Array4<const Real> const &f4 = face[global_idx];
@@ -618,7 +615,7 @@ Vector<Real> MhdState::load_state_for_flux(Vector<Array4<const Real>> &face,
     S[+FluxIdx::Bz] = f4(i,j,k,+PrimIdx::Bz);
     S[+FluxIdx::psi] = f4(i,j,k,+PrimIdx::psi);
 
-    return S;
+    return;
 }
 
 void MhdState::update_div_clean(const Real* dx)

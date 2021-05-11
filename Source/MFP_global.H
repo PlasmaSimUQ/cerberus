@@ -157,6 +157,7 @@ public:
 
     static void resize(const int size);
 
+    static State* get_state_ptr(const int idx);
     static State& get_state(const int idx);
     static State& get_state(const std::string &name);
     Vector<int> get_states_index(const Vector<std::string>& names);

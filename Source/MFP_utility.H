@@ -266,6 +266,34 @@ public:
     constexpr std::size_t size() { return sz_; } // size()
 };
 
+/*
+ tanh(x)
+Return the hyperbolic tangent of x.
+Efficient tanh algorithm using an approximation of the Hyperbolic function:
+Speed Improvement of the Back-Propagation on Current Generation
+Workstations" D. Anguita, G. Parodi and R. Zunino. Proceedings of the World
+Congress on Neural Networking, 1993.
+*/
+template <typename T>
+T tanh_approx(T x)
+{
+
+    if (x > 1.92033) {
+        return 0.96016;
+    }
+
+    if (x > 0) {
+        return 0.96016 - 0.26037 * (x - 1.92033) * (x - 1.92033);
+    }
+
+    if (x <= -1.92033) {
+        return -0.96016;
+    }
+
+    return 0.26037 * (x + 1.92033) * (x + 1.92033) - 0.96016;
+
+}
+
 // conversion of enum class to underlying type
 // usage = +Class::element
 template <typename T>
@@ -274,5 +302,7 @@ constexpr auto operator+(T e) noexcept
 {
     return static_cast<std::underlying_type_t<T>>(e);
 }
+
+
 
 #endif

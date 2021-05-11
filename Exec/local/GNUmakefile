@@ -25,6 +25,10 @@ PYTHON_PLOT = FALSE
 PYTHON_INCLUDE=/usr/include/python3.8
 PYTHON_LIB=/usr/lib/python3.8/config-3.8-x86_64-linux-gnu
 
+PPROF = FALSE
+PPROF_INCLUDE = /usr/include/gperftools
+PPROF_LIB = /usr/lib/x86_64-linux-gnu
+
 include ../Make.MFP
 
 FFLAGS   += -fcheck=array-temps -fbacktrace -fbounds-check -cpp

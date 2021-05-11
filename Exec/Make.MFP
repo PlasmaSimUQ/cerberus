@@ -7,6 +7,19 @@ USE_MPI ?= TRUE
 DEBUG ?= FALSE
 WARN_ALL ?= FALSE
 
+#=== PPROF ===
+
+PPROF ?= FALSE
+
+ifeq ($(PPROF), TRUE)
+INCLUDE_LOCATIONS += $(PPROF_INCLUDE)
+LIBRARY_LOCATIONS += $(PPROF_LIB)
+LIBRARIES         += -lprofiler
+USERSuffix := $(USERSuffix).PPROF
+DEFINES += -DPPROF
+endif
+
+
 #=== EB ===
 
 USE_EB ?= FALSE

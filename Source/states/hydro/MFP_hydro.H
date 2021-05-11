@@ -84,6 +84,7 @@ public:
     virtual AssociatedType get_association_type() const override;
     virtual int n_prim() const override {return +PrimIdx::NUM;}
     virtual int n_cons() const override {return +ConsIdx::NUM;}
+    virtual int n_flux() const override {return +FluxIdx::NUM;}
 
     virtual bool get_enforce_positivity() const override {return enforce_positivity;}
     virtual Vector<int> get_enforce_positivity_idx() const override {return enforce_positivity_idx;}
@@ -199,8 +200,8 @@ public:
                        EB_OPTIONAL(,const EBCellFlagFab& flag)
                        ) const override;
 
-    virtual Vector<Real> load_state_for_flux(Vector<Array4<const Real> > &face,
-                                             int i, int j, int k) const override;
+    virtual void load_state_for_flux(Vector<Array4<const Real> > &face,
+                                             int i, int j, int k, Vector<Real> &S) const override;
 
     virtual void calc_viscous_fluxes(const Box& box,
                                      Array<FArrayBox, AMREX_SPACEDIM> &fluxes,

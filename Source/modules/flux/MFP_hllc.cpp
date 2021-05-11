@@ -12,15 +12,15 @@ HydroHLLC::HydroHLLC(){}
 HydroHLLC::HydroHLLC(const int i)
 {
     idx = i;
+    istate = GD::get_state_ptr(i);
 }
 
 void HydroHLLC::solve(Vector<Real> &L,
                       Vector<Real> &R,
                       Vector<Real> &F,
-                      Real* shk) const
+                      Real* shk)
 {
     BL_PROFILE("HydroHLLC::solve");
-    State &istate = GD::get_state(idx);
 
     // get the data out of the passed in arrays
     Real rhoL = L[+HydroState::FluxIdx::Density];
@@ -73,75 +73,84 @@ void HydroHLLC::solve(Vector<Real> &L,
 
     Real S_R = uR + aR*qR;
 
-    // Calculate approximate states
-    Real coeff = rhoL*((S_L - uL)/(S_L - S_star));
-
-    Vector<Real> svLs(+HydroState::ConsIdx::NUM);
-    svLs[+HydroState::ConsIdx::Density] = coeff;
-    svLs[+HydroState::ConsIdx::Xmom] = coeff*S_star;
-    svLs[+HydroState::ConsIdx::Ymom] = coeff*vL;
-    svLs[+HydroState::ConsIdx::Zmom] = coeff*wL;
-    svLs[+HydroState::ConsIdx::Eden] = coeff*(nrgL/rhoL + (S_star - uL)*(S_star + pL/(rhoL*(S_L - uL))));
-    svLs[+HydroState::ConsIdx::Tracer] = tL*((S_L - uL)/(S_L - S_star));
-
-    coeff = rhoR*((S_R - uR)/(S_R - S_star));
-
-    Vector<Real> svRs(+HydroState::ConsIdx::NUM);
-    svRs[+HydroState::ConsIdx::Density] = coeff;
-    svRs[+HydroState::ConsIdx::Xmom] = coeff*S_star;
-    svRs[+HydroState::ConsIdx::Ymom] = coeff*vR;
-    svRs[+HydroState::ConsIdx::Zmom] = coeff*wR;
-    svRs[+HydroState::ConsIdx::Eden] = coeff*(nrgR/rhoR + (S_star - uR)*(S_star + pR/(rhoR*(S_R - uR))));
-    svRs[+HydroState::ConsIdx::Tracer] = tR*((S_R - uR)/(S_R - S_star));
-
-    // flux vector L
-    Vector<Real> fvL(+HydroState::ConsIdx::NUM);
-    fvL[+HydroState::ConsIdx::Density]  = rhoL*uL;
-    fvL[+HydroState::ConsIdx::Xmom]   = rhoL*uL*uL + pL;
-    fvL[+HydroState::ConsIdx::Ymom]   = rhoL*uL*vL;
-    fvL[+HydroState::ConsIdx::Zmom]   = rhoL*uL*wL;
-    fvL[+HydroState::ConsIdx::Eden]   = uL*(nrgL + pL);
-    fvL[+HydroState::ConsIdx::Tracer] = tL*uL;
-
-    // flux vector R
-    Vector<Real> fvR(+HydroState::ConsIdx::NUM);
-    fvR[+HydroState::ConsIdx::Density]  = rhoR*uR;
-    fvR[+HydroState::ConsIdx::Xmom]   = rhoR*uR*uR + pR;
-    fvR[+HydroState::ConsIdx::Ymom]   = rhoR*uR*vR;
-    fvR[+HydroState::ConsIdx::Zmom]   = rhoR*uR*wR;
-    fvR[+HydroState::ConsIdx::Eden]   = uR*(nrgR + pR);
-    fvR[+HydroState::ConsIdx::Tracer] = tR*uR;
-
-    // state vector L
-    Vector<Real> svL(+HydroState::ConsIdx::NUM);
-    svL[+HydroState::ConsIdx::Density]  = rhoL;
-    svL[+HydroState::ConsIdx::Xmom]   = rhoL*uL;
-    svL[+HydroState::ConsIdx::Ymom]   = rhoL*vL;
-    svL[+HydroState::ConsIdx::Zmom]   = rhoL*wL;
-    svL[+HydroState::ConsIdx::Eden]   = nrgL;
-    svL[+HydroState::ConsIdx::Tracer] = tL;
-
-    // state vector R
-    Vector<Real> svR(+HydroState::ConsIdx::NUM);
-    svR[+HydroState::ConsIdx::Density]  = rhoR;
-    svR[+HydroState::ConsIdx::Xmom]   = rhoR*uR;
-    svR[+HydroState::ConsIdx::Ymom]   = rhoR*vR;
-    svR[+HydroState::ConsIdx::Zmom]   = rhoR*wR;
-    svR[+HydroState::ConsIdx::Eden]   = nrgR;
-    svR[+HydroState::ConsIdx::Tracer] = tR;
 
     if (S_L >= 0.0) {
-        F = fvL;
+        // flux vector L
+        F[+HydroState::ConsIdx::Density]  = rhoL*uL;
+        F[+HydroState::ConsIdx::Xmom]   = rhoL*uL*uL + pL;
+        F[+HydroState::ConsIdx::Ymom]   = rhoL*uL*vL;
+        F[+HydroState::ConsIdx::Zmom]   = rhoL*uL*wL;
+        F[+HydroState::ConsIdx::Eden]   = uL*(nrgL + pL);
+        F[+HydroState::ConsIdx::Tracer] = tL*uL;
+        return;
     } else if ((S_L <= 0.0) && (0.0 <= S_star)) {
+        // flux vector L
+        fvL[+HydroState::ConsIdx::Density]  = rhoL*uL;
+        fvL[+HydroState::ConsIdx::Xmom]   = rhoL*uL*uL + pL;
+        fvL[+HydroState::ConsIdx::Ymom]   = rhoL*uL*vL;
+        fvL[+HydroState::ConsIdx::Zmom]   = rhoL*uL*wL;
+        fvL[+HydroState::ConsIdx::Eden]   = uL*(nrgL + pL);
+        fvL[+HydroState::ConsIdx::Tracer] = tL*uL;
+
+        // state vector L
+        svL[+HydroState::ConsIdx::Density]  = rhoL;
+        svL[+HydroState::ConsIdx::Xmom]   = rhoL*uL;
+        svL[+HydroState::ConsIdx::Ymom]   = rhoL*vL;
+        svL[+HydroState::ConsIdx::Zmom]   = rhoL*wL;
+        svL[+HydroState::ConsIdx::Eden]   = nrgL;
+        svL[+HydroState::ConsIdx::Tracer] = tL;
+
+        Real coeff = rhoL*((S_L - uL)/(S_L - S_star));
+
+        svLs[+HydroState::ConsIdx::Density] = coeff;
+        svLs[+HydroState::ConsIdx::Xmom] = coeff*S_star;
+        svLs[+HydroState::ConsIdx::Ymom] = coeff*vL;
+        svLs[+HydroState::ConsIdx::Zmom] = coeff*wL;
+        svLs[+HydroState::ConsIdx::Eden] = coeff*(nrgL/rhoL + (S_star - uL)*(S_star + pL/(rhoL*(S_L - uL))));
+        svLs[+HydroState::ConsIdx::Tracer] = tL*((S_L - uL)/(S_L - S_star));
+
         for (int i=0; i<+HydroState::ConsIdx::NUM; ++i) {
             F[i] = fvL[i] + S_L*(svLs[i] - svL[i]);
         }
     } else if ((S_star <= 0.0) && (0.0 <= S_R)) {
+
+        // flux vector R
+        fvR[+HydroState::ConsIdx::Density]  = rhoR*uR;
+        fvR[+HydroState::ConsIdx::Xmom]   = rhoR*uR*uR + pR;
+        fvR[+HydroState::ConsIdx::Ymom]   = rhoR*uR*vR;
+        fvR[+HydroState::ConsIdx::Zmom]   = rhoR*uR*wR;
+        fvR[+HydroState::ConsIdx::Eden]   = uR*(nrgR + pR);
+        fvR[+HydroState::ConsIdx::Tracer] = tR*uR;
+
+        // state vector R
+        svR[+HydroState::ConsIdx::Density]  = rhoR;
+        svR[+HydroState::ConsIdx::Xmom]   = rhoR*uR;
+        svR[+HydroState::ConsIdx::Ymom]   = rhoR*vR;
+        svR[+HydroState::ConsIdx::Zmom]   = rhoR*wR;
+        svR[+HydroState::ConsIdx::Eden]   = nrgR;
+        svR[+HydroState::ConsIdx::Tracer] = tR;
+
+        Real coeff = rhoR*((S_R - uR)/(S_R - S_star));
+
+        svRs[+HydroState::ConsIdx::Density] = coeff;
+        svRs[+HydroState::ConsIdx::Xmom] = coeff*S_star;
+        svRs[+HydroState::ConsIdx::Ymom] = coeff*vR;
+        svRs[+HydroState::ConsIdx::Zmom] = coeff*wR;
+        svRs[+HydroState::ConsIdx::Eden] = coeff*(nrgR/rhoR + (S_star - uR)*(S_star + pR/(rhoR*(S_R - uR))));
+        svRs[+HydroState::ConsIdx::Tracer] = tR*((S_R - uR)/(S_R - S_star));
+
         for (int i=0; i<+HydroState::ConsIdx::NUM; ++i) {
             F[i] = fvR[i] + S_R*(svRs[i] - svR[i]);
         }
+
     } else {
-        F = fvR;
+        // flux vector R
+        F[+HydroState::ConsIdx::Density]  = rhoR*uR;
+        F[+HydroState::ConsIdx::Xmom]   = rhoR*uR*uR + pR;
+        F[+HydroState::ConsIdx::Ymom]   = rhoR*uR*vR;
+        F[+HydroState::ConsIdx::Zmom]   = rhoR*uR*wR;
+        F[+HydroState::ConsIdx::Eden]   = uR*(nrgR + pR);
+        F[+HydroState::ConsIdx::Tracer] = tR*uR;
     }
 }
 

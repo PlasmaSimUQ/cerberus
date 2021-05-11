@@ -13,14 +13,17 @@ HydroHybridHLL::HydroHybridHLL() {}
 HydroHybridHLL::HydroHybridHLL(const int i)
 {
     idx = i;
-    hlle.idx = i;
-    hllc.idx = i;
+    hllc = HydroHLLC(i);
+    hlle = HydroHLLE(i);
+    istate = GD::get_state_ptr(i);
+    F_hlle.resize(+HydroState::ConsIdx::NUM);
+    F_hllc.resize(+HydroState::ConsIdx::NUM);
 }
 
 void HydroHybridHLL::solve(Vector<Real> &L,
                            Vector<Real> &R,
                            Vector<Real> &F,
-                           Real* shk) const
+                           Real* shk)
 {
     BL_PROFILE("HydroHybridHLL::solve");
     const Real eps = 1e-14;
@@ -30,7 +33,6 @@ void HydroHybridHLL::solve(Vector<Real> &L,
     } else if ((1.0 - *shk) < eps) {
         hlle.solve(L, R, F, shk);
     } else {
-        Vector<Real> F_hlle(+HydroState::ConsIdx::NUM), F_hllc(+HydroState::ConsIdx::NUM);
         hllc.solve(L, R, F_hllc, shk);
         hlle.solve(L, R, F_hlle, shk);
         for (int i=0; i<+HydroState::ConsIdx::NUM; ++i) {

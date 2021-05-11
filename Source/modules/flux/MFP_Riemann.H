@@ -9,6 +9,8 @@
 
 using namespace amrex;
 
+class State;
+
 //================================================================================
 
 class RiemannSolver
@@ -18,11 +20,12 @@ public:
     virtual ~RiemannSolver();
 
     int idx;
+    State* istate;
 
     virtual void solve(Vector<Real> &L,
                                Vector<Real> &R,
                                Vector<Real> &F,
-                               Real* shk) const;
+                               Real* shk);
 
     virtual const std::string& get_tag() const = 0;
     virtual int get_flux_size() const = 0;

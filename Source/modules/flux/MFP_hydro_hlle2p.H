@@ -12,7 +12,7 @@ public:
     virtual void solve(Vector<Real> &L,
                        Vector<Real> &R,
                        Vector<Real> &F,
-                       Real* shk) const override;
+                       Real* shk) override;
 
     virtual int get_flux_size() const override {return 7;} // keep aligned with Hydro2PState::ConsIdx::NUM
 

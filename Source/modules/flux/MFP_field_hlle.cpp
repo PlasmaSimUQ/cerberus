@@ -13,20 +13,20 @@ FieldHLLE::FieldHLLE(){}
 FieldHLLE::FieldHLLE(const int i)
 {
     idx = i;
+    istate = GD::get_state_ptr(i);
 }
 
 void FieldHLLE::solve(Vector<Real> &L,
                       Vector<Real> &R,
                       Vector<Real> &F,
-                      Real* shk) const
+                      Real* shk)
 {
     BL_PROFILE("FieldHLLE::solve");
-    State &istate = GD::get_state(idx);
 
     // vvv this could all be static, maybe move to init?? vvv
     Real c0 = GD::lightspeed;
     Real c2 = c0*c0;
-    Real ch = istate.div_speed;
+    Real ch = istate->div_speed;
     Real ch2 = ch*ch;
 
     Real cc = ch2/c2;
@@ -54,7 +54,7 @@ void FieldHLLE::solve(Vector<Real> &L,
     FR[+FieldState::ConsIdx::psi] =   R[+FieldState::PrimIdx::Bx]*cc;
     FR[+FieldState::ConsIdx::phi] =   R[+FieldState::PrimIdx::Dx]*cc;
 
-    RealArray speed = istate.get_speed_from_prim(L); // only care about speed in x
+    RealArray speed = istate->get_speed_from_prim(L); // only care about speed in x
 
     for (int n=0; n<+FieldState::ConsIdx::NUM; ++n) {
         F[n] = 0.5*(FL[n]*c0 + FR[n]*c0 + (L[n] - R[n])*speed[0]);

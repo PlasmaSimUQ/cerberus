@@ -626,13 +626,10 @@ void FieldState::calc_reconstruction(const Box& box,
 }
 
 // given all of the available face values load the ones expected by the flux calc into a vector
-Vector<Real> FieldState::load_state_for_flux(Vector<Array4<const Real>> &face,
-                                               int i, int j, int k) const
+void FieldState::load_state_for_flux(Vector<Array4<const Real>> &face,
+                                               int i, int j, int k, Vector<Real> &S) const
 {
     BL_PROFILE("FieldState::load_state_for_flux");
-
-    const int nf = +FluxIdx::NUM;
-    Vector<Real> S(nf);
 
     // first get the primitives of this state
     Array4<const Real> const &f4 = face[global_idx];
@@ -648,7 +645,7 @@ Vector<Real> FieldState::load_state_for_flux(Vector<Array4<const Real>> &face,
     S[+FluxIdx::mu] = f4(i,j,k,+PrimIdx::mu);
     S[+FluxIdx::ep] = f4(i,j,k,+PrimIdx::ep);
 
-    return S;
+    return;
 }
 
 void FieldState::write_info(nlohmann::json &js) const

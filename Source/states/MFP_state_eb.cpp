@@ -389,7 +389,7 @@ void State::calc_wall_fluxes(const Box& box,
 
 //    plot_FAB_2d(bc_idx, 0, "bc idx", false, true);
 
-    Vector<Real> cell_state(np);
+    Vector<Real> cell_state(n_flux());
 
     Array<Array<Real,3>,3> wall_coord = {{{0,0,0},{0,0,0},{0,0,0}}};
     Array<Real,AMREX_SPACEDIM> wall_centre;
@@ -405,7 +405,7 @@ void State::calc_wall_fluxes(const Box& box,
 
 
                     // grab a vector of the local state
-                    cell_state = load_state_for_flux(prim4, i, j, k);
+                    load_state_for_flux(prim4, i, j, k, cell_state);
 
                     for (int d=0; d<AMREX_SPACEDIM; ++d) {
 

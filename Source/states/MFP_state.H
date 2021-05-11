@@ -154,6 +154,7 @@ class State
         virtual AssociatedType get_association_type() const {return AssociatedType::isNull;}
         virtual int n_prim() const {return 0;}
         virtual int n_cons() const {return 0;}
+        virtual int n_flux() const {return 0;}
 
         virtual bool is_transported() const {return true;}
         virtual bool has_field() const {return false;}
@@ -316,8 +317,8 @@ class State
                                       const Real time,
                                       const bool do_all=false) const;
 
-        virtual Vector<Real> load_state_for_flux(Vector<Array4<const Real> > &face,
-                                                 int i, int j, int k) const;
+        virtual void load_state_for_flux(Vector<Array4<const Real> > &face,
+                                                 int i, int j, int k, Vector<Real> &S) const;
 
         virtual void calc_fluxes(const Box& box,
                                  Vector<Array<FArrayBox, AMREX_SPACEDIM>> &r_lo,

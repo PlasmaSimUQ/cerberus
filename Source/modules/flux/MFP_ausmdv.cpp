@@ -13,15 +13,15 @@ HydroAUSMDV::HydroAUSMDV(){}
 HydroAUSMDV::HydroAUSMDV(const int i)
 {
     idx = i;
+    istate = GD::get_state_ptr(i);
 }
 
 void HydroAUSMDV::solve(Vector<Real> &L,
                         Vector<Real> &R,
                         Vector<Real> &F,
-                        Real* shk) const
+                        Real* shk)
 {
     BL_PROFILE("HydroAUSMDV::solve");
-    State &istate = GD::get_state(idx);
 
     // get the data out of the passed in arrays
     Real apL = L[+HydroState::FluxIdx::Alpha];
