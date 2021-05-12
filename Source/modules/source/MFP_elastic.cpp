@@ -62,24 +62,22 @@ Vector<Real> Elastic::elastic(const Vector<Real> &y0, const Vector<OffsetIndex> 
     const Real n_ref = GD::n_ref;
     const Real u_ref = GD::u_ref;
 
-    int num_hydro = offsets.size();
-
     // vector for hydro primitive values
     Vector<Vector<Real>> hydro_prim(offsets.size());
-
-    int nc;
+    Vector<Real> U;
     for (const auto &idx : offsets) {
         State &istate = GD::get_state(idx.global);
 
         // get a copy of the conserved variables
-        Vector<Real> &U = hydro_prim[idx.local];
         U.resize(istate.n_cons());
         for (int i = 0; i < U.size(); ++i) {
-        U[i] = y0[idx.solver + i];
+            U[i] = y0[idx.solver + i];
         }
 
         // convert to primitive
-        istate.cons2prim(U);
+        Vector<Real> &Q = hydro_prim[idx.local];
+        Q.resize(istate.n_prim());
+        istate.cons2prim(U, Q);
     }
     // grab properties for state a and b
     const OffsetIndex &offset_a = offsets[0];

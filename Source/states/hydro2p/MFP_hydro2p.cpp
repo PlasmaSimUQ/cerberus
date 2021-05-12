@@ -149,7 +149,7 @@ void Hydro2PState::init_from_lua()
     //
     // shock detector threshold
     //
-    set_shock_threshold();
+    set_shock_detector();
 
     //
     // particles
@@ -428,50 +428,68 @@ Real Hydro2PState::get_cp(const Vector<Real> &U) const
 
 
 // in place conversion from conserved to primitive
-bool Hydro2PState::cons2prim(Vector<Real>& U) const
+bool Hydro2PState::cons2prim(Vector<Real>& U, Vector<Real> &Q) const
 {
     BL_PROFILE("Hydro2PState::cons2prim");
 
-    Real rhoinv = 1/U[+ConsIdx::Density];
-    U[+PrimIdx::Xvel] = U[+ConsIdx::Xmom]*rhoinv;
-    U[+PrimIdx::Yvel] = U[+ConsIdx::Ymom]*rhoinv;
-    U[+PrimIdx::Zvel] = U[+ConsIdx::Zmom]*rhoinv;
-    Real kineng = 0.5*U[+ConsIdx::Density]*(
-                      U[+PrimIdx::Xvel]*U[+PrimIdx::Xvel]
-                  + U[+PrimIdx::Yvel]*U[+PrimIdx::Yvel]
-                  + U[+PrimIdx::Zvel]*U[+PrimIdx::Zvel]);
+    Real rho = U[+ConsIdx::Density];
+    Real mx = U[+ConsIdx::Xmom];
+    Real my = U[+ConsIdx::Ymom];
+    Real mz = U[+ConsIdx::Zmom];
+    Real ed = U[+ConsIdx::Eden];
+    Real tr = U[+ConsIdx::Tracer];
+    Real pp = U[+ConsIdx::PrsP];
 
-    U[+PrimIdx::Alpha] *= rhoinv;
+    Real rhoinv = 1/rho;
+    Real u = mx*rhoinv;
+    Real v = my*rhoinv;
+    Real w = mz*rhoinv;
+    Real ke = 0.5*rho*(u*u + v*v + w*w);
+    Real alpha = tr*rhoinv;
 
-    Real g = get_gamma(U[+PrimIdx::Alpha]);
+    Real g = get_gamma(alpha);
 
-    U[+PrimIdx::Prs] = (U[+ConsIdx::Eden] - kineng)*(g - 1);
+    Real p = (ed - ke)*(g - 1);
 
-    return Hydro2PState::prim_valid(U);
+    Q[+PrimIdx::Density] = rho;
+    Q[+PrimIdx::Xvel] = u;
+    Q[+PrimIdx::Yvel] = v;
+    Q[+PrimIdx::Zvel] = w;
+    Q[+PrimIdx::Prs] = p;
+    Q[+PrimIdx::PrsP] = pp;
+    Q[+PrimIdx::Alpha] =  alpha;
+
+    return Hydro2PState::prim_valid(Q);
 }
 
 // in-place conversion from primitive to conserved variables
-void Hydro2PState::prim2cons(Vector<Real>& U) const
+void Hydro2PState::prim2cons(Vector<Real>& Q, Vector<Real>& U) const
 {
     BL_PROFILE("Hydro2PState::prim2cons");
 
-    Vector<Real> Q = U;
+    Real rho = Q[+PrimIdx::Density];
+    Real u = Q[+PrimIdx::Xvel];
+    Real v = Q[+PrimIdx::Yvel];
+    Real w = Q[+PrimIdx::Zvel];
+    Real p = Q[+PrimIdx::Prs];
+    Real pp = Q[+PrimIdx::PrsP];
+    Real alpha = Q[+PrimIdx::Alpha];
 
-    U[+ConsIdx::Xmom] *= Q[+PrimIdx::Density];
-    U[+ConsIdx::Ymom] *= Q[+PrimIdx::Density];
-    U[+ConsIdx::Zmom] *= Q[+PrimIdx::Density];
+    Real mx = rho*u;
+    Real my = rho*v;
+    Real mz = rho*w;
+    Real ke = 0.5*rho*(u*u + v*v + w*w);
+    Real tr = alpha*rho;
+    Real g = get_gamma(alpha);
 
-    Real kineng = 0.5*Q[+PrimIdx::Density]*(
-                      Q[+PrimIdx::Xvel]*Q[+PrimIdx::Xvel]
-                  + Q[+PrimIdx::Yvel]*Q[+PrimIdx::Yvel]
-                  + Q[+PrimIdx::Zvel]*Q[+PrimIdx::Zvel]);
+    Real ed = p/(g - 1) + ke;
 
-    Real g = get_gamma(Q[+PrimIdx::Alpha]);
-
-
-    U[+ConsIdx::Eden] = Q[+PrimIdx::Prs]/(g-1) + kineng;
-
-    U[+ConsIdx::Tracer] *= U[+PrimIdx::Density];
+    U[+ConsIdx::Density] = rho;
+    U[+ConsIdx::Xmom] = mx;
+    U[+ConsIdx::Ymom] = my;
+    U[+ConsIdx::Zmom] = mz;
+    U[+ConsIdx::Eden] = ed;
+    U[+ConsIdx::Tracer] = tr;
 
 }
 
@@ -509,11 +527,23 @@ Real Hydro2PState::get_energy_from_cons(const Vector<Real> &U) const
 
 Real Hydro2PState::Hydro2PState::get_temperature_from_cons(const Vector<Real> &U) const
 {
-    Vector<Real> Q = U;
+    Real rho = U[+ConsIdx::Density];
+    Real mx = U[+ConsIdx::Xmom];
+    Real my = U[+ConsIdx::Ymom];
+    Real mz = U[+ConsIdx::Zmom];
+    Real ed = U[+ConsIdx::Eden];
+    Real tr = U[+ConsIdx::Tracer];
 
-    cons2prim(Q);
+    Real rhoinv = 1/rho;
+    Real ke = 0.5*rhoinv*(mx*mx + my*my + mz*mz);
+    Real alpha = tr*rhoinv;
+    Real g = get_gamma(alpha);
 
-    return get_temperature_from_prim(Q);
+    Real prs = (ed - ke)*(g - 1);
+
+    Real m = get_mass(alpha);
+    return prs*rhoinv*m;
+
 
 }
 
@@ -543,11 +573,28 @@ dual Hydro2PState::get_temperature_from_prim(const Vector<dual> &Q) const
 
 RealArray Hydro2PState::Hydro2PState::get_speed_from_cons(const Vector<Real> &U) const
 {
-    Vector<Real> Q = U;
+    Real rho = U[+ConsIdx::Density];
+    Real mx = U[+ConsIdx::Xmom];
+    Real my = U[+ConsIdx::Ymom];
+    Real mz = U[+ConsIdx::Zmom];
+    Real ed = U[+ConsIdx::Eden];
+    Real tr = U[+ConsIdx::Tracer];
 
-    Hydro2PState::cons2prim(Q);
+    Real rhoinv = 1/rho;
 
-    return get_speed_from_prim(Q);
+    Real ux = mx*rhoinv;
+    Real uy = my*rhoinv;
+    Real uz = mz*rhoinv;
+
+    Real kineng = 0.5*rho*(ux*ux + uy*uy + uz*uz);
+    Real alpha = tr*rhoinv;
+    Real g = get_gamma(alpha);
+    Real prs = (ed - kineng)*(g - 1);
+    Real a = std::sqrt(g*prs*rhoinv);
+
+    RealArray s = {AMREX_D_DECL(a + std::abs(ux), a + std::abs(uy), a + std::abs(uz))};
+
+    return s;
 
 }
 
@@ -558,10 +605,9 @@ RealArray Hydro2PState::get_speed_from_prim(const Vector<Real> &Q) const
 
     Real a = std::sqrt(g*Q[+PrimIdx::Prs]/Q[+PrimIdx::Density]);
 
-    RealArray s;
-    for (int d = 0; d<AMREX_SPACEDIM; ++d) {
-        s[d] = a + std::abs(Q[+PrimIdx::Xvel+d]);
-    }
+    RealArray s = {AMREX_D_DECL(a + std::abs(Q[+PrimIdx::Xvel]),
+                                a + std::abs(Q[+PrimIdx::Yvel]),
+                                a + std::abs(Q[+PrimIdx::Zvel))};
 
     return s;
 
@@ -581,20 +627,6 @@ RealArray Hydro2PState::get_current_from_cons(const Vector<Real> &U) const
                    )};
 
     return c;
-}
-
-Real Hydro2PState::local_shock_detector(const Vector<Real> &L,
-                                        const Vector<Real> &R) const
-{
-    BL_PROFILE("Hydro2PState::local_shock_detector");
-
-    Real pL = L[+PrimIdx::Prs];
-    Real pR = R[+PrimIdx::Prs];
-    Real varphi = std::abs(pR - pL)/(pR + pL);
-
-    Real shk = 0.5 + 0.5*std::tanh(5*(varphi - 0.75*shock_threshold)/shock_threshold);
-
-    return shk;
 }
 
 void Hydro2PState::get_state_values(const Box& box,
@@ -665,7 +697,7 @@ void Hydro2PState::get_state_values(const Box& box,
     }
 
     // temporary storage for retrieving the state data
-    Vector<Real> S;
+    Vector<Real> S(n_cons()), Q(n_prim());
 
     Array4<const Real> const& src4 = src.array();
 
@@ -683,7 +715,7 @@ void Hydro2PState::get_state_values(const Box& box,
                 }
 #endif
 
-                S = get_state_vector(src, i, j, k);
+                get_state_vector(src, i, j, k, S);
 
                 if (load_charge) out4[charge_name](i,j,k) = get_charge(S);
                 if (load_mass)   out4[mass_name](i,j,k)   = get_mass(S);
@@ -699,10 +731,10 @@ void Hydro2PState::get_state_values(const Box& box,
                 }
 
                 if (!prim_tags.empty()) {
-                    cons2prim(S);
+                    cons2prim(S, Q);
 
                     for (const auto& var : prim_tags) {
-                        out4[var.first](i,j,k) = S[var.second];
+                        out4[var.first](i,j,k) = Q[var.second];
                     }
                 }
             }

@@ -90,7 +90,7 @@ void MFP::variableSetUp() {
     //===================
     // shock tracking state
     gd.Shock_Idx = -1;
-    if (gd.plot_shock_detector && gd.num_shock_detector) {
+    if (gd.num_shock_detector) {
         gd.Shock_Idx = desc_lst.size();
 
         desc_lst.addDescriptor(gd.Shock_Idx, IndexType::TheCellType(),
@@ -116,8 +116,6 @@ void MFP::init_data(const Box& box,
 {
     BL_PROFILE("MFP::init_data");
 
-    Vector<Real> U;
-
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
     Array4<Real> const& h4 = src.array();
@@ -131,6 +129,7 @@ void MFP::init_data(const Box& box,
     Real x, y, z;
     int n_prim = istate.n_prim();
     int n_cons = istate.n_cons();
+    Vector<Real> Q(n_prim), U(n_cons);
     const Vector<std::string> &prim_names = gd.states[idx]->get_prim_names();
 
     for     (int k = lo.z; k <= hi.z; ++k) {
@@ -152,19 +151,17 @@ void MFP::init_data(const Box& box,
                 }
 #endif
 
-                U.resize(n_prim);
-
                 // grab the primitive variables as defined by the user functions
                 for (int icomp=0; icomp<n_prim; ++icomp) {
                     const std::string& prim_name = prim_names[icomp];
                     const auto& f = istate.functions[prim_name];
 
-                    U[icomp] = f(x, y, z);
+                    Q[icomp] = f(x, y, z);
 
                 }
 
                 // convert primitive to conserved
-                istate.prim2cons(U);
+                istate.prim2cons(Q, U);
 
                 // copy into array
                 for (int n=0; n<n_cons; ++n) {

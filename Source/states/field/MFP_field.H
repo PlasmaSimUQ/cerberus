@@ -109,8 +109,8 @@ struct FieldState : public State
 
         virtual const Vector<set_bc>& get_bc_set() const override;
 
-        virtual bool cons2prim(Vector<Real>& U) const override;
-        virtual void prim2cons(Vector<Real>& U) const override;
+        virtual bool cons2prim(Vector<Real>& U, Vector<Real>& Q) const override;
+        virtual void prim2cons(Vector<Real> &Q, Vector<Real>& U) const override;
 
         virtual int get_cons_density_idx() const override {return -1;}
 

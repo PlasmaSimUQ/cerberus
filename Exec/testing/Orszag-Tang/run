@@ -4,7 +4,7 @@
 
 EXE=MFP.2d.gnu.MPI.PARTICLES.ex
 
-python make_particles_file.py
+python3 make_particles_file.py
 
 INPUTS=*.inputs
 

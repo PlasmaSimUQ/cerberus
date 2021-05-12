@@ -43,8 +43,6 @@ do_face_sources = 1 -- apply source terms to reconstructed face values
 
 force_dt = 0 -- force specific time step
 
-plot_shock_detector = 0 -- option to save out the shock detector
-
 -- list of boxes with {{{x_lo, y_lo, z_lo}, {x_hi, y_hi, z_hi}, type='?'}, ...}
 -- type: 'force_refine' : refine to max level (default)
 --       'no_refine' : do not refine
@@ -122,6 +120,10 @@ Valid options for all states:
       * type = 'merge'
         -  merge_threshold = real number in [0,1]
 
+- shock_detector : list with the name of the shock detector (state specific) and any options
+    specific to it
+    e.g. shock_detector={name='pressure_jump_detector', threshold=10.0},
+
 --]]
 
 eb_divergence_default = {type='merge', merge_threshold=0.5}
@@ -157,7 +159,7 @@ Valid options for a hydro state are:
 - flux : method for computing face fluxes, options are:
     * 'HLLE'
     * 'HLLC'
-    * 'HLLE/HLLC' (needs the shock_threshold parameter)
+    * 'HLLE/HLLC' (needs the shock_detector parameter)
     * 'AUSMDV'
     * 'EFM'
 
@@ -186,8 +188,6 @@ Valid options for a hydro state are:
     optional 'cfl' variable scales the reported maximum wave speed due to viscosity
 
 - pressure_relaxation : gives the relaxation rate for two-pressure model
-
-- shock_threshold : level for which a shock is considered present [0 = none, inf = all]
 
 - particles : name of ASCII file defining particles
 
@@ -230,8 +230,6 @@ Valid options for the mhd state are:
                  fill_psi_bc='outflow', psi=0},
             }
          }
-
-- shock_threshold : level for which a shock is considered present [0 = none, inf = all]
 
 - div_transport : single value giving the speed of cleaning factor transport as a ratio with
     the maximum wave speed in the domain (0 for off)

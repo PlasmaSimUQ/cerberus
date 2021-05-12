@@ -22,7 +22,6 @@ State::State()
     global_idx = -1;
 
     shock_idx = -1;
-    shock_threshold = -1;
 
     refine_grad_max_lev = -1;
 
@@ -243,21 +242,25 @@ void State::set_viscosity()
 
 }
 
-void State::set_shock_threshold()
+void State::set_shock_detector()
 {
-    shock_threshold =  GD::lua["states"][name]["shock_threshold"].get_or(0.0);
 
-    if (shock_threshold > 0) {
-        shock_threshold = 1/shock_threshold;
-        GD::detect_shocks = true;
-        shock_idx = 0;
-    } else {
-        shock_threshold = std::numeric_limits<Real>::max();
+    PhysicsFactory<ShockDetector> sdfact = GetShockDetectorFactory();
 
-        if (flux_solver->get_tag() == HydroHybridHLL::tag) {
-            Abort("HLLE/HLLC flux solver for " + name + " requires 'shock_threshold' to be non-zero");
-        }
-    }
+    sol::table sd_def = GD::lua["states"][name]["shock_detector"].get_or(sol::table());
+
+    if (!sd_def.valid()) return;
+
+    sd_def["global_idx"] = global_idx;
+
+    std::string sd_name = sd_def["name"].get_or<std::string>("");
+
+    shock_detector = sdfact.Build(sd_name, sd_def);
+
+    if (!sd_name.empty() && !shock_detector)
+        Abort("Invalid shock_detector option '"+sd_name+"'. Options are "+vec2str(sdfact.getKeys()));
+
+    shock_idx = 0;
 }
 
 
@@ -312,18 +315,15 @@ void State::set_num_grow(int n)
     num_grow = std::max(num_grow, reconstruction->get_num_grow());
 }
 
-Vector<Real> State::get_state_vector(const FArrayBox& U, const int i, const int j, const int k)
+void State::get_state_vector(const FArrayBox& U, const int i, const int j, const int k, Vector<Real>& S)
 {
     BL_PROFILE("State::get_state_vector");
-    Vector<Real> sv(U.nComp());
 
     Array4<const Real> const& U4 = U.array();
 
     for (int n=0; n<U.nComp(); ++n) {
-        sv[n] = U4(i,j,k,n);
+        S[n] = U4(i,j,k,n);
     }
-
-    return sv;
 }
 
 void State::get_state_values(const Box& box,
@@ -356,7 +356,7 @@ void State::calc_primitives(const Box& box,
 {
     BL_PROFILE("State::calc_primitives");
 
-    Vector<Real> U;
+    Vector<Real> U(n_cons()), Q(n_prim());
 
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
@@ -373,8 +373,8 @@ void State::calc_primitives(const Box& box,
 #endif
 
     Real x, y, z;
-    int nc = n_cons();
-    int np = n_prim();
+    const int nc = n_cons();
+    const int np = n_prim();
 
     for     (int k = lo.z; k <= hi.z; ++k) {
         z = prob_lo[2] + (k + 0.5)*dx[2];
@@ -383,8 +383,6 @@ void State::calc_primitives(const Box& box,
             AMREX_PRAGMA_SIMD
                     for (int i = lo.x; i <= hi.x; ++i) {
                 x = prob_lo[0] + (i + 0.5)*dx[0];
-
-                U.resize(nc);
 
 #ifdef AMREX_USE_EB
                 if (vfrac4(i,j,k) == 0.0) {
@@ -441,22 +439,22 @@ void State::calc_primitives(const Box& box,
 
 
                 // convert to primitive
-                cons2prim(U);
+                cons2prim(U, Q);
 
                 // modify the primitives vector if needed and upload back to
                 // the conserved vector
                 if (!dynamic_functions.empty()) {
                     for (const auto &f : dynamic_functions) {
-                        U[f.first] = (*f.second)(x, y, z, t);//TODO uodate this for new commit, which passes in a
+                        Q[f.first] = (*f.second)(x, y, z, t);//TODO uodate this for new commit, which passes in a
                     }
 
                     // copy into primitive
                     for (int n=0; n<np; ++n) {
-                        p4(i,j,k,n) = U[n];
+                        p4(i,j,k,n) = Q[n];
                     }
 
                     // convert primitive to conserved
-                    prim2cons(U);
+                    prim2cons(Q, U);
 
                     // copy back into conserved array
                     for (int n=0; n<nc; ++n) {
@@ -466,7 +464,7 @@ void State::calc_primitives(const Box& box,
 
                 // copy into primitive
                 for (int n=0; n<np; ++n) {
-                    p4(i,j,k,n) = U[n];
+                    p4(i,j,k,n) = Q[n];
                 }
             }
         }
@@ -1318,6 +1316,8 @@ void State::calc_fluxes(const Box& box,
 
     Array<int, 3> index;
     Vector<Real> L(nf), R(nf), F(nc);
+
+    // stuff for shock detection
     Real shk;
 
 #ifdef AMREX_USE_EB
@@ -1366,10 +1366,9 @@ void State::calc_fluxes(const Box& box,
                     transform_global2local(L, d, rotate_idx_flux);
                     transform_global2local(R, d, rotate_idx_flux);
 
-                    // shouldn't have to compute this every time...
-                    shk = local_shock_detector(L, R);
-
-                    if (shock) {
+                    // only compute shock detector when necessary
+                    if (shock_detector) {
+                        shk = shock_detector->solve(L, R);
                         Array4<Real> const& shock4 = shock->array();
                         shock4(i-index[0],j-index[1],k-index[2]) = std::max(shock4(i-index[0],j-index[1],k-index[2]), shk);
                         shock4(i,j,k) = std::max(shock4(i,j,k), shk);
@@ -1410,7 +1409,8 @@ void State::correct_face_prim(const Box& box,
     //    Vector<int> rotate_idx_prim = get_prim_vector_idx();
     //    Vector<int> rotate_idx_cons = get_cons_vector_idx();
 
-    Vector<Real> L(np), R(np), F(nc);
+    Vector<Real> L_prim(np), R_prim(np), F(nc);
+    Vector<Real> L_cons(np), R_cons(np);
 
 #ifdef AMREX_USE_EB
     Array4<const EBCellFlag> const& f4 = flag.array();
@@ -1476,13 +1476,13 @@ void State::correct_face_prim(const Box& box,
 
                         // get left and right states
                         for (int n=0; n<np; ++n ) {
-                            L[n] = hi4(i-idx1[0],j-idx1[1],k-idx1[2],n);
-                            R[n] = lo4(i,j,k,n);
+                            L_prim[n] = hi4(i-idx1[0],j-idx1[1],k-idx1[2],n);
+                            R_prim[n] = lo4(i,j,k,n);
                         }
 
                         // convert to conserved
-                        prim2cons(L);
-                        prim2cons(R);
+                        prim2cons(L_prim, L_cons);
+                        prim2cons(R_prim, R_cons);
 
                         /* example for x-direction in 2D
                                    * L & R = reconstructed x- face values
@@ -1508,7 +1508,7 @@ void State::correct_face_prim(const Box& box,
                             loF = flux4(i-idx1[0],j-idx1[1],k-idx1[2],n);
                             hiF = flux4(i-idx1[0]+idx2[0],j-idx1[1]+idx2[1],k-idx1[2]+idx2[2],n);
 
-                            L[n] += 0.5*dt/dx[d2]*(loF - hiF);
+                            L_cons[n] += 0.5*dt/dx[d2]*(loF - hiF);
                         }
 
                         // right side
@@ -1516,17 +1516,17 @@ void State::correct_face_prim(const Box& box,
                             loF = flux4(i,j,k,n);
                             hiF = flux4(i+idx2[0],j+idx2[1],k+idx2[2],n);
 
-                            R[n] += 0.5*dt/dx[d2]*(loF - hiF);
+                            R_cons[n] += 0.5*dt/dx[d2]*(loF - hiF);
                         }
 
                         // convert to primitive
-                        cons2prim(L);
-                        cons2prim(R);
+                        cons2prim(L_cons, L_prim);
+                        cons2prim(R_cons, R_prim);
 
                         // update reconstruction
                         for (int n=0; n<np; ++n ) {
-                            hi4(i-idx1[0],j-idx1[1],k-idx1[2],n) = L[n];
-                            lo4(i,j,k,n) = R[n];
+                            hi4(i-idx1[0],j-idx1[1],k-idx1[2],n) = L_prim[n];
+                            lo4(i,j,k,n) = R_prim[n];
                         }
                     }
                 }
@@ -1670,7 +1670,7 @@ void State::write_info(nlohmann::json &js) const
 
     if (shock_idx > -1) {
         js["shock_idx"] = shock_idx;
-        js["shock_threshold"] = shock_threshold;
+        shock_detector->write_info(js);
     }
 
     js["refine_grad_max_lev"] = refine_grad_max_lev;

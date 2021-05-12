@@ -30,6 +30,7 @@ int main(int argc, char* argv[]) {
     amrex::Initialize(argc, argv);
 
     BL_PROFILE_VAR("main()", pmain);
+
 #ifdef PPROF
     ProfilerStart("gperftools_profile.prof");
 #endif

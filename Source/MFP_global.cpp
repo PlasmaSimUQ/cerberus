@@ -25,8 +25,6 @@ Array<bool, AMREX_SPACEDIM> GlobalData::periodic = {AMREX_D_DECL(false, false, f
 Vector<std::string> GlobalData::state_names;
 std::map<std::string, int> GlobalData::state_index;
 Vector<std::string> GlobalData::state_tags;
-bool GlobalData::detect_shocks = false;
-bool GlobalData::plot_shock_detector = false;
 
 int GlobalData::num_fluid = 0; // how many fluid type states are there
 
@@ -478,7 +476,6 @@ void GlobalData::read_config(const Vector<int> &is_periodic, const bool plot_out
 #endif
 
             if (istate.shock_idx > -1) {
-                plot_shock_detector = true;
                 plot_variables["shock-"+istate.name][0] = 0;
             }
         }

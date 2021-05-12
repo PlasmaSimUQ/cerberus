@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+(cd ../../local && make -j8 DIM=2 USE_EB=TRUE AMREX_PARTICLES=FALSE PPROF=TRUE)
+
+EXE=../../local/MFP.2d.gnu.MPI.PPROF.EB.ex
+PPROF=~/go/bin/pprof
+
+INPUTS=*.inputs
+
+rm -r *plt* *chk*
+
+CPUPROFILE_FREQUENCY=100
+
+CPUPROFILE=./gperftools_profile.prof ${EXE} ${INPUTS} 2>&1 | tee run_log.txt
+
+FOCUS=
+# FOCUS=--focus=calc_reconstruction
+
+${PPROF} --pdf ${FOCUS}  ${EXE}  ./gperftools_profile.prof > profile.pdf

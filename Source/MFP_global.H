@@ -93,8 +93,6 @@ public:
     static Vector<std::string> state_names;
     static std::map<std::string, int> state_index;
     static Vector<std::string> state_tags;
-    static bool detect_shocks;
-    static bool plot_shock_detector;
     static int num_shock_detector;
 
     static int num_fluid; // how many fluid type states are there

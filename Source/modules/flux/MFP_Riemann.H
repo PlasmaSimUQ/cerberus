@@ -29,6 +29,7 @@ public:
 
     virtual const std::string& get_tag() const = 0;
     virtual int get_flux_size() const = 0;
+    virtual bool requires_shock_detector() const {return false;}
 };
 
 template <typename D>

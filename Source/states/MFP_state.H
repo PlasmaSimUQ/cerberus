@@ -24,6 +24,7 @@
 
 #include "MFP_Riemann.H"
 #include "MFP_viscous.H"
+#include "MFP_shockdetector.H"
 
 #include "MFP_fillbc.H"
 #include "MFP_optional_func.H"
@@ -86,7 +87,6 @@ class State
         int global_idx;
 
         int shock_idx;
-        Real shock_threshold;
 
         int refine_grad_max_lev;
         Vector<std::tuple<bool,int,Real, Real>> refine_grad_threshold; // {primitive?, idx, threshold, min value}
@@ -124,6 +124,7 @@ class State
 
         std::unique_ptr<Reconstruction> reconstruction;
         std::unique_ptr<RiemannSolver> flux_solver;
+        std::unique_ptr<ShockDetector> shock_detector;
         std::unique_ptr<Viscous> viscous;
 
         Vector<std::pair<int,int>> associated_sources; // (system idx, src idx)
@@ -142,7 +143,7 @@ class State
         virtual void set_flux();
         virtual void set_reflux();
         virtual void set_viscosity();
-        virtual void set_shock_threshold();
+        virtual void set_shock_detector();
         virtual void set_grad_refinement();
         //virtual void set_num_grow();
         virtual void set_num_grow(int n=0);
@@ -182,10 +183,10 @@ class State
         virtual Real get_cp(Real alpha) const{return 0.0;}
         virtual Real get_cp(const Vector<Real> &U) const{return 0.0;}
 
-        virtual bool cons2prim(Vector<Real>& U) const {return false;}
-        virtual bool cons2prim(Vector<autodiff::dual>& U) const {return false;}
+        virtual bool cons2prim(Vector<Real>& U, Vector<Real>& Q) const {return false;}
+        virtual bool cons2prim(Vector<autodiff::dual>& U, Vector<autodiff::dual>& Q) const {return false;}
 
-        virtual void prim2cons(Vector<Real>& U) const {}
+        virtual void prim2cons(Vector<Real>& Q, Vector<Real>& U) const {}
         virtual bool prim_valid(Vector<Real>& Q) const {return false;}
         virtual bool cons_valid(Vector<Real>& U) const {return false;}
 
@@ -229,11 +230,9 @@ class State
 
         virtual RealArray get_current_from_cons(const Vector<Real> &U) const {return {AMREX_D_DECL(0,0,0)};}
 
-        virtual Real local_shock_detector(const Vector<Real> &L, const Vector<Real> &R) const {return 0.0;}
-
         // functions that work on Fabs
 
-        static Vector<Real> get_state_vector(const FArrayBox& U, const int i, const int j, const int k);
+        static void get_state_vector(const FArrayBox& U, const int i, const int j, const int k, Vector<Real> &S);
 
         virtual void get_state_values(const Box& box,
                                       const FArrayBox& src,

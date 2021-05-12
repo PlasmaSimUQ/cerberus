@@ -16,7 +16,7 @@ for test in tests:
     if "check.py" not in local_files:
         continue
 
-    print("running: ",test)
+    print("running: ",test, flush=True)
 
     p = Popen("cd %s; sh run"%test, shell=True)
     output, err = p.communicate()
@@ -26,7 +26,7 @@ for test in tests:
         print("failed:\n",err,"\n",output)
         failed.append({"test":test, "output":output, "error":err, "rc":rc})
 
-    print("done")
+    print("done", flush=True)
 
 
 

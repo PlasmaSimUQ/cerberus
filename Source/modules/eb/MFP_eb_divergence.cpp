@@ -140,6 +140,7 @@ void RedistributeEB::calc_eb_divergence(const Box& box,
     dm_as_fine.setVal(0.0);
 
     int nc = istate.n_cons();
+    Vector<Real> U(nc);
 
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
@@ -374,7 +375,8 @@ void RedistributeEB::calc_eb_divergence(const Box& box,
                     rediswgt4(i,j,k) = cons4(i,j,k,istate.get_cons_density_idx());
                     break;
                 case RedistributionEB::Energy :
-                    rediswgt4(i,j,k) = istate.get_energy_from_cons(istate.get_state_vector(cons,i,j,k));
+                    State::get_state_vector(cons,i,j,k,U);
+                    rediswgt4(i,j,k) = istate.get_energy_from_cons(U);
                     break;
                 }
             }

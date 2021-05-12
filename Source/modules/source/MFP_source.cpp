@@ -171,28 +171,32 @@ bool SourceTerm::get_hydro_prim(Vector<Real> &y, Vector<Real> &hydro_prim, const
     int y_cnt = 0; // offset within the y vector
     int h_cnt = 0; // offset within the hydro_prim vector
 
-    Vector<Real> Q;
+    Vector<Real> U, Q;
     bool valid = true;
 
     for (const auto &idx : offsets) {
         State &istate = *GD::states[idx.global];
         const int t = istate.get_type();
-        const int num = istate.n_cons();
+        const int num_cons = istate.n_cons();
+        const int num_prim = istate.n_prim();
+
+        U.resize(num_cons);
+        Q.resize(num_prim);
+
         if ((t == +StateType::isHydro) || (t == +StateType::isHydro2P)) {
-            Q.resize(num);
 
             // get a copy of the species state
-            std::copy(&y.at(y_cnt + offset), &y.at(y_cnt + offset) + num, Q.begin());
+            std::copy(&y.at(y_cnt + offset), &y.at(y_cnt + offset) + num_cons, U.begin());
 
             // convert to primitive
-            valid &= istate.cons2prim(Q);
+            valid &= istate.cons2prim(U, Q);
 
             // load it into the overall vector
             std::copy(Q.begin(), Q.end(), &hydro_prim.at(h_cnt));
 
-            h_cnt += num;
+            h_cnt += num_cons;
         }
-        y_cnt += num;
+        y_cnt += num_cons;
     }
 
     return valid;

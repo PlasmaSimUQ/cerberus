@@ -84,6 +84,7 @@ void HydroHLLC::solve(Vector<Real> &L,
         F[+HydroState::ConsIdx::Tracer] = tL*uL;
         return;
     } else if ((S_L <= 0.0) && (0.0 <= S_star)) {
+        Array<Real, +HydroState::ConsIdx::NUM> svLs, fvL, svL;
         // flux vector L
         fvL[+HydroState::ConsIdx::Density]  = rhoL*uL;
         fvL[+HydroState::ConsIdx::Xmom]   = rhoL*uL*uL + pL;
@@ -113,7 +114,7 @@ void HydroHLLC::solve(Vector<Real> &L,
             F[i] = fvL[i] + S_L*(svLs[i] - svL[i]);
         }
     } else if ((S_star <= 0.0) && (0.0 <= S_R)) {
-
+        Array<Real, +HydroState::ConsIdx::NUM> svRs, fvR, svR;
         // flux vector R
         fvR[+HydroState::ConsIdx::Density]  = rhoR*uR;
         fvR[+HydroState::ConsIdx::Xmom]   = rhoR*uR*uR + pR;

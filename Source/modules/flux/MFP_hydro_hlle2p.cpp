@@ -86,59 +86,70 @@ void HLLE2P::solve(Vector<Real> &L,
     ByR *= BR;
     BzR *= BR;
 
-
-    // flux vector L
-    Vector<Real> fvL(+Hydro2PState::ConsIdx::NUM);
-    fvL[+Hydro2PState::ConsIdx::Density]  = rhoL*uL;
-    fvL[+Hydro2PState::ConsIdx::Xmom]   = rhoL*uL*uL + BxL*BxL*dpL + peL;
-    fvL[+Hydro2PState::ConsIdx::Ymom]   = rhoL*uL*vL + BxL*ByL*dpL;
-    fvL[+Hydro2PState::ConsIdx::Zmom]   = rhoL*uL*wL + BxL*BzL*dpL;
-    fvL[+Hydro2PState::ConsIdx::Eden]   = uL*(nrgL + peL) + BxL*dpL*(uL*BxL + vL*ByL + wL*BzL);
-    fvL[+Hydro2PState::ConsIdx::PrsP]   = uL*paL;
-    fvL[+Hydro2PState::ConsIdx::Tracer] = tL*uL;
-
-    // flux vector R
-    Vector<Real> fvR(+Hydro2PState::ConsIdx::NUM);
-    fvR[+Hydro2PState::ConsIdx::Density]  = rhoR*uR;
-    fvR[+Hydro2PState::ConsIdx::Xmom]   = rhoR*uR*uR + BxR*BxR*dpR + peR;
-    fvR[+Hydro2PState::ConsIdx::Ymom]   = rhoR*uR*vR + BxR*ByR*dpR;
-    fvR[+Hydro2PState::ConsIdx::Zmom]   = rhoR*uR*wR + BxR*BzR*dpR;
-    fvR[+Hydro2PState::ConsIdx::Eden]   = uR*(nrgR + peR) + BxR*dpR*(uR*BxR + vR*ByR + wR*BzR);
-    fvR[+Hydro2PState::ConsIdx::PrsP]   = uR*paR;
-    fvR[+Hydro2PState::ConsIdx::Tracer] = tR*uR;
-
-    // state vector L
-    Vector<Real> svL(+Hydro2PState::ConsIdx::NUM);
-    svL[+Hydro2PState::ConsIdx::Density]  = rhoL;
-    svL[+Hydro2PState::ConsIdx::Xmom]   = rhoL*uL;
-    svL[+Hydro2PState::ConsIdx::Ymom]   = rhoL*vL;
-    svL[+Hydro2PState::ConsIdx::Zmom]   = rhoL*wL;
-    svL[+Hydro2PState::ConsIdx::Eden]   = nrgL;
-    svL[+Hydro2PState::ConsIdx::PrsP]   = paL;
-    svL[+Hydro2PState::ConsIdx::Tracer] = tL;
-
-    // state vector R
-    Vector<Real> svR(+Hydro2PState::ConsIdx::NUM);
-    svR[+Hydro2PState::ConsIdx::Density]  = rhoR;
-    svR[+Hydro2PState::ConsIdx::Xmom]   = rhoR*uR;
-    svR[+Hydro2PState::ConsIdx::Ymom]   = rhoR*vR;
-    svR[+Hydro2PState::ConsIdx::Zmom]   = rhoR*wR;
-    svR[+Hydro2PState::ConsIdx::Eden]   = nrgR;
-    svR[+Hydro2PState::ConsIdx::PrsP]   = paR;
-    svR[+Hydro2PState::ConsIdx::Tracer] = tR;
-
     // speeds
     Real sL = std::min(uL - aL, uR - aR);
     Real sR = std::max(uL + aL, uR + aR);
 
     if (sL >= 0.0) {
-        F = fvL;
+        F[+Hydro2PState::ConsIdx::Density]  = rhoL*uL;
+        F[+Hydro2PState::ConsIdx::Xmom]   = rhoL*uL*uL + BxL*BxL*dpL + peL;
+        F[+Hydro2PState::ConsIdx::Ymom]   = rhoL*uL*vL + BxL*ByL*dpL;
+        F[+Hydro2PState::ConsIdx::Zmom]   = rhoL*uL*wL + BxL*BzL*dpL;
+        F[+Hydro2PState::ConsIdx::Eden]   = uL*(nrgL + peL) + BxL*dpL*(uL*BxL + vL*ByL + wL*BzL);
+        F[+Hydro2PState::ConsIdx::PrsP]   = uL*paL;
+        F[+Hydro2PState::ConsIdx::Tracer] = tL*uL;
     } else if ((sL <= 0.0) && (sR >= 0.0)) {
+
+        Array<Real, +Hydro2PState::ConsIdx::NUM> fvL, fvR, svL, svR;
+
+        // flux vector L
+        fvL[+Hydro2PState::ConsIdx::Density]  = rhoL*uL;
+        fvL[+Hydro2PState::ConsIdx::Xmom]   = rhoL*uL*uL + BxL*BxL*dpL + peL;
+        fvL[+Hydro2PState::ConsIdx::Ymom]   = rhoL*uL*vL + BxL*ByL*dpL;
+        fvL[+Hydro2PState::ConsIdx::Zmom]   = rhoL*uL*wL + BxL*BzL*dpL;
+        fvL[+Hydro2PState::ConsIdx::Eden]   = uL*(nrgL + peL) + BxL*dpL*(uL*BxL + vL*ByL + wL*BzL);
+        fvL[+Hydro2PState::ConsIdx::PrsP]   = uL*paL;
+        fvL[+Hydro2PState::ConsIdx::Tracer] = tL*uL;
+
+        // flux vector R
+        fvR[+Hydro2PState::ConsIdx::Density]  = rhoR*uR;
+        fvR[+Hydro2PState::ConsIdx::Xmom]   = rhoR*uR*uR + BxR*BxR*dpR + peR;
+        fvR[+Hydro2PState::ConsIdx::Ymom]   = rhoR*uR*vR + BxR*ByR*dpR;
+        fvR[+Hydro2PState::ConsIdx::Zmom]   = rhoR*uR*wR + BxR*BzR*dpR;
+        fvR[+Hydro2PState::ConsIdx::Eden]   = uR*(nrgR + peR) + BxR*dpR*(uR*BxR + vR*ByR + wR*BzR);
+        fvR[+Hydro2PState::ConsIdx::PrsP]   = uR*paR;
+        fvR[+Hydro2PState::ConsIdx::Tracer] = tR*uR;
+
+        // state vector L
+        svL[+Hydro2PState::ConsIdx::Density]  = rhoL;
+        svL[+Hydro2PState::ConsIdx::Xmom]   = rhoL*uL;
+        svL[+Hydro2PState::ConsIdx::Ymom]   = rhoL*vL;
+        svL[+Hydro2PState::ConsIdx::Zmom]   = rhoL*wL;
+        svL[+Hydro2PState::ConsIdx::Eden]   = nrgL;
+        svL[+Hydro2PState::ConsIdx::PrsP]   = paL;
+        svL[+Hydro2PState::ConsIdx::Tracer] = tL;
+
+        // state vector R
+        svR[+Hydro2PState::ConsIdx::Density]  = rhoR;
+        svR[+Hydro2PState::ConsIdx::Xmom]   = rhoR*uR;
+        svR[+Hydro2PState::ConsIdx::Ymom]   = rhoR*vR;
+        svR[+Hydro2PState::ConsIdx::Zmom]   = rhoR*wR;
+        svR[+Hydro2PState::ConsIdx::Eden]   = nrgR;
+        svR[+Hydro2PState::ConsIdx::PrsP]   = paR;
+        svR[+Hydro2PState::ConsIdx::Tracer] = tR;
+
+
         for (int i=0; i<+Hydro2PState::ConsIdx::NUM; ++i) {
             F[i] = (sR*fvL[i] - sL*fvR[i] + sL*sR*(svR[i] - svL[i]))/(sR - sL);
         }
     } else {
-        F = fvR;
+        F[+Hydro2PState::ConsIdx::Density]  = rhoR*uR;
+        F[+Hydro2PState::ConsIdx::Xmom]   = rhoR*uR*uR + BxR*BxR*dpR + peR;
+        F[+Hydro2PState::ConsIdx::Ymom]   = rhoR*uR*vR + BxR*ByR*dpR;
+        F[+Hydro2PState::ConsIdx::Zmom]   = rhoR*uR*wR + BxR*BzR*dpR;
+        F[+Hydro2PState::ConsIdx::Eden]   = uR*(nrgR + peR) + BxR*dpR*(uR*BxR + vR*ByR + wR*BzR);
+        F[+Hydro2PState::ConsIdx::PrsP]   = uR*paR;
+        F[+Hydro2PState::ConsIdx::Tracer] = tR*uR;
     }
 }
 

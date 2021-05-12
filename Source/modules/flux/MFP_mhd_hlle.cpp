@@ -128,7 +128,7 @@ void MhdHLLE::solve(Vector<Real> &L,
     Real cfR = std::sqrt(cfR2);
     Real wpR = uR+cfR;
 
-    Vector<Real> dU(+MhdState::ConsIdx::NUM);
+    Array<Real, +MhdState::ConsIdx::NUM> dU, fLU, fRU;
 
     dU[+MhdState::ConsIdx::Density] = rR - rL;
     dU[+MhdState::ConsIdx::Xmom] = rR*uR - rL*uL;
@@ -154,10 +154,6 @@ void MhdHLLE::solve(Vector<Real> &L,
     Real iden = 1.0/(brp - blm);
     Real fac1 = brp*blm;
 
-
-
-    Vector<Real> fLU(+MhdState::ConsIdx::NUM, 0.0);
-
     fLU[+MhdState::ConsIdx::Density] = rL*uL;
     fLU[+MhdState::ConsIdx::Xmom] = rL*uL2 - BxL2 + ptL;
     fLU[+MhdState::ConsIdx::Ymom] = rL*uL*vL - BxL*ByL;
@@ -168,8 +164,6 @@ void MhdHLLE::solve(Vector<Real> &L,
     fLU[+MhdState::ConsIdx::By]= uL*ByL - vL*BxL;
     fLU[+MhdState::ConsIdx::Bz] = uL*BzL - wL*BxL;
     fLU[+MhdState::ConsIdx::psi] = ch*ch*BxL;
-
-    Vector<Real> fRU(+MhdState::ConsIdx::NUM);
 
     fRU[+MhdState::ConsIdx::Density] = rR*uR;
     fRU[+MhdState::ConsIdx::Xmom] = rR*uR2 - BxR2 + ptR;

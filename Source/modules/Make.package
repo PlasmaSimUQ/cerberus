@@ -14,6 +14,8 @@ CEXE_sources += MFP_fillbc.cpp
 CEXE_headers += MFP_reconstruction.H
 CEXE_sources += MFP_reconstruction.cpp
 
+CEXE_headers += MFP_shockdetector.H
+CEXE_sources += MFP_shockdetector.cpp
 
 include $(TOP)/Source/modules/flux/Make.package
 include $(TOP)/Source/modules/source/Make.package

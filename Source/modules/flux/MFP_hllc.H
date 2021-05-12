@@ -23,9 +23,6 @@ public:
     static std::string tag;
     static bool registered;
 
-    // scratch space
-private:
-    Array<Real, +HydroState::ConsIdx::NUM> svLs, svRs, fvL, fvR, svL, svR;
 };
 
 #endif // HYDROHLLC_H

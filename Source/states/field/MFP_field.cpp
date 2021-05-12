@@ -181,8 +181,15 @@ const Vector<set_bc>& FieldState::get_bc_set() const
     return bc_set;
 }
 
-bool FieldState::cons2prim(Vector<Real>& U) const {return true;}
-void FieldState::prim2cons(Vector<Real>& U) const {}
+bool FieldState::cons2prim(Vector<Real>& U, Vector<Real> &Q) const
+{
+    Q = U;
+    return true;
+}
+void FieldState::prim2cons(Vector<Real>& Q, Vector<Real>& U) const
+{
+    U = Q;
+}
 
 Real FieldState::get_energy_from_cons(const Vector<Real> &U) const
 {
@@ -258,7 +265,7 @@ void FieldState::get_state_values(const Box& box,
     }
 
     // temporary storage for retrieving the state data
-    Vector<Real> S;
+    Vector<Real> S(n_cons());
 
     Array4<const Real> const& src4 = src.array();
 
@@ -276,7 +283,7 @@ void FieldState::get_state_values(const Box& box,
                 }
 #endif
 
-                S = get_state_vector(src, i, j, k);
+                get_state_vector(src, i, j, k, S);
 
                 if (!cons_tags.empty()) {
                     for (const auto& var : cons_tags) {
@@ -397,7 +404,7 @@ void FieldState::calc_primitives(const Box& box,
 
 
                 // convert to primitive
-                cons2prim(U);
+//                cons2prim(U);
 
                 // modify the primitives vector if needed and upload back to
                 // the conserved vector
@@ -412,7 +419,7 @@ void FieldState::calc_primitives(const Box& box,
                     }
 
                     // convert primitive to conserved
-                    prim2cons(U);
+//                    prim2cons(U);
 
                     // copy back into conserved array
                     for (int n=0; n<nc; ++n) {

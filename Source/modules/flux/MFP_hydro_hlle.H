@@ -15,15 +15,13 @@ public:
                        Vector<Real> &F,
                        Real* shk) override;
 
-    virtual int get_flux_size() const override {return 6;} // keep aligned with HydroState::ConsIdx::NUM
+    virtual int get_flux_size() const override {return +HydroState::ConsIdx::NUM;}
 
     static bool valid_state(const int idx);
     virtual const std::string& get_tag() const override {return tag;}
     static std::string tag;
     static bool registered;
 
-private:
-    Array<Real, +HydroState::ConsIdx::NUM> fvL, fvR, svL, svR;
 };
 
 #endif // HYDROHLLE_H

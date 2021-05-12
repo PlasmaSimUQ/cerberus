@@ -105,10 +105,10 @@ public:
     virtual Real get_cp(Real alpha) const override;
     virtual Real get_cp(const Vector<Real> &U) const override;
 
-    virtual bool cons2prim(Vector<Real>& U) const override;
-    virtual bool cons2prim(Vector<autodiff::dual>& U) const override;
+    virtual bool cons2prim(Vector<Real>& U, Vector<Real>& Q) const;
+    virtual bool cons2prim(Vector<autodiff::dual>& U, Vector<autodiff::dual>& Q) const;
 
-    virtual void prim2cons(Vector<Real>& U) const override;
+    virtual void prim2cons(Vector<Real>& Q, Vector<Real>& U) const override;
     virtual bool prim_valid(Vector<Real>& Q) const override;
     virtual bool cons_valid(Vector<Real>& U) const override;
 
@@ -182,9 +182,6 @@ public:
                              EB_OPTIONAL(,const EBCellFlagFab& flag)
                              EB_OPTIONAL(,const FArrayBox &vfrac)
                              ) const override;
-
-    virtual Real local_shock_detector(const Vector<Real> &L,
-                                      const Vector<Real> &R) const override;
 
     void get_state_values(const Box& box,
                                   const FArrayBox& src,

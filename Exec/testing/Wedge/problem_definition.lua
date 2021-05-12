@@ -2,8 +2,6 @@
 verbosity = 2
 cfl = 0.5
 
-plot_shock_detector = 1
-
 -- === DEFINE PROBLEM ===
 
 ref_density = 4.4e-2 --1.20 -- kg/m^-3
@@ -36,9 +34,9 @@ states = {
         mass=1.0,  
         charge= 0.0, 
         gamma=1.4, 
-        reconstruction='minmod', 
+        reconstruction='MC', 
         flux='HLLE/HLLC',
-        shock_threshold=10.0,
+        shock_detector={name='pressure_jump_detector', threshold=0.1},
         refine_grad_threshold = {rho=0.5},
         -- viscosity=Sutherland,
         eb_divergence={
@@ -149,5 +147,4 @@ embedded_boundaries = {
     inside=0,
     boolean_operation='and',
   },
-
 }

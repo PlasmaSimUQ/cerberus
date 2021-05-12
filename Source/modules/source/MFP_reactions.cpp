@@ -77,27 +77,23 @@ Vector<Real> Ionisation::ionisation(const Vector<Real> &y0,
                                     const Interp2D &nrg_interp,
                                     const Real &bind_nrg) {
     BL_PROFILE("Ionisation::ionisation");
-    Real Debye = GD::Debye;
-    Real n0 = GD::n0;
-
-    int num_hydro = offsets.size();
 
     // vector for hydro primitive values
     Vector<Vector<Real>> hydro_prim(offsets.size());
-
-    int nc;
+    Vector<Real> U;
     for (const auto &idx : offsets) {
         State &istate = GD::get_state(idx.global);
 
         // get a copy of the conserved variables
-        Vector<Real> &U = hydro_prim[idx.local];
         U.resize(istate.n_cons());
         for (int i = 0; i < U.size(); ++i) {
             U[i] = y0[idx.solver + i];
         }
 
         // convert to primitive
-        istate.cons2prim(U);
+        Vector<Real> &Q = hydro_prim[idx.local];
+        Q.resize(istate.n_prim());
+        istate.cons2prim(U, Q);
     }
 
     Vector<Real> ydot(y0.size());
@@ -123,7 +119,7 @@ Vector<Real> Ionisation::ionisation(const Vector<Real> &y0,
     Real m_i = state_i.get_mass(alpha_i);
     Real p_i = Q_i[+HydroState::PrimIdx::Prs];
     Real n_i = rho_i / m_i;
-    Real T_i = p_i / n_i;
+//    Real T_i = p_i / n_i;
 
     const OffsetIndex &offset_n = offsets[2];
     State &state_n = GD::get_state(offset_n.global);
@@ -138,7 +134,7 @@ Vector<Real> Ionisation::ionisation(const Vector<Real> &y0,
 
     Real M = m_n;
     Real mu = m_e;
-    Real muin = m_i * m_n / (m_i + m_n);
+//    Real muin = m_i * m_n / (m_i + m_n);
 
     // calculate x,y,z velocities and dot products
     Real du2 = 0.0;
@@ -349,29 +345,25 @@ Recombination::~Recombination()
 Vector<Real> Recombination::recombination(const Vector<Real> &y0, const Vector<OffsetIndex> &offsets, const Interp2D &dens_interp, const Interp2D &R_interp, const Interp2D &K_interp, const Interp2D &W_interp, const Interp2D &J_interp, const Real &bind_nrg)
 {
     BL_PROFILE("Recombination::recombination");
-    Real Debye = GD::Debye;
-    Real n0 = GD::n0;
-
-    int num_hydro = offsets.size();
 
     // vector for hydro primitive values
     Vector<Vector<Real>> hydro_prim(offsets.size());
+    Vector<Real> U;
 
-
-    int nc;
     for (const auto &idx : offsets) {
 
         State &istate = GD::get_state(idx.global);
 
         // get a copy of the conserved variables
-        Vector<Real> &U = hydro_prim[idx.local];
         U.resize(istate.n_cons());
         for (int i=0; i<U.size(); ++i) {
             U[i] = y0[idx.solver+i];
         }
 
         // convert to primitive
-        istate.cons2prim(U);
+        Vector<Real> &Q = hydro_prim[idx.local];
+        Q.resize(istate.n_prim());
+        istate.cons2prim(U, Q);
     }
 
     Vector<Real> ydot(y0.size());

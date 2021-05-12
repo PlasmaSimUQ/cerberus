@@ -57,8 +57,6 @@ mfp.lua = "
 verbosity = 1
 cfl = 0.8
 
-plot_shock_detector = 1
-
 force_dt = 0.0
 
 -- ======== PROBLEM ==========
@@ -135,7 +133,7 @@ states = {
         gamma=gam, 
         reconstruction='minmod', 
         flux='HLLE/HLLC',
-        shock_threshold=10.0,
+        shock_detector={name='pressure_jump_detector', threshold=10.0},
         refine_grad_threshold = {rho=0.1},
         value = {
             nd = number_density,

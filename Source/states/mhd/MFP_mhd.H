@@ -112,8 +112,8 @@ class MhdState : public State
         virtual Real get_cp(Real alpha) const override;
         virtual Real get_cp(const Vector<Real> &U) const override;
 
-        virtual bool cons2prim(Vector<Real>& U) const override;
-        virtual void prim2cons(Vector<Real>& U) const override;
+        virtual bool cons2prim(Vector<Real>& U, Vector<Real>& Q) const override;
+        virtual void prim2cons(Vector<Real>& Q, Vector<Real>& U) const override;
         virtual bool prim_valid(Vector<Real>& Q) const override;
         virtual bool cons_valid(Vector<Real>& U) const override;
 
@@ -171,8 +171,6 @@ class MhdState : public State
 
         virtual RealArray get_speed_from_cons(const Vector<Real> &U) const override;
         virtual RealArray get_speed_from_prim(const Vector<Real> &Q) const override;
-
-        virtual Real local_shock_detector(const Vector<Real> &L, const Vector<Real> &R) const override;
 
         virtual void update_div_clean(const Real* dx) override;
 

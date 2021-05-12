@@ -21,8 +21,8 @@ public:
                        Vector<Real> &F,
                        Real* shk) override;
 
-    virtual int get_flux_size() const override {return 6;} // keep aligned with HydroState::ConsIdx::NUM
-
+    virtual int get_flux_size() const override {return +HydroState::ConsIdx::NUM;}
+    virtual bool requires_shock_detector() const {return true;}
 
     static bool valid_state(const int idx);
     virtual const std::string& get_tag() const override {return tag;}

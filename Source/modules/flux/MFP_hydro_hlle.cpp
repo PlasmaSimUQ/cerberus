@@ -61,6 +61,7 @@ void HydroHLLE::solve(Vector<Real> &L,
         F[+HydroState::ConsIdx::Eden]   = uL*(nrgL + pL);
         F[+HydroState::ConsIdx::Tracer] = tL*uL;
     } else if ((sL <= 0.0) && (sR >= 0.0)) {
+        Array<Real, +HydroState::ConsIdx::NUM> fvL, fvR, svL, svR;
         // flux vector L
         fvL[+HydroState::ConsIdx::Density]  = rhoL*uL;
         fvL[+HydroState::ConsIdx::Xmom]   = rhoL*uL*uL + pL;

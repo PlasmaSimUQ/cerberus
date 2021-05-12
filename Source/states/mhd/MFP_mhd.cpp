@@ -168,7 +168,7 @@ void MhdState::init_from_lua()
     //
     // shock detector threshold
     //
-    set_shock_threshold();
+    set_shock_detector();
 
     //
     // particles
@@ -293,7 +293,7 @@ Real MhdState::get_cp(const Vector<Real> &U) const
 
 
 // in place conversion from conserved to primitive
-bool MhdState::cons2prim(Vector<Real>& U) const
+bool MhdState::cons2prim(Vector<Real>& U, Vector<Real>& Q) const
 {
     BL_PROFILE("MhdState::cons2prim");
 
@@ -313,38 +313,49 @@ bool MhdState::cons2prim(Vector<Real>& U) const
 
     Real nrg = U[+ConsIdx::Eden] - 0.5*(rho*(u*u + v*v + w*w) + Bx*Bx + By*By + Bz*Bz);
 
-    U[+PrimIdx::Xvel] = u;
-    U[+PrimIdx::Yvel] = v;
-    U[+PrimIdx::Zvel] = w;
-    U[+PrimIdx::Prs] = nrg*(g-1);
-    U[+PrimIdx::Alpha] = alpha;
+    Q[+PrimIdx::Density] = rho;
+    Q[+PrimIdx::Xvel] = u;
+    Q[+PrimIdx::Yvel] = v;
+    Q[+PrimIdx::Zvel] = w;
+    Q[+PrimIdx::Prs] = nrg*(g-1);
+    Q[+PrimIdx::Alpha] = alpha;
+    Q[+PrimIdx::Bx] = Bx;
+    Q[+PrimIdx::By] = By;
+    Q[+PrimIdx::Bz] = Bz;
+    Q[+PrimIdx::psi] = U[+ConsIdx::psi];
 
     return prim_valid(U);
 }
 
 // in-place conversion from primitive to conserved variables
-void MhdState::prim2cons(Vector<Real>& U) const
+void MhdState::prim2cons(Vector<Real>& Q, Vector<Real> &U) const
 {
     BL_PROFILE("MhdState::prim2cons");
 
-    Real rho = U[+PrimIdx::Density];
-    Real mx = rho*U[+PrimIdx::Xvel];
-    Real my = rho*U[+PrimIdx::Yvel];
-    Real mz = rho*U[+PrimIdx::Zvel];
-    Real p = U[+PrimIdx::Prs];
-    Real alpha = U[+PrimIdx::Alpha];
+    Real rho = Q[+PrimIdx::Density];
+    Real mx = rho*Q[+PrimIdx::Xvel];
+    Real my = rho*Q[+PrimIdx::Yvel];
+    Real mz = rho*Q[+PrimIdx::Zvel];
+    Real p = Q[+PrimIdx::Prs];
+    Real alpha = Q[+PrimIdx::Alpha];
 
-    Real Bx = U[+PrimIdx::Bx];
-    Real By = U[+PrimIdx::By];
-    Real Bz = U[+PrimIdx::Bz];
+    Real Bx = Q[+PrimIdx::Bx];
+    Real By = Q[+PrimIdx::By];
+    Real Bz = Q[+PrimIdx::Bz];
 
     Real g = get_gamma(alpha);
 
+    U[+ConsIdx::Density] = rho;
     U[+ConsIdx::Xmom] = mx;
     U[+ConsIdx::Ymom] = my;
     U[+ConsIdx::Zmom] = mz;
     U[+ConsIdx::Eden] = p/(g - 1) + 0.5*(mx*mx + my*my + mz*mz)/rho + 0.5*(Bx*Bx + By*By + Bz*Bz);
-    U[+ConsIdx::Tracer] *= rho;
+    U[+ConsIdx::Tracer] = alpha*rho;
+    U[+ConsIdx::Bx] = Bx;
+    U[+ConsIdx::By] = By;
+    U[+ConsIdx::Bz] = Bz;
+    U[+ConsIdx::psi] = Q[+PrimIdx::psi];
+
 }
 
 
@@ -377,11 +388,24 @@ Real MhdState::get_energy_from_cons(const Vector<Real> &U) const
 
 Real MhdState::get_temperature_from_cons(const Vector<Real> &U) const
 {
-    Vector<Real> Q = U;
+    Real rhoinv = 1/U[+ConsIdx::Density];
 
-    cons2prim(Q);
+    Real mx = U[+ConsIdx::Xmom];
+    Real my = U[+ConsIdx::Ymom];
+    Real mz = U[+ConsIdx::Zmom];
 
-    return get_temperature_from_prim(Q);
+    Real Bx = U[+ConsIdx::Bx];
+    Real By = U[+ConsIdx::By];
+    Real Bz = U[+ConsIdx::Bz];
+
+    Real nrg = U[+ConsIdx::Eden] - 0.5*(rhoinv*(mx*mx + my*my + mz*mz) + Bx*Bx + By*By + Bz*Bz);
+
+    Real alpha = U[+ConsIdx::Tracer]*rhoinv;
+    Real g = get_gamma(alpha);
+    Real prs = nrg*(g-1);
+    Real m = get_mass(alpha);
+
+    return prs*rhoinv*m;
 }
 
 Real MhdState::get_temperature_from_prim(const Vector<Real> &Q) const
@@ -398,11 +422,30 @@ Real MhdState::get_temperature_from_prim(const Vector<Real> &Q) const
 
 RealArray MhdState::get_speed_from_cons(const Vector<Real>& U) const
 {
-    Vector<Real> Q = U;
+    Real rho = U[+ConsIdx::Density];
+    Real ed = U[+ConsIdx::Eden];
+    Real rhoinv = 1/rho;
 
-    cons2prim(Q);
+    Real ux = U[+ConsIdx::Xmom]*rhoinv;
+    Real uy = U[+ConsIdx::Ymom]*rhoinv;
+    Real uz = U[+ConsIdx::Zmom]*rhoinv;
 
-    return get_speed_from_prim(Q);
+    Real alpha = U[+ConsIdx::Tracer]*rhoinv;
+    Real g = get_gamma(alpha);
+    Real kineng = 0.5*rho*(ux*ux + uy*uy + uz*uz);
+    Real p = (ed - kineng)*(g - 1);
+
+    Real Bx = U[+ConsIdx::Bx];
+    Real By = U[+ConsIdx::By];
+    Real Bz = U[+ConsIdx::Bz];
+
+    Real B = std::sqrt(Bx*Bx + By*By + Bz*Bz);
+
+    Real cf = std::sqrt( (g*p + B) / rho);
+
+    RealArray s = {AMREX_D_DECL(cf + std::abs(ux), cf + std::abs(uy), cf + std::abs(uz))};
+
+    return s;
 
 }
 
@@ -428,19 +471,6 @@ RealArray MhdState::get_speed_from_prim(const Vector<Real>& Q) const
     }
 
     return s ;
-}
-
-Real MhdState::local_shock_detector(const Vector<Real> &L,
-                                    const Vector<Real> &R) const
-{
-    BL_PROFILE("MhdState::local_shock_detector");
-    Real pL = L[+PrimIdx::Prs];
-    Real pR = R[+PrimIdx::Prs];
-    Real varphi = std::abs(pR - pL)/(pR + pL);
-
-    Real shk = 0.5 + 0.5*std::tanh(5*(varphi - 0.75*shock_threshold)/shock_threshold);
-
-    return shk;
 }
 
 void MhdState::get_state_values(const Box& box,
@@ -503,7 +533,7 @@ void MhdState::get_state_values(const Box& box,
     }
 
     // temporary storage for retrieving the state data
-    Vector<Real> S;
+    Vector<Real> S(n_cons()), Q(n_prim());
 
     Array4<const Real> const& src4 = src.array();
 
@@ -521,7 +551,7 @@ void MhdState::get_state_values(const Box& box,
                 }
 #endif
 
-                S = get_state_vector(src, i, j, k);
+                get_state_vector(src, i, j, k, S);
 
                 if (load_gamma)  out4[gamma_name](i,j,k)  = get_gamma(S);
 #ifdef AMREX_USE_EB
@@ -535,10 +565,10 @@ void MhdState::get_state_values(const Box& box,
                 }
 
                 if (!prim_tags.empty()) {
-                    cons2prim(S);
+                    cons2prim(S, Q);
 
                     for (const auto& var : prim_tags) {
-                        out4[var.first](i,j,k) = S[var.second];
+                        out4[var.first](i,j,k) = Q[var.second];
                     }
                 }
             }

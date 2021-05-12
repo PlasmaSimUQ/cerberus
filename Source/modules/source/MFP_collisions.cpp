@@ -90,23 +90,26 @@ Vector<dual> Collisions::collisions(const Vector<dual> &y0,
     const Real c3 = 2.127692162140974*n0; // (4/3)*n0*sqrt(8/pi)
     const Real lnC = 10.0; // Coulomb logarithm
 
-    int num_hydro = offsets.size();
+    const int num_hydro = offsets.size();
 
-    // vector for hydro primitive values
+    Vector<dual> U;
     Vector<Vector<dual>> hydro_prim(offsets.size());
+
     for (const auto &idx : offsets) {
 
         State &istate = GD::get_state(idx.global);
 
         // get a copy of the conserved variables
-        Vector<dual> &U = hydro_prim[idx.local];
         U.resize(istate.n_cons());
         for (int i=0; i<U.size(); ++i) {
             U[i] = y0[idx.solver+i];
         }
 
         // convert to primitive
-        istate.cons2prim(U);
+        Vector<dual> &Q = hydro_prim[idx.local];
+        Q.resize(istate.n_prim());
+
+        istate.cons2prim(U, Q);
     }
 
     // define our output and set it to zero

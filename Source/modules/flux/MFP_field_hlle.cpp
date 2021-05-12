@@ -32,7 +32,7 @@ void FieldHLLE::solve(Vector<Real> &L,
     Real cc = ch2/c2;
     // ^^^                                                ^^^
 
-    Vector<Real> FL(+FieldState::ConsIdx::NUM);
+    Array<Real, +FieldState::ConsIdx::NUM> FL, FR;
 
     FL[+FieldState::ConsIdx::Bx]   =   L[+FieldState::PrimIdx::psi];
     FL[+FieldState::ConsIdx::By]   = - L[+FieldState::PrimIdx::Dz]/L[+FieldState::PrimIdx::ep];
@@ -42,8 +42,6 @@ void FieldHLLE::solve(Vector<Real> &L,
     FL[+FieldState::ConsIdx::Dz]   = - L[+FieldState::PrimIdx::By]/L[+FieldState::PrimIdx::mu];
     FL[+FieldState::ConsIdx::psi] =   L[+FieldState::PrimIdx::Bx]*cc;
     FL[+FieldState::ConsIdx::phi] =   L[+FieldState::PrimIdx::Dx]*cc;
-
-    Vector<Real> FR(+FieldState::ConsIdx::NUM);
 
     FR[+FieldState::ConsIdx::Bx]   =   R[+FieldState::PrimIdx:: psi];
     FR[+FieldState::ConsIdx::By]   = - R[+FieldState::PrimIdx:: Dz]/R[+FieldState::PrimIdx::ep];
