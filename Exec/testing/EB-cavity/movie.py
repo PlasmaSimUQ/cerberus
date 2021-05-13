@@ -10,6 +10,8 @@ import numpy as np
 import pylab as plt
 import matplotlib as mpl
 from matplotlib.image import NonUniformImage
+from matplotlib.collections import PatchCollection
+from matplotlib.patches import Rectangle
 
 
 # ==============================================================================
@@ -34,14 +36,19 @@ def get_particles(ds, c):
     idat, rdat =  ds.get_particles('air')
     return {"i":idat, "r":rdat}
 
+def get_boxes(ds, c):
+    boxes = ds.get_boxes()
+    return {"boxes":boxes}
+
 def plot(frame, data, output_name):
 
     xc = data["vfrac-air"]["x"]
     yc = data["vfrac-air"]["y"]
     v = data["vfrac-air"]["value"]
+    # boxes = data["boxes"]["boxes"][()]
     
-    xn = data["alpha-air"]["x"]
-    yn = data["alpha-air"]["y"]
+    # xn = data["alpha-air"]["x"]
+    # yn = data["alpha-air"]["y"]
     a = data["alpha-air"]["value"]
     vmin = frame["alpha-air"]["min"]
     vmax = frame["alpha-air"]["max"]
@@ -74,6 +81,16 @@ def plot(frame, data, output_name):
     ax.plot(px[-l::], py[-l::], "k-", lw=0.5, alpha=0.5)
     ax.plot(px[-1], py[-1], "ko", ms=0.5, alpha=0.5)
 
+    # plot boxes
+    # grid = []
+    # for box in boxes:
+    #     sz = box[1] - box[0]
+    #     rect = Rectangle((box[0][0], box[0][1]), sz[0], sz[1])
+    #     grid.append(rect)
+
+    # pc = PatchCollection(grid, facecolor='none', alpha=1.0, edgecolor='w', linewidth=0.25)
+    # ax.add_collection(pc)
+
     ax.set_xlim(limits[0][0], limits[1][0])
     ax.set_ylim(limits[0][1], limits[1][1])
 
@@ -101,6 +118,7 @@ q["get"] = [
     {"func":get_alpha, "tag":"alpha-air"},
     {"func":get_vfrac, "tag":"vfrac-air"},
     {"func":get_particles, "tag":"particles-air", "get_streak":True},
+    # {"func":get_boxes, "tag":"boxes"},
 ]
 
 # how to make a frame

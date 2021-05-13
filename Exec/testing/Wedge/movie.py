@@ -12,6 +12,8 @@ import pylab as plt
 import matplotlib as mpl
 from matplotlib.image import NonUniformImage
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib.collections import PatchCollection
+from matplotlib.patches import Rectangle
 
 
 # ==============================================================================
@@ -34,6 +36,10 @@ def get_vfrac(ds, c):
     x, v = ds.get("vfrac-fluid")
     return {"x":x[0], "y":x[1], "value":v}
 
+def get_boxes(ds, c):
+    boxes = ds.get_boxes()
+    return {"boxes":boxes}
+
 
 def plot(frame, data, output_name):
 
@@ -42,6 +48,7 @@ def plot(frame, data, output_name):
     v = data["vfrac"]["value"][()]
     rho = data["rho"]["value"][()]
     T = data["T"]["value"][()][()]
+    boxes = data["boxes"]["boxes"][()]
     
     rho_vmin = frame["rho"]["min"]
     rho_vmax = 5.5 #frame["rho"]["max"]
@@ -94,6 +101,16 @@ def plot(frame, data, output_name):
     line_y = cs.allsegs[0][0][:,1].tolist()
     plt.fill(line_x+[limits[1][0]], line_y+[limits[0][1]], color='k')
 
+    # plot boxes
+    grid = []
+    for box in boxes:
+        sz = box[1] - box[0]
+        rect = Rectangle((box[0][0], box[0][1]), sz[0], sz[1])
+        grid.append(rect)
+
+    pc = PatchCollection(grid, facecolor='none', alpha=1.0, edgecolor='w', linewidth=0.25)
+    ax.add_collection(pc)
+
     ax.text(0.05, 0.05, r'$T$', horizontalalignment='left', 
         verticalalignment='bottom', transform=ax.transAxes, fontsize=18, color='w')
 
@@ -126,6 +143,7 @@ q["get"] = [
     {"func":get_rho, "tag":"rho"},
     {"func":get_T, "tag":"T"},
     {"func":get_vfrac, "tag":"vfrac"},
+    {"func":get_boxes, "tag":"boxes"},
 ]
 
 # how to make a frame

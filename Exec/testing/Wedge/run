@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+DATE_WITH_TIME=`date "+%Y%m%d-%H%M%S"`
+
+
 (cd ../../local && make -j8 DIM=2 USE_EB=TRUE AMREX_PARTICLES=FALSE)
 
 EXE=../../local/MFP.2d.gnu.MPI.EB.ex
@@ -8,7 +11,7 @@ INPUTS=*.inputs
 
 rm -r *plt* *chk* mov
 
-mpirun -n 11 ${EXE} ${INPUTS} 2>&1 | tee run_log.txt
+mpirun -np 11 ${EXE} ${INPUTS} 2>&1 | tee run_log_${DATE_WITH_TIME}.txt
 
 ../visit.sh .
 
