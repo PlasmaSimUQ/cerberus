@@ -203,6 +203,64 @@ void plot_FAB_2d(const T& src,
     return;
 }
 
+template<typename T>
+void plot_FAB_2d_vec(const T& src,
+                 const Array<int,2> n,
+                 const Box &plot_box,
+                 std::string title="",
+                 bool log=false,
+                 bool block=false)
+{
+    plt::figure_size(1200, 780);
+
+    PlotData2D pd1 = get_2d_data(src.box(), src, n[0], log);
+    PlotData2D pd2 = get_2d_data(src.box(), src, n[1], log);
+
+    std::vector<float> x(pd1.nr*pd1.nc), y(pd1.nr*pd1.nc);
+
+    float start_x = pd1.extents[0] + 0.5f;
+    float start_y = pd1.extents[2] + 0.5f;
+    for (int j=0; j<pd1.nr; ++j) {
+        for (int i=0; i<pd1.nc; ++i) {
+            x[i+j*pd1.nc] = start_x + i;
+            y[i+j*pd1.nc] = start_y + j;
+//            x[j+i*pd1.nr] = start_x + i;
+//            y[j+i*pd1.nr] = start_y + j;
+        }
+    }
+
+    plt::imshow(pd1.data.data(), pd1.nr, pd1.nc, 1, {{"origin","lower"}}, pd1.extents);
+
+    plt::quiver(x, y, pd1.data, pd2.data);
+
+    x.resize(5);
+    y.resize(5);
+
+    x[0] = plot_box.smallEnd()[0] - 0.5f;
+    y[0] = plot_box.smallEnd()[1] - 0.5f;
+
+    x[1] = plot_box.bigEnd()[0] + 0.5f;
+    y[1] = plot_box.smallEnd()[1] - 0.5f;
+
+    x[2] = plot_box.bigEnd()[0] + 0.5f;
+    y[2] = plot_box.bigEnd()[1] + 0.5f;
+
+    x[3] = plot_box.smallEnd()[0] - 0.5f;
+    y[3] = plot_box.bigEnd()[1] + 0.5f;
+
+    x[4] = plot_box.smallEnd()[0] - 0.5f;
+    y[4] = plot_box.smallEnd()[1] - 0.5f;
+
+    plt::plot(x, y,"k-");
+
+    plt::colorbar();
+    plt::title(title);
+
+    if (block)
+        plt::show(block);
+    return;
+}
+
 #ifdef AMREX_USE_EB
 PlotData2D get_2d_data(const Box& box,
                  const EBCellFlagFab& src,

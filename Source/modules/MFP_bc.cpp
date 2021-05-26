@@ -82,10 +82,10 @@ void set_z_vel_bc(BCRec& bc, const BCRec& phys_bc) {
 // the inflow condition ourselves (see State::update_face_prim)
 //
 
-int norm_E_field_bc[] = {BCType::int_dir, BCType::foextrap, BCType::foextrap,
+int norm_D_field_bc[] = {BCType::int_dir, BCType::foextrap, BCType::foextrap,
                                 BCType::reflect_odd, BCType::reflect_even};
 
-int tang_E_field_bc[] = {BCType::int_dir, BCType::foextrap, BCType::foextrap,
+int tang_D_field_bc[] = {BCType::int_dir, BCType::foextrap, BCType::foextrap,
                                 BCType::reflect_even, BCType::reflect_odd};
 
 int norm_B_field_bc[] = {BCType::int_dir, BCType::foextrap, BCType::foextrap,
@@ -97,11 +97,11 @@ int tang_B_field_bc[] = {BCType::int_dir, BCType::foextrap, BCType::foextrap,
 void set_x_D_bc(BCRec& bc, const BCRec& phys_bc) {
   const int* lo_bc = phys_bc.lo();
   const int* hi_bc = phys_bc.hi();
-  bc.setLo(0, norm_E_field_bc[lo_bc[0]]);
-  bc.setHi(0, norm_E_field_bc[hi_bc[0]]);
+  bc.setLo(0, norm_D_field_bc[lo_bc[0]]);
+  bc.setHi(0, norm_D_field_bc[hi_bc[0]]);
 #if (AMREX_SPACEDIM >= 2)
-  bc.setLo(1, tang_E_field_bc[lo_bc[1]]);
-  bc.setHi(1, tang_E_field_bc[hi_bc[1]]);
+  bc.setLo(1, tang_D_field_bc[lo_bc[1]]);
+  bc.setHi(1, tang_D_field_bc[hi_bc[1]]);
 #endif
 #if (AMREX_SPACEDIM == 3)
   bc.setLo(2, tang_E_field_bc[lo_bc[2]]);
@@ -127,11 +127,11 @@ void set_x_B_bc(BCRec& bc, const BCRec& phys_bc) {
 void set_y_D_bc(BCRec& bc, const BCRec& phys_bc) {
   const int* lo_bc = phys_bc.lo();
   const int* hi_bc = phys_bc.hi();
-  bc.setLo(0, tang_E_field_bc[lo_bc[0]]);
-  bc.setHi(0, tang_E_field_bc[hi_bc[0]]);
+  bc.setLo(0, tang_D_field_bc[lo_bc[0]]);
+  bc.setHi(0, tang_D_field_bc[hi_bc[0]]);
 #if (AMREX_SPACEDIM >= 2)
-  bc.setLo(1, norm_E_field_bc[lo_bc[1]]);
-  bc.setHi(1, norm_E_field_bc[hi_bc[1]]);
+  bc.setLo(1, norm_D_field_bc[lo_bc[1]]);
+  bc.setHi(1, norm_D_field_bc[hi_bc[1]]);
 #endif
 #if (AMREX_SPACEDIM == 3)
   bc.setLo(2, tang_E_field_bc[lo_bc[2]]);
@@ -157,11 +157,11 @@ void set_y_B_bc(BCRec& bc, const BCRec& phys_bc) {
 void set_z_D_bc(BCRec& bc, const BCRec& phys_bc) {
   const int* lo_bc = phys_bc.lo();
   const int* hi_bc = phys_bc.hi();
-  bc.setLo(0, tang_E_field_bc[lo_bc[0]]);
-  bc.setHi(0, tang_E_field_bc[hi_bc[0]]);
+  bc.setLo(0, tang_D_field_bc[lo_bc[0]]);
+  bc.setHi(0, tang_D_field_bc[hi_bc[0]]);
 #if (AMREX_SPACEDIM >= 2)
-  bc.setLo(1, tang_E_field_bc[lo_bc[1]]);
-  bc.setHi(1, tang_E_field_bc[hi_bc[1]]);
+  bc.setLo(1, tang_D_field_bc[lo_bc[1]]);
+  bc.setHi(1, tang_D_field_bc[hi_bc[1]]);
 #endif
 #if (AMREX_SPACEDIM == 3)
   bc.setLo(2, norm_E_field_bc[lo_bc[2]]);
