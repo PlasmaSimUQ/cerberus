@@ -641,7 +641,7 @@ RealArray HydroState::get_speed_from_prim(const Vector<Real>& Q) const
 
     RealArray s = {AMREX_D_DECL(a + std::abs(Q[+PrimIdx::Xvel]),
                                 a + std::abs(Q[+PrimIdx::Yvel]),
-                                a + std::abs(Q[+PrimIdx::Zvel))};
+                                a + std::abs(Q[+PrimIdx::Zvel]))};
 
 
     return s;
