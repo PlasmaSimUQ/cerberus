@@ -28,6 +28,15 @@ get_int = r"[0-9]+"
 def listdir_fullpath(d):
     return [os.path.join(d, f) for f in os.listdir(d)]
 
+def path_join(pieces, sep="/"):
+    path = ""
+    for i, p in enumerate(pieces):
+        path += p
+        if i < len(pieces) -1:
+            path += sep
+    
+    return path
+
 def parse_MFP(name, data):
     # grab extra parameters
 
@@ -44,7 +53,7 @@ def parse_FAB_header(name, dim):
         tar_name, fab_header = os.path.split(name)
         tar = tarfile.open(tar_name+".tar")
         base_path, fab_header_path = os.path.split(tar_name)
-        fab_header = os.path.join(fab_header_path, fab_header)
+        fab_header = path_join([fab_header_path,fab_header])
         fid = tar.extractfile(fab_header+"_H")
         fid = codecs.getreader("utf-8")(fid)
 
@@ -348,7 +357,8 @@ def parse_particle_header(name, data, state_name):
     except:
         tar = tarfile.open(name+".tar")
         base_path, particles_name = os.path.split(name)
-        header_path = os.path.join(particles_name, "Header")
+#        header_path = os.path.join(particles_name, "Header")
+        header_path = particles_name+"/Header" # use linux style path
         fid = tar.extractfile(header_path)
         fid = codecs.getreader("utf-8")(fid)
 
@@ -694,10 +704,10 @@ class ReadBoxLib:
         try:
             f = open(path, "rb")
         except:
-            path_pieces = path.split("/")
+            path_pieces = path.split(os.path.sep)
             tar_name = os.path.join(*(path_pieces[0:-1]))
             tar = tarfile.open(tar_name+".tar")
-            data_path = os.path.join(*(path_pieces[-2::]))
+            data_path = path_join(path_pieces[-2::])
             f = tar.extractfile(data_path)
 
         f.seek(offset)
@@ -977,10 +987,10 @@ class ReadBoxLib:
                 try:
                     f = open(path, "rb")
                 except:
-                    path_pieces = path.split("/")
+                    path_pieces = path.split(os.path.sep)
                     tar_name = os.path.join(*(path_pieces[0:-2]))
                     tar = tarfile.open(tar_name+".tar")
-                    data_path = os.path.join(*(path_pieces[-3::]))
+                    data_path = path_join(path_pieces[-3::])
                     f = tar.extractfile(data_path)
 
                 # get the actual data
