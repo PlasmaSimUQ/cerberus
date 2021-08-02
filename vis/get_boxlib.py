@@ -705,6 +705,8 @@ class ReadBoxLib:
             f = open(path, "rb")
         except:
             path_pieces = path.split(os.path.sep)
+            if path[0] == os.path.sep:
+                path_pieces.insert(0,os.path.sep)
             tar_name = os.path.join(*(path_pieces[0:-1]))
             tar = tarfile.open(tar_name+".tar")
             data_path = path_join(path_pieces[-2::])
@@ -988,6 +990,8 @@ class ReadBoxLib:
                     f = open(path, "rb")
                 except:
                     path_pieces = path.split(os.path.sep)
+                    if path[0] == os.path.sep:
+                        path_pieces.insert(0,os.path.sep)
                     tar_name = os.path.join(*(path_pieces[0:-2]))
                     tar = tarfile.open(tar_name+".tar")
                     data_path = path_join(path_pieces[-3::])
