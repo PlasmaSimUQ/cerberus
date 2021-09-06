@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-
-(cd ../../local && make -j8 DIM=2 USE_EB=FALSE AMREX_PARTICLES=FALSE)
-
-rm -r *chk* *plt*
-
-python3 check.py
-
-

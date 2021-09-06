@@ -12,6 +12,7 @@
 #include <cassert>
 #include <AMReX_REAL.H>
 #include <AMReX_Vector.H>
+#include <AMReX_Array.H>
 #include <AMReX_Utility.H>
 
 // === PI ===
@@ -100,6 +101,27 @@ std::string arr2str(const std::array<T, N> &in, const std::string &left = "[",
     s += right;
 
     return s;
+}
+
+// === ARRAY TO VECTOR ===
+template <typename T, size_t N>
+amrex::Vector<T> arr2vec(const amrex::Array<T, N> &in) {
+
+    amrex::Vector<T> vec(N);
+    for (size_t i = 0; i < N; ++i) {
+        vec[i] = in[i];
+    }
+
+    return vec;
+}
+
+// === APPEND VECTOR ===
+
+template <typename T>
+void append(std::vector<T>& a, const std::vector<T>& b)
+{
+    a.reserve(a.size() + b.size());
+    a.insert(a.end(), b.begin(), b.end());
 }
 
 // === CLAMP NUMBER WITHIN RANGE ===
@@ -292,6 +314,30 @@ T tanh_approx(T x)
 
     return 0.26037 * (x + 1.92033) * (x + 1.92033) - 0.96016;
 
+}
+
+// check if all elements in a vector are less than some value
+template <typename T, typename N>
+bool all_less(T first, T last, N test) {
+    return std::all_of(first, last, [&test = test](N i) { return i < test;} );
+}
+
+// check if all elements in a vector are less than some value
+template <typename T, typename N>
+bool all_greater(T first, T last, N test) {
+    return std::all_of(first, last, [&test = test](N i) { return i > test;} );
+}
+
+// check if all elements in a vector are less than some value
+template <typename T, typename N>
+bool all_equal(T first, T last, N test) {
+    return std::all_of(first, last, [&test = test](N i) { return i == test;} );
+}
+
+// check if any element is equal to some value
+template <typename T, typename N>
+bool any_equal(T first, T last, N test) {
+    return std::any_of(first, last, [&test = test](N i) { return i == test;} );
 }
 
 // conversion of enum class to underlying type

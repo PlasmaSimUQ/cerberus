@@ -1,27 +1,21 @@
+CEXE_headers += MFP_factory.H
 
-CEXE_headers += MFP_bc.H
-CEXE_sources += MFP_bc.cpp
+CEXE_headers += MFP_optional_func.H
+CEXE_sources += MFP_optional_func.cpp
 
-CEXE_headers += MFP_viscous.H
-CEXE_sources += MFP_viscous.cpp
+CEXE_headers += MFP_transforms.H
+CEXE_sources += MFP_transforms.cpp
 
-CEXE_headers += MFP_ode_system.H
-CEXE_sources += MFP_ode_system.cpp
+CEXE_headers += MFP_refine.H
+CEXE_sources += MFP_refine.cpp
 
-CEXE_headers += MFP_fillbc.H
-CEXE_sources += MFP_fillbc.cpp
+CEXE_headers += MFP_pdf.H
+CEXE_sources += MFP_pdf.cpp
 
-CEXE_headers += MFP_reconstruction.H
-CEXE_sources += MFP_reconstruction.cpp
+CEXE_headers += MFP_rk4.H
 
-CEXE_headers += MFP_shockdetector.H
-CEXE_sources += MFP_shockdetector.cpp
-
-include $(TOP)/Source/modules/flux/Make.package
-include $(TOP)/Source/modules/source/Make.package
-include $(TOP)/Source/modules/solver/Make.package
-include $(TOP)/Source/modules/interp/Make.package
 include $(TOP)/Source/modules/eb/Make.package
+include $(TOP)/Source/modules/boundary/Make.package
 
 INCLUDE_LOCATIONS += $(TOP)/Source/modules
 VPATH_LOCATIONS   += $(TOP)/Source/modules

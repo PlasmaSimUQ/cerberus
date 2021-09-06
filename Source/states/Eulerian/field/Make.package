@@ -1,0 +1,10 @@
+CEXE_headers += MFP_field_defs.H
+CEXE_headers += MFP_field.H
+CEXE_sources += MFP_field.cpp
+
+include $(TOP)/Source/states/Eulerian/field/refine/Make.package
+include $(TOP)/Source/states/Eulerian/field/bc/Make.package
+include $(TOP)/Source/states/Eulerian/field/riemann/Make.package
+
+INCLUDE_LOCATIONS += $(TOP)/Source/states/Eulerian/field
+VPATH_LOCATIONS   += $(TOP)/Source/states/Eulerian/field

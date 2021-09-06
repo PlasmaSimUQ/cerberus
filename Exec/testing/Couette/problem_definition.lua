@@ -19,9 +19,7 @@ viscosity = {Pr=1.0, mu0=0.005, type='UserDefined'}
 
 verbosity = 1
 cfl = 0.5
-
-do_face_sources = 0
-do_CTU = 1
+time_integration_scheme = 'strang'
 
 -- === DEFINE STATES ===
 
@@ -39,10 +37,7 @@ states = {
             rho = 1,
             p =   1,
         },
-        eb_divergence={
-          type='merge',
-          merge_threshold=0.5,
-        }
+        merge_threshold=0.5,
     },
 }
 
@@ -103,3 +98,12 @@ embedded_boundaries = {
       boolean_operation='and',
     },
 }
+
+actions = {
+
+  hydro_fluxes = {
+    type = 'CTU',
+    corner_transport=true,
+    states = {'air'},
+  },
+} 

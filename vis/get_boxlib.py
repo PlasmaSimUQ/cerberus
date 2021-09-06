@@ -118,7 +118,7 @@ def parse_FAB_header(name, dim):
 
     return data
 
-def parse_plot_header(name, fid, data):
+def  parse_plot_header(name, fid, data):
 
     # data names
 
@@ -128,7 +128,7 @@ def parse_plot_header(name, fid, data):
     
     for i in range(num_items):
         names.append(fid.readline().rstrip())
-    data["names"] = {"all":names}
+    data["names"] = {"all":names} 
 
     # dimensionality
     data["dim"] = int(fid.readline().rstrip())
@@ -138,6 +138,7 @@ def parse_plot_header(name, fid, data):
 
     # number of levels
     data["n_levels"] = int(fid.readline().rstrip()) + 1
+    data["finest_level"] = data["n_levels"]
 
     data["levels"] = []
     for i in range(data["n_levels"]):
@@ -454,8 +455,8 @@ def parse_header(name):
     num_state = data["num_state"]
     for istate in range(num_state):
         state = data["state_%i"%istate]
-        if "particle_data" in state:
-            parse_particle_header(os.path.join(name, state["particle_data"]), data, state["name"])
+        if state['type'] == 'tracer':
+            parse_particle_header(os.path.join(name, "Particles_"+state["name"]), data, state["name"])
         
 
     return data
@@ -570,13 +571,14 @@ class ReadBoxLib:
         else:
             self.limits = [self.data["dom_lo"], self.data["dom_hi"]]        
 
+        finest_level = self.data["finest_level"]
         n_levels = self.data["n_levels"]
         self.dim = self.data["dim"]
 
         if max_level < 0: 
             self.max_level = n_levels + max_level
         else:
-            self.max_level = min(max_level, n_levels)
+            self.max_level = min(max_level, n_levels, finest_level)
 
 
         if self.data:
@@ -874,37 +876,68 @@ class ReadBoxLib:
         else:
             return xc, fine
 
-    def mixture(self, alpha, name):
+
+    def mixture(self, name):
         names = self.data["hydro_names"]
-        mass = self.data["hydro_mass"]
-        charge = self.data["hydro_charge"]
-        gamma = self.data["hydro_gamma"]
-        
+
         sid = names.index(name)
-        
-        m0 = mass[sid][0]
-        m1 = mass[sid][1]
-        
-        q0 = charge[sid][0]
-        q1 = charge[sid][1]
-        
-        g0 = gamma[sid][0]
-        g1 = gamma[sid][1]
-        
-        omass =   (m0*m1)/(m0*alpha + m1*(1.0-alpha))
-        ocharge = (alpha*m0*q1 + (1.0-alpha)*m1*q0)/(m0*alpha + m1*(1.0-alpha))
-        
-        cp0 = g0/(m0*(g0-1.0))
-        cp1 = g1/(m1*(g1-1.0))
-        
-        cv0 = 1.0/(m0*(g0-1.0))
-        cv1 = 1.0/(m1*(g1-1.0))
-        
-        ogamma = ((1.0-alpha)*cp0 + alpha*cp1)/((1.0-alpha)*cv0 + alpha*cv1)
-        
-        self.flat_data["mass-"+name] = omass
-        self.flat_data["charge-"+name] = ocharge
-        self.flat_data["gamma-"+name] = ogamma
+
+        mass = self.data["hydro_mass"][sid]
+        charge = self.data["hydro_charge"][sid]
+        gamma = self.data["hydro_gamma"][sid]
+
+        n_species = len(gamma)
+        n_tracers = n_species - 1
+
+        # handle primitives vs conserved
+        alphas = []
+        try:
+            for i in range(n_tracers):
+                x, alpha = self.get("alpha_%i-%s"%(i,name))
+                alphas.append(alpha)
+        except:
+            x, rho = self.get("rho-%s"%(name))
+            for i in range(n_tracers):
+                x, tracer = self.get("tracer_%i-%s"%(i,name))
+                alphas.append(tracer/rho)
+
+
+        S_alphai_mi = 0.0
+        S_alphaiqi_mi = 0.0
+        S_alphaicpi = 0.0
+        S_alphaicvi = 0.0
+        S_alphai = 0.0
+        S_alphas = 0.0
+
+        alphai = 0.0
+        for i in range(n_tracers):
+            alphai = alphas[i]
+            alphai = np.clip(alphai, 0.0, 1.0)
+            S_alphas += alphai
+            S_alphai_mi += alphai / mass[i]
+            S_alphaiqi_mi += alphai * charge[i] / mass[i]
+            cpi = gamma[i] / (mass[i] * (gamma[i] - 1.0))
+            cvi = 1.0 / (mass[i] * (gamma[i] - 1.0))
+
+        S_alphai_mi += (1.0-S_alphas) / mass[n_tracers]
+
+        self.flat_data["mass-"+name] = 1.0 / S_alphai_mi
+
+        S_alphaiqi_mi += (1.0-S_alphas) * charge[n_tracers] / mass[n_tracers]
+        S_alphai_mi += (1.0-S_alphas) / mass[n_tracers]
+
+        self.flat_data["charge-"+name] = S_alphaiqi_mi / S_alphai_mi
+
+
+        cpi = gamma[n_tracers] / (mass[n_tracers] * (gamma[n_tracers] - 1.0))
+        cvi = 1.0 / (mass[n_tracers] * (gamma[n_tracers] - 1.0))
+
+        S_alphaicpi += (1.0 - S_alphai) * cpi
+        S_alphaicvi += (1.0 - S_alphai) * cvi
+
+        self.flat_data["gamma-"+name] = S_alphaicpi / S_alphaicvi
+
+        return 
       
     def get(self, component, grid="cell", get_refinement=False):
         """
@@ -918,18 +951,16 @@ class ReadBoxLib:
         for special in ["mass","charge","gamma"]:
             if special in component:
 
-                # handle primitive vs conserved
-                try:
-                    x, alpha = self.get(component.replace(special, "alpha"))
-                except:
-                    x, trace = self.get(component.replace(special, "tracer"))
-                    x, rho = self.get(component.replace(special, "density"))
-                    alpha = trace/rho
-                    
-                name = component.replace(special,"")
-                name = name.replace("-","")
-                self.mixture(alpha, name)
-                break
+                for name in self.data["hydro_names"]:
+                    success = False
+                    if name in component:
+                        self.mixture(name)
+                        success = True
+                        break
+                
+                if not success:
+                    raise RuntimeError("Failed to collect supporting data for "+component)
+
 
         flat = self.get_flat(component, get_refinement)
                 
@@ -1084,7 +1115,7 @@ if __name__ == "__main__":
 
     if 0:
         ds = ReadBoxLib("/home/uqdbond1/CODE/cerberus/Exec/testing/Riemann-MHD/Riemann.plt00095")
-        x, u = ds.get("density-MHD")
+        x, u = ds.get("rho-MHD")
         x, u = ds.get("y_B-MHD")
 
         plt.plot(x[0], u)
@@ -1096,7 +1127,7 @@ if __name__ == "__main__":
 
         idata, rdata = ds.get_particles("ion")
         
-        x, u = ds.get("density-ion", grid="node")
+        x, u = ds.get("rho-ion", grid="node")
 
         y, x = np.meshgrid(x[1], x[0])
 

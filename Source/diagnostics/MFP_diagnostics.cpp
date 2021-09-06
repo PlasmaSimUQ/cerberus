@@ -146,6 +146,7 @@ void plot_FAB_1d(const Box& box, const FArrayBox& src, const Vector<int> N, std:
 
         plt::subplot(npr,npc,n+1);
         plt::plot(xticks,data);
+        plt::xlim(lo.x, hi.x);
         plt::title(std::to_string(N[n]));
 
     }
@@ -285,30 +286,6 @@ void plot_FAB_eb(const Box &box, const FArrayBox& src, const FArrayBox &pts, con
 
 void plot_FAB_eb(const FArrayBox& src, const FArrayBox &pts, const int n, std::string title, bool block) {
     plot_FAB_eb(src.box(), src, pts, n, title, block);
-}
-
-void plot_poly_spline(const PolySpline poly, const std::string title, bool block)
-{
-    plt::figure_size(1200, 780);
-
-    for (const auto& shape : poly.shapes) {
-
-        Vector<double> plot_x(shape.size()), plot_y(shape.size());
-
-        for (int n=0; n<shape.size(); ++n) {
-            plot_x[n] = shape[n][0];
-            plot_y[n] = shape[n][1];
-        }
-
-        plt::plot(plot_x, plot_y, ".-");
-    }
-
-
-    plt::title(title);
-
-
-    if (block)
-        plt::show(block);
 }
 
 #endif

@@ -15,7 +15,7 @@
 #include <AMReX_Vector.H>
 
 #include "MFP.H"
-#include "MFP_global.H"
+#include "MFP_eulerian.H"
 
 #ifdef PPROF
 #include <gperftools/profiler.h>
@@ -24,7 +24,10 @@
 using namespace amrex;
 
 amrex::LevelBld* getLevelBld ();
-void initialize_EB2 (const Geometry& geom, const int required_level, const int max_level, int ngrow);
+
+#ifdef AMREX_USE_EB
+void initialize_EB2 (Amr& amr, int ngrow);
+#endif
 
 int main(int argc, char* argv[]) {
     amrex::Initialize(argc, argv);
@@ -88,18 +91,18 @@ int main(int argc, char* argv[]) {
 
         Amr amr(getLevelBld());
 
-        GlobalData::set_num_levels(amr.maxLevel()+1);
-
         int n_grow = 4;
-        for (const auto & istate : GlobalData::states) {
-            n_grow = std::max(n_grow, istate->num_grow+3);
+
+        for (int data_idx=0; data_idx<MFP::eulerian_states.size(); ++data_idx) {
+            EulerianState &istate = EulerianState::get_state(data_idx);
+            n_grow = std::max(n_grow, istate.get_num_grow()+3);
         }
 
 #ifdef AMREX_USE_EB
         AmrLevel::SetEBSupportLevel(EBSupport::full);
         AmrLevel::SetEBMaxGrowCells(n_grow, n_grow, n_grow);
 
-        initialize_EB2(amr.Geom(amr.maxLevel()), amr.maxLevel(), amr.maxLevel(), n_grow);
+        initialize_EB2(amr, n_grow);
 #endif
 
         // handle if we have archived level data in a restart folder
@@ -193,8 +196,6 @@ int main(int argc, char* argv[]) {
                    << "Run Time advance      = " << timer_advance << "\n";
 
     BL_PROFILE_VAR_STOP(pmain);
-
-    GlobalData::clean_up();
 
 #ifdef PPROF
     ProfilerStop();

@@ -1,0 +1,12 @@
+
+CEXE_headers += MFP_bc.H
+CEXE_sources += MFP_bc.cpp
+
+CEXE_headers += MFP_fillbc.H
+CEXE_sources += MFP_fillbc.cpp
+
+CEXE_headers += MFP_fillcc_eb.H
+
+
+INCLUDE_LOCATIONS += $(TOP)/Source/modules/boundary
+VPATH_LOCATIONS   += $(TOP)/Source/modules/boundary

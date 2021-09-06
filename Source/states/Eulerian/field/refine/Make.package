@@ -1,0 +1,5 @@
+CEXE_headers += MFP_field_refine.H
+CEXE_sources += MFP_field_refine.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/states/Eulerian/field/refine
+VPATH_LOCATIONS   += $(TOP)/Source/states/Eulerian/field/refine

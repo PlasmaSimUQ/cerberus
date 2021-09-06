@@ -62,6 +62,8 @@ mfp.lua = "
 verbosity = 2
 cfl = 0.5
 
+time_integration_scheme = 'one_step'
+
 -- === DEFINE PROBLEM ===
 
 lightspeed = 1.0
@@ -77,12 +79,20 @@ states = {
         value = {
             x_D = function(dat) return math.exp(-1.0*(dat['y']+5)^2)*math.cos(dat['y']*3.14159265) end,
         },
-        refine_grad_threshold = {x_D=0.2, y_D=0.2, min_value=1e-2},
-        eb_divergence={
-          type='redistribute',
-          strategy='volume',
-        }
+        refinement={name='field_gradient', x_D=0.2, y_D=0.2, min_value=1e-2},
     }
+}
+
+-- === DEFINE ACTIONS ===
+
+actions = {
+
+  fluxes = {
+    type = 'CTU',
+    corner_transport=true,
+    states = {'field'},
+  },
+  
 }
 
 -- === GEOMETRY ===
@@ -128,5 +138,4 @@ embedded_boundaries = {
   },
 
 }
-
 "

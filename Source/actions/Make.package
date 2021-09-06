@@ -1,0 +1,32 @@
+CEXE_headers += MFP_action.H
+CEXE_sources += MFP_action.cpp
+
+CEXE_headers += MFP_plasma5.H
+CEXE_sources += MFP_plasma5.cpp
+
+CEXE_headers += MFP_lorentz.H
+CEXE_sources += MFP_lorentz.cpp
+
+CEXE_headers += MFP_hydro_tracer.H
+CEXE_sources += MFP_hydro_tracer.cpp
+
+CEXE_headers += MFP_acceleration.H
+CEXE_sources += MFP_acceleration.cpp
+
+CEXE_headers += MFP_CTU_hydro.H
+CEXE_sources += MFP_CTU_hydro.cpp
+
+CEXE_headers += MFP_CTU_Braginskii.H
+CEXE_sources += MFP_CTU_Braginskii.cpp
+
+CEXE_headers += MFP_elliptic.H
+CEXE_sources += MFP_elliptic.cpp
+
+CEXE_headers += MFP_collisions.H
+CEXE_sources += MFP_collisions.cpp
+
+include $(TOP)/Source/actions/sPIC/Make.package
+
+
+INCLUDE_LOCATIONS += $(TOP)/Source/actions
+VPATH_LOCATIONS   += $(TOP)/Source/actions

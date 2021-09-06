@@ -1,0 +1,5 @@
+CEXE_headers += MFP_hydro_bc.H
+CEXE_sources += MFP_hydro_bc.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/states/Eulerian/hydro/bc
+VPATH_LOCATIONS   += $(TOP)/Source/states/Eulerian/hydro/bc

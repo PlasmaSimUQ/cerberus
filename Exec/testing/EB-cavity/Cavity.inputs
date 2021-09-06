@@ -15,7 +15,7 @@ geometry.coord_sys   = 0  # 0 => cart, 1 => RZ  2=>spherical
 # lo. res.
 geometry.prob_lo     =     0 0 0
 geometry.prob_hi     =     1 1 1
-amr.n_cell           =     128 128
+amr.n_cell           =     64 64
 
 # ======== LOAD BALANCE ==========
 amr.loadbalance_with_workestimates = 1

@@ -1,12 +1,8 @@
-
 CEXE_headers += MFP_state.H
 CEXE_sources += MFP_state.cpp
-CEXE_sources += MFP_state_eb.cpp
 
-include $(TOP)/Source/states/hydro/Make.package
-include $(TOP)/Source/states/hydro2p/Make.package
-include $(TOP)/Source/states/mhd/Make.package
-include $(TOP)/Source/states/field/Make.package
+include $(TOP)/Source/states/Eulerian/Make.package
+include $(TOP)/Source/states/Lagrangian/Make.package
 
 INCLUDE_LOCATIONS += $(TOP)/Source/states
 VPATH_LOCATIONS   += $(TOP)/Source/states

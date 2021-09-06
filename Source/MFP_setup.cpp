@@ -1,191 +1,189 @@
+#include "MFP.H"
+#include "MFP_state.H"
+#include "MFP_bc.H"
+#include <AMReX_ParmParse.H>
 
-#include <MFP.H>
-#include <MFP_fillbc.H>
-#include <MFP_utility.H>
-
-#include <functional>
-
-
-void MFP::variableSetUp() {
+void MFP::variableSetUp()
+{
     BL_PROFILE("MFP::variableSetUp");
     // read in all of the user defined parameters
     read_params();
 
-    bool state_data_extrap = false;
-    bool store_in_checkpoint = true;
-    Vector<std::string> comp_names;
+    ParmParse pgm("geometry");
+    Vector<int> periodic(AMREX_SPACEDIM,0);
+    pgm.queryarr("is_periodic",periodic);
 
-    // select the interpolation routine
-#ifdef AMREX_USE_EB
-    Interpolater* interp = &eb_cell_cons_interp;
-#else
-    Interpolater* interp = &cell_cons_interp;
-#endif
-
-    for (int idx=0; idx<gd.num_solve_state; ++idx) {
-
-        State &istate = *gd.states[idx];
-
-        int nc = istate.n_cons();
-        int np = istate.n_prim();
-        comp_names.resize(nc);
-
-        // get the list of bc setting functions that applies to this type of state
-        const Vector<set_bc> &setbc = istate.get_bc_set();
-        const Vector<std::string> &cons_names = gd.states[idx]->get_cons_names();
-
-        istate.boundary_conditions.fill_bc.resize(np);
-
-        for (int icomp=0; icomp < np; ++icomp) {
-            set_bc s = setbc[icomp]; // the function that sets the bc
-
-            // make sure our periodicity isn't being overwritten
-            for (int d=0; d<AMREX_SPACEDIM; ++d) {
-                if (gd.periodic[d]) {
-                    istate.boundary_conditions.phys_fill_bc[icomp].setLo(d, PhysBCType::interior);
-                    istate.boundary_conditions.phys_fill_bc[icomp].setHi(d, PhysBCType::interior);
-                }
-            }
-
-            // grab the per component BCRec and apply the set bc function to it
-            (*s)(istate.boundary_conditions.fill_bc[icomp], istate.boundary_conditions.phys_fill_bc[icomp]);
-        }
-
-        for (int icomp=0; icomp < nc; ++icomp) {
-            comp_names[icomp] = cons_names[icomp] + "-" + gd.state_names[idx];
-        }
-
-        int ng = istate.num_grow;
-
-        desc_lst.addDescriptor(idx, IndexType::TheCellType(),
-                               StateDescriptor::Point, ng, nc,
-                               interp, state_data_extrap,
-                               store_in_checkpoint);
-
-        desc_lst.setComponent(
-                    idx, 0, comp_names, istate.boundary_conditions.fill_bc,
-                    FillBC());
-
-
-        if (gd.verbose >= 1) {
-            Print() << istate.str();
-        }
-
+    for (auto& state : states) {
+        state->variable_setup(periodic);
     }
 
     //===================
     // cost state
 
-    gd.Cost_Idx = desc_lst.size();
+    Cost_Idx = desc_lst.size();
 
-    // just grab any old BCRec, its not applied anyway
+    // just generate a bc
     BCRec bc;
-    set_scalar_bc(bc, gd.states[0]->boundary_conditions.fill_bc[0]);
-
-    desc_lst.addDescriptor(gd.Cost_Idx, IndexType::TheCellType(),
-                           StateDescriptor::Point, 0, 1, &pc_interp);
-    desc_lst.setComponent(gd.Cost_Idx, 0, "Cost", bc,
-                          NullFillBC());
-
-    //===================
-    // shock tracking state
-    gd.Shock_Idx = -1;
-    if (gd.num_shock_detector) {
-        gd.Shock_Idx = desc_lst.size();
-
-        desc_lst.addDescriptor(gd.Shock_Idx, IndexType::TheCellType(),
-                               StateDescriptor::Point, 0, gd.num_shock_detector, &pc_interp);
-        desc_lst.setComponent(gd.Shock_Idx, 0, "Shock", bc,
-                              NullFillBC());
+    for (int i=0; i<AMREX_SPACEDIM; ++i) {
+        bc.setLo(i,BCType::foextrap);
+        bc.setHi(i,BCType::foextrap);
     }
 
-    //===================
-    gd.num_states = desc_lst.size();
+    desc_lst.addDescriptor(Cost_Idx, IndexType::TheCellType(),
+                           StateDescriptor::Point, 0, 1, &pc_interp);
+    desc_lst.setComponent(Cost_Idx, 0, "Cost", bc,
+                          NullFillBC());
+
 
     StateDescriptor::setBndryFuncThreadSafety(true);
 
     return;
 }
 
-void MFP::init_data(const Box& box,
-                    EB_OPTIONAL(const EBCellFlagFab& flag,)
-                    FArrayBox& src,
-                    const Real* dx,
-                    const Real* prob_lo,
-                    const int idx)
+void MFP::variableCleanUp()
 {
-    BL_PROFILE("MFP::init_data");
+    desc_lst.clear();
 
-    const Dim3 lo = amrex::lbound(box);
-    const Dim3 hi = amrex::ubound(box);
-    Array4<Real> const& h4 = src.array();
+    for (auto& state : states) {
+        state.reset();
+    }
 
-    State &istate = *gd.states[idx];
+    states.clear();
 
 #ifdef AMREX_USE_EB
-    Array4<const EBCellFlag> const& flag4 = flag.array();
+    eb_data.clear();
 #endif
 
-    Real x, y, z;
-    int n_prim = istate.n_prim();
-    int n_cons = istate.n_cons();
-    Vector<Real> Q(n_prim), U(n_cons);
-    const Vector<std::string> &prim_names = gd.states[idx]->get_prim_names();
+}
 
-    for     (int k = lo.z; k <= hi.z; ++k) {
-        z = prob_lo[2] + (k + 0.5)*dx[2];
-        for   (int j = lo.y; j <= hi.y; ++j) {
-            y = prob_lo[1] + (j + 0.5)*dx[1];
-            AMREX_PRAGMA_SIMD
-                    for (int i = lo.x; i <= hi.x; ++i) {
-                x = prob_lo[0] + (i + 0.5)*dx[0];
-
+void MFP::build_eb() {
 #ifdef AMREX_USE_EB
-                const EBCellFlag &cflag = flag4(i,j,k);
+    BL_PROFILE("MFP::build_eb()");
 
-                if (cflag.isCovered()) {
-                    for (int n=0; n<n_cons; ++n) {
-                        h4(i,j,k,n) = 0.0;
-                    }
+    // make sure dx == dy == dz
+    const Real* dx = geom.CellSize();
+    for (int i = 1; i < AMREX_SPACEDIM; ++i) {
+        if (std::abs(dx[0] - dx[i]) > 1.e-12 * dx[0]) {
+            amrex::Abort("MFP: must have dx == dy == dz\n");
+        }
+    }
+
+
+    // get the information for each embedded boundary
+    const Vector<int> ngrow = {m_eb_basic_grow_cells,m_eb_volume_grow_cells,m_eb_full_grow_cells};
+
+    eb_data.resize(level+1);
+    eb_data[level].resize(states.size());
+
+    for (const auto& state : states) {
+
+        EBData& eb = get_eb_data(state->global_idx);
+
+        eb.ebfactory = makeEBFabFactory (state->eb2_index,
+                                                     geom,
+                                                     grids,
+                                                     dmap,
+                                                     ngrow,
+                                                     EBSupport::full);
+
+
+        const auto& flags_orig = eb.ebfactory->getMultiEBCellFlagFab();
+        eb.flags.define(grids, dmap, 1, flags_orig.n_grow);
+        eb.flags.copy(flags_orig,0,0,1,flags_orig.n_grow,flags_orig.n_grow,geom.periodicity());
+
+        const auto& vfrac_original = eb.ebfactory->getVolFrac();
+        eb.volfrac.define(grids, dmap, 1, vfrac_original.n_grow);
+        eb.volfrac.copy(vfrac_original,0,0,1,vfrac_original.n_grow,vfrac_original.n_grow,geom.periodicity());
+
+        eb.bndrycent = &(eb.ebfactory->getBndryCent());
+        eb.bndrynorm = &(eb.ebfactory->getBndryNormal());
+        eb.areafrac = eb.ebfactory->getAreaFrac();
+        eb.facecent = eb.ebfactory->getFaceCent();
+
+        // different boundary conditions
+        eb.bndryidx.define(grids, dmap, 1, m_eb_basic_grow_cells, flags_orig);
+        eb.bndryidx.setVal(-1.0);
+
+        // update ghost cells
+        auto& flags = eb.flags;
+        auto& vfrac = eb.volfrac;
+
+        for (MFIter mfi(vfrac); mfi.isValid(); ++mfi){
+
+            //            plot_FAB_2d(flags[mfi], "flags before", false);
+            //            plot_FAB_2d(vfrac[mfi], 0, "vfrac before", false,false);
+
+            state->update_eb_vfrac(geom,vfrac[mfi]);
+            state->update_eb_flags(geom,flags[mfi]);
+
+            //            plot_FAB_2d(flags[mfi], "flags after", false);
+            //            plot_FAB_2d(vfrac[mfi], 0, "vfrac after", false,true);
+        }
+    }
+
+
+
+    // loop over all of the individual EB definitions and put an id into bndryidx wherever there is
+    // a boundary
+    for (const auto &eb : eb_def) {
+
+        std::unique_ptr<EBFArrayBoxFactory> bc_ebfactory = makeEBFabFactory(eb.index_space,
+                                                                            geom,
+                                                                            grids,
+                                                                            dmap,
+                                                                            ngrow,
+                                                                            EBSupport::full);
+
+        const FabArray<EBCellFlagFab>& bc_flags = bc_ebfactory->getMultiEBCellFlagFab();
+
+        for (const auto& si : eb.states) {
+            EBData& ebd = get_eb_data(si.first);
+            MultiCutFab& bndryidx = ebd.bndryidx;
+            const FabArray<EBCellFlagFab>& state_flags = ebd.flags;
+
+            // fill in all entries of the bndryidx with the appropriate index
+            for (MFIter mfi(bc_flags); mfi.isValid(); ++mfi){
+                const Box& box = mfi.growntilebox();
+
+                const EBCellFlagFab& bc_flag = bc_flags[mfi];
+                const EBCellFlagFab& state_flag = state_flags[mfi];
+
+
+
+                // check if there is anything to do in this box
+                if ((bc_flag.getType(box) != FabType::singlevalued) || (state_flag.getType(box) != FabType::singlevalued))
                     continue;
-                }
-#endif
 
-                // grab the primitive variables as defined by the user functions
-                for (int icomp=0; icomp<n_prim; ++icomp) {
-                    const std::string& prim_name = prim_names[icomp];
-                    const auto& f = istate.functions[prim_name];
+                const Dim3 lo = amrex::lbound(box);
+                const Dim3 hi = amrex::ubound(box);
 
-                    Q[icomp] = f(x, y, z);
+                CutFab& fab_idx = bndryidx[mfi];
 
-                }
+                const Array4<const EBCellFlag>& bc_flag4 = bc_flag.array();
+                const Array4<const EBCellFlag>& state_flag4 = state_flag.array();
+                const Array4<Real>& fab_idx4 = fab_idx.array();
 
-                // convert primitive to conserved
-                istate.prim2cons(Q, U);
+                for     (int k = lo.z; k <= hi.z; ++k) {
+                    for   (int j = lo.y; j <= hi.y; ++j) {
+                        AMREX_PRAGMA_SIMD
+                                for (int i = lo.x; i <= hi.x; ++i) {
 
-                // copy into array
-                for (int n=0; n<n_cons; ++n) {
-                    h4(i,j,k,n) = U[n];
+                            if (bc_flag4(i,j,k).isSingleValued() && state_flag4(i,j,k).isSingleValued()) {
+                                fab_idx4(i,j,k) = si.second; // the index into the states list of eb boundary conditions
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 
+    level_mask.clear();
+    level_mask.define(grids, dmap, 1, 2);
+    level_mask.BuildMask(geom.Domain(), geom.periodicity(), level_mask_covered,
+                         level_mask_notcovered, level_mask_physbnd,
+                         level_mask_interior);
+#endif
     return;
 }
 
-void MFP::variableCleanUp() {
-    BL_PROFILE("MFP::variableCleanUp");
-#ifdef AMREX_PARTICLES
-    if (gd.do_tracer_particles) {
-        for (AmrTracerParticleContainer* TracerPC : particles) {
-            if (TracerPC) {
-                delete TracerPC;
-                TracerPC = 0;
-            }
-        }
-    }
-#endif
-
-    desc_lst.clear();
-}

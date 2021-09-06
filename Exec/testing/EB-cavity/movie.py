@@ -25,7 +25,7 @@ def get_velocity_magnitude(ds, c):
     return {"x":x[0], "y":x[1], "value":np.sqrt(u**2 + v**2)}
 
 def get_alpha(ds, c):
-    x, a = ds.get("alpha-air", grid='node')
+    x, a = ds.get("alpha_0-air", grid='node')
     return {"x":x[0], "y":x[1], "value":a}
 
 def get_vfrac(ds, c):
@@ -33,7 +33,7 @@ def get_vfrac(ds, c):
     return {"x":x[0], "y":x[1], "value":v}
 
 def get_particles(ds, c):
-    idat, rdat =  ds.get_particles('air')
+    idat, rdat =  ds.get_particles('tracer')
     return {"i":idat, "r":rdat}
 
 def get_boxes(ds, c):

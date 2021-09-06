@@ -1,0 +1,5 @@
+CEXE_headers += MFP_hydro_refine.H
+CEXE_sources += MFP_hydro_refine.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/states/Eulerian/hydro/refine
+VPATH_LOCATIONS   += $(TOP)/Source/states/Eulerian/hydro/refine

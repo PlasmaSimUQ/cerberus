@@ -2,6 +2,8 @@
 verbosity = 2
 cfl = 0.5
 
+time_integration_scheme = 'one_step'
+
 -- === DEFINE PROBLEM ===
 
 ref_density = 4.4e-2 --1.20 -- kg/m^-3
@@ -37,12 +39,9 @@ states = {
         reconstruction='MC', 
         flux='HLLE/HLLC',
         shock_detector={name='pressure_jump_detector', threshold=0.1},
-        refine_grad_threshold = {rho=0.5},
+        refinement={name='hydro_gradient', rho=0.5},
         -- viscosity=Sutherland,
-        eb_divergence={
-          type='merge',
-          merge_threshold=0.5,
-        },
+        merge_threshold=0.5,
         value = {
             rho = rho_0,
             p =   p_0,
@@ -63,6 +62,17 @@ states = {
             },
         },
     },
+}
+
+-- === ACTIONS ===
+
+actions = {
+
+  hydro_fluxes = {
+    type = 'CTU',
+    corner_transport=true,
+    states = {'fluid'},
+  },
 }
 
 -- === GEOMETRY ===

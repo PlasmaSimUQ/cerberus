@@ -90,8 +90,8 @@ states = {
 
     field = {
         type='field',
+        reconstruction='O6',
         static=1,
-        
     },
     
     ion = {
@@ -101,7 +101,7 @@ states = {
         gamma=5/3, 
         reconstruction='minmod', 
         flux='HLLC',
-        refine_grad_threshold = {rho=0.1},
+        refinement={name='hydro_gradient', rho=0.1},
         value = {
             nd = ion_number_density,
             p =   1.0,
@@ -115,7 +115,7 @@ states = {
         gamma=5/3, 
         reconstruction='minmod',  
         flux='HLLC',
-        refine_grad_threshold = {rho=0.1},
+        refinement={name='hydro_gradient', rho=0.1},
         value = {
             nd = 1.0,
             p =  1.0,
@@ -125,16 +125,23 @@ states = {
 
 -- === SOURCE TERMS ===
 
-sources = {
+actions = {
+    hydro_fluxes = {
+        type = 'CTU',
+        corner_transport=true,
+        states = {'ion', 'electron'},
+    },
 
     plasma={
-        solver = 'explicit',
-        sources = {
-            plasma={'ion', 'electron', 'field',
-                type='plasma5',
-            },
-        },
-    },    
+        type='Lorentz',
+        states = {'ion', 'electron', 'field'},
+     },
+
+     fields = {
+        type='elliptic',
+        projection=0,
+        state = 'field',
+     },
 }
 
 -- === GEOMETRY ===
@@ -195,10 +202,9 @@ embedded_boundaries = {
         ion={type='slip_wall'},
         electron={type='slip_wall'},
       },
-      set='union',
+      boolean_operation='and',
     },
     
-
     anode = {
       geom=anode,
       bcs={
@@ -206,7 +212,7 @@ embedded_boundaries = {
         ion={type='slip_wall'},
         electron={type='slip_wall'},
       },
-      set='union',
+      boolean_operation='and',
     },
     
     cathode = {
@@ -217,7 +223,7 @@ embedded_boundaries = {
         electron={type='slip_wall'},
         --electron={type='dirichlet',rho=1.0, x_vel=0.0},
       },
-      set='union',
+      boolean_operation='and',
     },
 
 }

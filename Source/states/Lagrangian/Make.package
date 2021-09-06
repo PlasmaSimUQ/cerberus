@@ -1,0 +1,14 @@
+CEXE_headers += MFP_lagrangian.H
+CEXE_sources += MFP_lagrangian.cpp
+
+CEXE_headers += MFP_tracerH
+CEXE_sources += MFP_tracer.cpp
+
+CEXE_headers += MFP_chargedparticle.H
+CEXE_sources += MFP_chargedparticle.cpp
+
+CEXE_headers += MFP_distribution.H
+CEXE_sources += MFP_distribution.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/states/Lagrangian
+VPATH_LOCATIONS   += $(TOP)/Source/states/Lagrangian

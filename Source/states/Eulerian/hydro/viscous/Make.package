@@ -1,0 +1,5 @@
+CEXE_headers += MFP_hydro_viscous.H
+CEXE_sources += MFP_hydro_viscous.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/states/Eulerian/hydro/viscous
+VPATH_LOCATIONS   += $(TOP)/Source/states/Eulerian/hydro/viscous

@@ -31,7 +31,7 @@ def get_tracer_data(f):
     ds = ReadBoxLib(f)
     print(f," @ ",ds.time)
     
-    idata, rdata = ds.get_particles(component)
+    idata, rdata = ds.get_particles("electron_tracer")
     idx = idata[:,0]
     cpu = idata[:,1]
     x = rdata[:,0]

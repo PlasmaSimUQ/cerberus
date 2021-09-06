@@ -3,13 +3,14 @@
 
 #include "sol.hpp"
 
-template <typename T, size_t N>
-void expand(const sol::object &in, std::array<T,N> &out) {
+template <typename T>
+void set_values(const sol::object &in, std::vector<T> &out) {
     if (in.get_type() == sol::type::number) {
-        out.fill(in.as<T>());
+        out.push_back(in.as<T>());
     } else if (in.get_type() == sol::type::table) {
         const sol::table m = in.as<sol::table>();
-        for (int i=0; i<N; ++i) {
+        out.resize(m.size());
+        for (int i=0; i<m.size(); ++i) {
             out[i] = m[i+1];
         }
     }

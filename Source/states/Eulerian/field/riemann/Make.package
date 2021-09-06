@@ -1,0 +1,11 @@
+CEXE_headers += MFP_field_riemann.H
+CEXE_sources += MFP_field_riemann.cpp
+
+CEXE_headers += MFP_field_hlle.H
+CEXE_sources += MFP_field_hlle.cpp
+
+CEXE_headers += MFP_field_RH.H
+CEXE_sources += MFP_field_RH.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/states/Eulerian/field/riemann
+VPATH_LOCATIONS   += $(TOP)/Source/states/Eulerian/field/riemann

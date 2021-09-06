@@ -13,3 +13,5 @@ python3 pressure_definition.py
 mpirun -n 4 ${EXE} ${INPUTS} 2>&1 | tee run_log.txt
 
 python3 check.py
+
+../visit.sh .

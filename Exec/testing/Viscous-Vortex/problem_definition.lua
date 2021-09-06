@@ -45,8 +45,8 @@ viscosity = {Pr=0.71, mu0=mu0, T0=ref_temp, n=1, type='PowerLaw'}
 verbosity = 1
 cfl = 0.5
 
-do_face_sources = 0
-do_CTU = 1
+
+time_integration_scheme = 'one_step'
 
 refine_boxes = {
     {{-8, -8}, {8, 8}, type='force_refine'},
@@ -71,5 +71,17 @@ states = {
             p =   flow_p,
             alpha = 0,
         },
+        refinement={name='hydro_gradient', rho=0.1},
     },
+}
+
+-- === ACTIONS ===
+
+actions = {
+
+  hydro_fluxes = {
+    type = 'CTU',
+    corner_transport=true,
+    states = {'air'},
+  },
 }

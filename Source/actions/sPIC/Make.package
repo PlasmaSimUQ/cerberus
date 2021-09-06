@@ -1,0 +1,12 @@
+CEXE_headers += MFP_interpolation.H
+CEXE_sources += MFP_interpolation.cpp
+
+CEXE_headers += MFP_poly.H
+
+CEXE_headers += MFP_symplectic.H
+CEXE_sources += MFP_symplectic.cpp
+
+CEXE_sources += MFP_theta.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/actions/sPIC
+VPATH_LOCATIONS   += $(TOP)/Source/actions/sPIC

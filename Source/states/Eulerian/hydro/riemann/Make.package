@@ -1,0 +1,20 @@
+CEXE_headers += MFP_hydro_riemann.H
+CEXE_sources += MFP_hydro_riemann.cpp
+
+CEXE_headers += MFP_ausmdv.H
+CEXE_sources += MFP_ausmdv.cpp
+
+CEXE_headers += MFP_hllc.H
+CEXE_sources += MFP_hllc.cpp
+
+CEXE_headers += MFP_hybrid_hll.H
+CEXE_sources += MFP_hybrid_hll.cpp
+
+CEXE_headers += MFP_hydro_hlle.H
+CEXE_sources += MFP_hydro_hlle.cpp
+
+CEXE_headers += MFP_hydro_shockdetector.H
+CEXE_sources += MFP_hydro_shockdetector.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/states/Eulerian/hydro/riemann
+VPATH_LOCATIONS   += $(TOP)/Source/states/Eulerian/hydro/riemann

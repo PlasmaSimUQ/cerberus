@@ -27,7 +27,7 @@ def get_tracer_data(f):
     ds = ReadBoxLib(f)
     print(f," @ ",ds.time)
     
-    idata, rdata = ds.get_particles(component)
+    idata, rdata = ds.get_particles("tracer")
 
     return idata, rdata
 

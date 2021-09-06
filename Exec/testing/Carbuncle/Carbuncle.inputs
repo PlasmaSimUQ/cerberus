@@ -53,15 +53,12 @@ amr.plot_per          = 0.05
 
 mfp.lua = "
 
+lightspeed = 1
 
 verbosity = 1
 cfl = 0.8
 
-force_dt = 0.0
-
 -- ======== PROBLEM ==========
-
-lightspeed = 1.0
 
 shock_x = 0.0
 
@@ -133,14 +130,23 @@ states = {
         gamma=gam, 
         reconstruction='minmod', 
         flux='HLLE/HLLC',
-        shock_detector={name='pressure_jump_detector', threshold=10.0},
-        refine_grad_threshold = {rho=0.1},
+        shock_detector={name='pressure_jump_detector', threshold=0.1},
+        refinement={name='hydro_gradient', rho=0.1},
         value = {
             nd = number_density,
             x_vel =   velocity_x,
             p =   pressure,
             alpha = tracer,
         }
+    },
+}
+
+actions = {
+
+  hydro_fluxes = {
+    type = 'CTU',
+    corner_transport=true,
+    states = {'neutral'},
     },
 }
 

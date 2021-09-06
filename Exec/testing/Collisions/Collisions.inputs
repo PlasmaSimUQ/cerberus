@@ -48,7 +48,7 @@ amr.check_per               = 0.005
 # PLOTFILES
 amr.plot_files_output = 1
 amr.plot_file         = Collisions.plt     # root name of plotfile
-amr.plot_int          = 1      # number of timesteps between plotfiles
+amr.plot_int          = 10      # number of timesteps between plotfiles
 amr.plot_per          = -1
 
 
@@ -59,10 +59,10 @@ amr.plot_per          = -1
 
 mfp.lua = "
 
-zero_dimensional = 1
+time_integration_scheme = 'one_step'
 
 verbosity = 2
-cfl = 0.025
+cfl = 0.5
 
 force_dt = 0.0001
 
@@ -129,20 +129,14 @@ states = {
 }
 
 
-sources = {
-
-    collide = {
-        solver='explicit',
-        sources = {
-            collisions={'A', 'B',
-                type='collisions',
-                cross_sections={
-                    A={B=1.0, C=1.0},
-                },
-            },
+actions = {
+    collisions={
+        type='collisions',
+        states = {'A', 'B'},
+        cross_sections={
+            A={B=1.0, C=1.0},
         },
     },
-    
 }
 
 "

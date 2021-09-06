@@ -1,0 +1,11 @@
+CEXE_headers += MFP_hydro_defs.H
+CEXE_headers += MFP_hydro.H
+CEXE_sources += MFP_hydro.cpp
+
+include $(TOP)/Source/states/Eulerian/hydro/refine/Make.package
+include $(TOP)/Source/states/Eulerian/hydro/bc/Make.package
+include $(TOP)/Source/states/Eulerian/hydro/riemann/Make.package
+include $(TOP)/Source/states/Eulerian/hydro/viscous/Make.package
+
+INCLUDE_LOCATIONS += $(TOP)/Source/states/Eulerian/hydro
+VPATH_LOCATIONS   += $(TOP)/Source/states/Eulerian/hydro

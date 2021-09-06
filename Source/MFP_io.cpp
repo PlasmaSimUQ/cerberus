@@ -1,8 +1,5 @@
 
-
 #include <AMReX_ParmParse.H>
-#include <MFP.H>
-#include <MFP_utility.H>
 #include <algorithm>
 #include <utility>
 
@@ -12,13 +9,14 @@
 #include <AMReX_MultiCutFab.H>
 #endif
 
-#include "MFP_global.H"
+#include "MFP.H"
+#include "MFP_state.H"
+#include "MFP_eulerian.H"
+#include "MFP_lagrangian.H"
+#include "MFP_utility.H"
 #include "MFP_diagnostics.H"
 #include "json.hpp"
 
-#ifdef AMREX_USE_HDF5
-#include <hdf5.h>
-#endif
 
 
 
@@ -29,6 +27,93 @@ std::string MFP::getVersion()
     return CERBERUS_GIT_NAME + std::string("_") + CERBERUS_GIT_VERSION;
 }
 
+#ifdef AMREX_USE_EB
+bool MFP::check_covered_stencil(Array4<const EBCellFlag> const& flag, int i, int j, int k, int d, int stencil_length)
+{
+    BL_PROFILE("State::check_covered_stencil");
+    Array<int,3> stencil_index;
+    int offset = stencil_length/2;
+    // cell that references a covered cell doesn't need calculating
+    stencil_index.fill(0);
+    for (int s=0; s<stencil_length; ++s) {
+        stencil_index[d] = s - offset;
+        // check if any of the stencil values are from a covered cell
+        if (flag(i+stencil_index[0], j+stencil_index[1], k+stencil_index[2]).isCovered()) {
+            return true;
+        }
+    }
+    return false;
+}
+#endif
+
+void MFP::calc_slope(const Box& box,
+                     const FArrayBox& src,
+                     FArrayBox &slope,
+                     #ifdef AMREX_USE_EB
+                     const EBCellFlagFab &flag,
+                     #endif
+                     const Real *dx,
+                     int index,
+                     int dim)
+{
+    /*
+    BL_PROFILE("State::calc_slope");
+    const Dim3 lo = amrex::lbound(box);
+    const Dim3 hi = amrex::ubound(box);
+
+    Array4<const Real> const& src4 = src.array();
+
+#ifdef AMREX_USE_EB
+    Array4<const EBCellFlag> const& f4 = flag.array();
+    bool check_eb = flag.getType() != FabType::regular;
+
+#endif
+
+    Vector<Real> stencil(reco.stencil_length);
+    int offset = reco.stencil_length/2;
+    Array<int,3> stencil_index;
+
+
+
+    // make sure our array is the corect size
+    slope.resize(box);
+
+    Array4<Real> const& s4 = slope.array();
+
+
+
+    for     (int k = lo.z; k <= hi.z; ++k) {
+        for   (int j = lo.y; j <= hi.y; ++j) {
+            AMREX_PRAGMA_SIMD
+                    for (int i = lo.x; i <= hi.x; ++i) {
+
+
+                stencil_index.fill(0);
+
+#ifdef AMREX_USE_EB
+                if (check_eb) {
+                    // covered cell doesn't need calculating
+                    if (f4(i,j,k).isCovered() || check_covered_stencil(f4, i, j, k, dim, reco.stencil_length)) {
+                        s4(i,j,k) = 0.0;
+                        continue;
+                    }
+                }
+#endif
+
+                for (int s=0; s<reco.stencil_length; ++s) {
+                    stencil_index[dim] = s - offset;
+                    stencil[s] = src4(i+stencil_index[0], j+stencil_index[1], k+stencil_index[2], index);
+                }
+
+                // perform reconstruction
+                s4(i,j,k) = reco.get_slope(stencil)/dx[dim]; // account for local cell size
+            }
+        }
+    }
+
+    */
+    return;
+}
 
 
 
@@ -40,10 +125,10 @@ void MFP::getPlotData(MultiFab &plot_data,
 {
     BL_PROFILE("MFP::getPlotData");
     int nv = 0; // specified variables
-    int nf = gd.plot_functions.size(); // user defined functions
+    int nf = plot_functions.size(); // user defined functions
     int N = 0; // total outputs
 
-    for (const auto& f : gd.plot_variables) {
+    for (const auto& f : plot_variables) {
         const int idx = f.second[0];
         if (idx > -1) {
             plot_names.resize(max((int)plot_names.size(), idx+1));
@@ -56,34 +141,38 @@ void MFP::getPlotData(MultiFab &plot_data,
     plot_names.resize(N);
 
     for (int fi=0; fi<nf; ++fi) {
-        plot_names[nv+fi] = gd.plot_functions[fi].first;
+        plot_names[nv+fi] = plot_functions[fi].first;
     }
 
     plot_data.define(grids, dmap, N, 0);
+    plot_data.setVal(0.0);
 
     const Real* dx = geom.CellSize();
     const Real* prob_lo =  geom.ProbLo();
     const Real time = parent->cumTime();
 
     // get all the data
-    Vector<MultiFab> U(gd.num_solve_state);
-    for (int idx=0; idx<gd.num_solve_state; ++idx) {
-        State &istate = gd.get_state(idx);
+    Vector<MultiFab> U(states.size());
+
+    for (int data_idx=0; data_idx<eulerian_states.size(); ++data_idx) {
+
+        EulerianState &istate = EulerianState::get_state(data_idx);
+
         // get a full array of data at this level
-        int ns = desc_lst[idx].nComp();
-        int ng = istate.num_grow;
-        U[idx].define(grids, dmap, ns, ng, MFInfo(),Factory());
+        int ns = desc_lst[data_idx].nComp();
+        int ng = istate.get_num_grow();
+        U[data_idx].define(grids, dmap, ns, ng, MFInfo(),Factory());
 
 #ifdef AMREX_USE_EB
         EB2::IndexSpace::push(const_cast<EB2::IndexSpace*>(istate.eb2_index));
 #endif
-        FillPatch(*this, U[idx], ng, time, idx, 0, ns, 0);
+        FillPatch(*this, U[data_idx], ng, time, data_idx, 0, ns, 0);
     }
 
 
-    std::map<std::string,Real> dat = {{"Larmor",gd.Larmor}, {"Debye",gd.Debye},
-                                      {"c",gd.lightspeed}, {"skin_depth",gd.skin_depth},
-                                      {"beta",gd.beta},{"t",time}};
+    std::map<std::string,Real> dat = {{"Larmor",Larmor}, {"Debye",Debye},
+                                      {"c",lightspeed}, {"skin_depth",skin_depth},
+                                      {"beta",beta},{"t",time}};
 
 
     std::map<std::string,FArrayBox> dat_arrays;
@@ -92,46 +181,48 @@ void MFP::getPlotData(MultiFab &plot_data,
     const Array<std::string, AMREX_SPACEDIM> grad = {AMREX_D_DECL("-dx","-dy","-dz")};
     Vector<std::string> updated;
 
-    MultiFab& cost = get_new_data(gd.Cost_Idx);
+    MultiFab& cost = get_data(Cost_Idx, time);
+
 
     for (MFIter mfi(cost); mfi.isValid(); ++mfi) {
         const Box& orig_box = mfi.tilebox();
 
-        for (const auto& pair : gd.plot_variables) {
+        for (const auto& pair : plot_variables) {
             dat_arrays[pair.first].resize(orig_box,1);
         }
 
         // cost
-        const bool get_cost = gd.plot_variables.find("cost") != gd.plot_variables.end();
+        const bool get_cost = plot_variables.find("cost") != plot_variables.end();
         if (get_cost) {
             dat_arrays["cost"].copy(cost[mfi]);
         }
 
-        for (int idx=0; idx<gd.num_solve_state; ++idx) {
-            State &istate = gd.get_state(idx);
-            const Box box = grow(orig_box,istate.num_grow);
+        for (int data_idx=0; data_idx<eulerian_states.size(); ++data_idx) {
+            EulerianState &istate = EulerianState::get_state(data_idx);
+
+            const Box box = grow(orig_box,istate.get_num_grow());
 
 #ifdef AMREX_USE_EB
-            const EBCellFlagFab& flag = getEBData(idx).flags[mfi];
-            const FArrayBox& vfrac = getEBData(idx).volfrac[mfi];
+            EBData& eb = get_eb_data(istate.global_idx);
+            //            const EBCellFlagFab& flag = eb.flags[mfi];
+            const FArrayBox& vfrac = eb.volfrac[mfi];
 #endif
 
             // raw values
-            istate.get_state_values(box, U[idx][mfi], dat_arrays, updated EB_OPTIONAL(,vfrac));
-
-            // shock detector
-            std::string shock_name = "shock-"+istate.name;
-            const bool get_shock = gd.plot_variables.find(shock_name) != gd.plot_variables.end();
-            if ((istate.shock_idx > -1) && get_shock) {
-                MultiFab& S = get_new_data(gd.Shock_Idx);
-                dat_arrays[shock_name].copy(S[mfi], orig_box, SrcComp(istate.shock_idx), DestComp(0), NumComps(1));
-            }
+            istate.get_plot_output(box,
+                                   U[data_idx][mfi],
+                                   dat_arrays,
+                                   updated
+                       #ifdef AMREX_USE_EB
+                                   ,vfrac
+                       #endif
+                                   );
 
             // get any gradients
 
-            for (const std::string& var_name : updated) {
+            /*for (const std::string& var_name : updated) {
 
-                const Array<int,AMREX_SPACEDIM+1> var_grad = gd.plot_variables[var_name];
+                const Array<int,AMREX_SPACEDIM+1> var_grad = plot_variables[var_name];
 
                 for (int i=0; i<AMREX_SPACEDIM; ++i) {
                     if (!var_grad[i+1]) continue;
@@ -139,7 +230,7 @@ void MFP::getPlotData(MultiFab &plot_data,
                     // this should really go in the startup routine in global_data.cpp
                     // but it would require a not insignificant amount of work, so here it is
                     if (istate.reconstruction->stencil_length < 2) {
-                        PhysicsFactory<Reconstruction> rfact = GetReconstructionFactory();
+                        ClassFactory<Reconstruction> rfact = GetReconstructionFactory();
                         std::string msg = "";
                         msg += "Gradient requested for "+var_name+" but state '";
                         msg += istate.name;
@@ -154,17 +245,19 @@ void MFP::getPlotData(MultiFab &plot_data,
 
                     dat_arrays[grad_name].resize(orig_box,1);
 
-                    State::calc_slope(orig_box,
-                                      dat_arrays[var_name],
-                                      dat_arrays[grad_name],
-                                      EB_OPTIONAL(flag,)
-                                      dx, 0, i,
-                                      *istate.reconstruction.get());
+                    calc_slope(orig_box,
+                               dat_arrays[var_name],
+                               dat_arrays[grad_name],
+           #ifdef AMREX_USE_EB
+                               flag,
+           #endif
+                               dx, 0, i,
+                               *istate.reconstruction.get());
                 }
-            }
+            }*/
         }
 
-//        plot_FABs_2d(dat_arrays,0,false,true);
+        //        plot_FABs_2d(dat_arrays,0,false,true);
 
         // now iterate over the data, load it into a map, and call the lua functions on it
         const Dim3 lo = amrex::lbound(orig_box);
@@ -184,7 +277,7 @@ void MFP::getPlotData(MultiFab &plot_data,
                     dat["x"] = prob_lo[0] + (i + 0.5)*dx[0];
 
                     // load the data
-                    for (const auto& var : gd.plot_variables) {
+                    for (const auto& var : plot_variables) {
                         const std::string name = var.first;
                         const int index = var.second[0];
 
@@ -196,12 +289,26 @@ void MFP::getPlotData(MultiFab &plot_data,
 
                     // call the function
                     for (int fi=0; fi<nf; ++fi) {
-                        pd4(i,j,k,fi+nv) = gd.plot_functions[fi].second(dat);
+                        pd4(i,j,k,fi+nv) = plot_functions[fi].second(dat);
                     }
                 }
             }
         }
+
     }
+
+    //    for (int i=0; i<plot_data.nComp(); ++i) {
+    //        plot_FAB_2d(plot_data, i, 0, plot_names[i], false, true);
+    //    }
+
+#ifdef AMREX_PARTICLES
+    // now do the lagrangian states
+    for (const int& global_idx : lagrangian_states) {
+        LagrangianState& istate = LagrangianState::get_state_global(global_idx);
+
+        istate.get_plot_output(this, plot_data, plot_names);
+    }
+#endif
 
     return;
 }
@@ -370,13 +477,11 @@ void MFP::archive_folder(const std::string &dir)
     to_remove.push_back(FullPath);
 
 #ifdef AMREX_PARTICLES
-    if (gd.do_tracer_particles) {
-
-        for (int idx=0; idx<particles.size(); ++idx) {
-            std::string particle_folder = "Particles_"+particle_names[idx];
-            cmds.push_back("\\cd "+dir+";\\tar -cf " + particle_folder + ".tar " + particle_folder);
-            to_remove.push_back(dir+"/"+particle_folder);
-        }
+    for (const auto& i : lagrangian_states) {
+        LagrangianState& istate = LagrangianState::get_state_global(i);
+        std::string particle_folder = "Particles_"+istate.name;
+        cmds.push_back("\\cd "+dir+";\\tar -cf " + particle_folder + ".tar " + particle_folder);
+        to_remove.push_back(dir+"/"+particle_folder);
     }
 #endif
 
@@ -402,6 +507,7 @@ void MFP::archive_folder(const std::string &dir)
 void MFP::writePlotFilePost(const std::string &dir, std::ostream &os)
 {
     BL_PROFILE("MFP::writePlotFilePost");
+
 #ifdef AMREX_PARTICLES
     writeParticles(dir);
 #endif
@@ -417,36 +523,11 @@ void MFP::writePlotFilePost(const std::string &dir, std::ostream &os)
 
 
     // write the global variables
-    gd.write_info(mfp);
+    write_info(mfp);
 
-    for (int global_idx = 0; global_idx < gd.num_solve_state; ++global_idx) {
-        State &istate = gd.get_state(global_idx);
-        auto& grp = mfp["state_"+num2str(global_idx)];
-        istate.write_info(grp);
-
-        for (const auto &ode_ptr : gd.ode_source_terms) {
-            const ODESystem& ode = *ode_ptr;
-            for (const std::unique_ptr<SourceTerm> &src: ode.sources) {
-                for (const auto &idx : src->offsets) {
-                    if (idx.global == global_idx) {
-                        src->write_info(grp);
-                    }
-                }
-            }
-        }
-
-        grp["cons_names"] = istate.get_cons_names();
-
-#ifdef AMREX_PARTICLES
-        if (gd.do_tracer_particles) {
-            for (int pidx=0; pidx<particles.size(); ++pidx) {
-                if (particle_idx[pidx] != global_idx)
-                    continue;
-
-                grp["particle_data"] = "Particles_"+particle_names[pidx];
-            }
-        }
-#endif
+    for (const auto& state : states) {
+        auto& grp = mfp["state_"+num2str(state->global_idx)];
+        state->write_info(grp);
     }
 
     mfp["version"] = getVersion();
@@ -487,12 +568,30 @@ void MFP::writePlotFilePost(const std::string &dir, std::ostream &os)
 void MFP::checkPointPost (const std::string& dir,std::ostream& os)
 {
     BL_PROFILE("MFP::checkPointPost");
-#ifdef AMREX_PARTICLES
-    writeParticles(dir);
-#endif
 
     writePlotFilePost(dir, os);
 
     if (archive_checkpoint)
         archive_folder(dir);
+}
+
+void MFP::write_info(nlohmann::json &js) const
+{
+    BL_PROFILE("GlobalData::write_info");
+    // write out globally defined data
+
+    js["num_state"] = states.size();
+    js["x_ref"] = x_ref;
+    js["n_ref"] = n_ref;
+    js["m_ref"] = m_ref;
+    js["rho_ref"] = rho_ref;
+    js["T_ref"] = T_ref;
+    js["u_ref"] = u_ref;
+    js["n0"] = n0;
+    js["lightspeed"] = lightspeed;
+    js["beta"] = beta;
+    js["skin_depth"] = skin_depth;
+    js["Larmor"] = Larmor;
+    js["Debye"] = Debye;
+
 }

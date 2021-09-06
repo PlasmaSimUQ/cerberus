@@ -15,9 +15,74 @@ freestream_temperature = 1.0
 
 verbosity = 1
 cfl = 0.5
+time_integration_scheme = 'strang'
 
-do_face_sources = 0
-do_CTU = 1
+-- === GEOMETRY ===
+
+refine_cutcells = 1
+
+merge_fraction = 0.5
+
+--svg_C = ReadSVG.new('drip_C.svg')
+svg_C = ReadSVG.new('cerberus.svg', 0.01)
+
+function svgC(x, y)
+  return -svg_C:query(x, y,'/Layer 1')
+end
+
+
+embedded_boundaries = {
+
+  C = {
+    geom=svgC,
+    bcs={air={type='no_slip_wall', T=10},
+    },
+    boolean_operation='or',
+    inside=1,
+  },
+
+}
+
+function inside(funcs, x, y)
+
+  local r
+  for i, f in ipairs(funcs) do
+    if i == 1 then
+      r = f(x,y)
+    else
+      r = math.max(r, f(x,y))
+    end
+  end
+
+  if r <= 0 then
+    return 1
+  else
+    return 0
+  end
+end
+
+function make_particles(N)
+
+  funcs = {}
+  for k,v in pairs(embedded_boundaries) do
+    table.insert(funcs, v['geom'])
+  end
+
+  pos = {}
+
+  n = 0
+  while n < N do
+    x = math.random()
+    y = math.random()
+
+    if inside(funcs, x, y) > 0 then
+      table.insert(pos,{x,y})
+      n = n+1
+    end
+  end
+
+  return pos
+end
 
 -- === DEFINE STATES ===
 
@@ -59,7 +124,13 @@ function make_rectangles(x,y,collection)
 end
 
 function pressure(dat)
-    return -(2.0-dat['y'])*gravity*freestream_density
+  local h = dat['y']
+  return math.exp(gravity*h/freestream_temperature)
+end
+
+function density(dat)
+  local p = pressure(dat)
+  return p/freestream_temperature
 end
 
 function blob(dat)
@@ -71,7 +142,7 @@ function blob(dat)
   if make_circles(dat['x'],dat['y'],circles) < 0 then
     return 20.0
   else
-    return freestream_density
+    return density(dat)
   end
 end
 
@@ -92,9 +163,9 @@ states = {
         mass=1.0,
         charge= 0.0,
         gamma=1.4,
-        reconstruction='MC', 
+        reconstruction='constant', 
         flux='HLLC',
-        --viscosity=Sutherland,
+        viscosity=Sutherland,
         value = {
             rho =     blob,
             x_vel =   0,
@@ -103,8 +174,8 @@ states = {
             p =       pressure,
             alpha =   tracer,
         },
-        refine_grad_threshold = {rho=0.1, min_value=1e-6},
-        particles = 'particle_file',
+        refinement={name='hydro_gradient', rho=0.1},
+        merge_threshold = 0.5,
 
         bc={
           x={
@@ -126,89 +197,33 @@ states = {
         }
 
     },
+
+    tracer = {
+      type='tracer',
+      particles=make_particles(1000),
+  },
 }
 
--- === SOURCES ===
+-- === ACTIONS ===
 
-sources = {
-  fluid={
-    solver='explicit',
-    sources={
-      gravity={
-        'air',
-        type='acceleration',
-        x=0.0,
-        y=gravity,
-      }
-    }
-  }
-}
+actions = {
 
+  hydro_fluxes = {
+    type = 'CTU',
+    corner_transport=true,
+    states = {'air'},
+},
 
--- === GEOMETRY ===
-
-refine_cutcells = 1
-
-merge_fraction = 0.5
-
---svg_C = ReadSVG.new('drip_C.svg')
-svg_C = ReadSVG.new('cerberus.svg', 0.01)
-
-function svgC(x, y)
-  return -svg_C:query(x, y,'/Layer 1')
-end
-
-
-embedded_boundaries = {
-
-  C = {
-    geom=svgC,
-    bcs={air={type='slip_wall'},
-    },
-    boolean_operation='or',
-    inside=1,
+  gravity = {
+    type='acceleration',
+    states={'air'},
+    vector={0,gravity,0},
   },
 
+  tracer={
+    type='hydro_tracer',
+    particles='tracer',
+    fluid='air'
+  },
+  
 }
-
-function inside(funcs, x, y)
-
-  local r
-  for i, f in ipairs(funcs) do
-    if i == 1 then
-      r = f(x,y)
-    else
-      r = math.max(r, f(x,y))
-    end
-  end
-
-  if r <= 0 then
-    return 1
-  else
-    return 0
-  end
-end
-
-function make_particles(N, funcs)
-  n = 0
-  file = io.open('particle_file', "w")
-  file:write(N,"\n")
-  while n < N do
-    x = math.random()
-    y = math.random()
-
-    if inside(funcs, x, y) > 0 then
-      file:write(x," ",y,"\n")
-      n = n+1
-    end
-  end
-
-  io.close(file)
-end
-
-geom_funcs = {}
-for k,v in pairs(embedded_boundaries) do
-  table.insert(geom_funcs, v['geom'])
-end
-
-make_particles(1000, geom_funcs)

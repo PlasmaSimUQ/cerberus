@@ -1,8 +1,6 @@
 #ifndef MFP_H_
 #define MFP_H_
 
-#include "MFP_global.H"
-
 #ifdef AMREX_USE_EB
 #include <AMReX_EBCellFlag.H>
 #include <AMReX_EBFluxRegister.H>
@@ -13,21 +11,15 @@
 #include <AMReX_AmrLevel.H>
 #include <AMReX_LO_BCTYPES.H>
 #include <memory>
+#include "sol.hpp"
+#include "json.hpp"
 
-#include "MFP_fillbc.H"
-#include "MFP_reconstruction.H"
-#include "MFP_Riemann.H"
-#include "MFP_source.H"
-#include "MFP_ode_solver.h"
-#include "MFP_viscous.H"
-#include "MFP_diagnostics.H"
+#include "MFP_eb_structs.H"
+#include "MFP_optional_func.H"
+#include "MFP_action.H"
 
-#ifdef AMREX_PARTICLES
-#include "AMReX_AmrParticles.H"
-using ParTileType = ParticleTile<AMREX_SPACEDIM, 0, 0, 0>;
-using ParIterType = ParIter<AMREX_SPACEDIM, 0, 0, 0>;
-using ParticleType = Particle<AMREX_SPACEDIM, 0>;
-#endif
+class State;
+class Action;
 
 using namespace amrex;
 
@@ -48,9 +40,23 @@ public:
         return {"HyperCLaw-V1.1"};
     }
 
-    // function for compiling a multifab that holds all of the data that needs
-    // to be plotted for this level
-    void getPlotData(MultiFab& plot_data, std::vector<std::string>& plot_names);
+#ifdef AMREX_USE_EB
+    bool check_covered_stencil(Array4<const EBCellFlag> const& flag,
+                               int i, int j, int k, int d,
+                               int stencil_length);
+#endif
+
+    void calc_slope(const Box& box,
+                    const FArrayBox& src,
+                    FArrayBox &slope,
+                #ifdef AMREX_USE_EB
+                const EBCellFlagFab &flag,
+                #endif
+                    const Real *dx,
+                    int index,
+                    int dim);
+
+    void getPlotData(MultiFab &plot_data, std::vector<std::string> &plot_names);
 
     virtual void writePlotFile (const std::string& dir,
                                 std::ostream&      os,
@@ -58,7 +64,7 @@ public:
 
     virtual void writePlotFilePost(const std::string &dir, std::ostream &os) override;
 
-    virtual void checkPointPost (const std::string& dir,std::ostream&      os) override;
+    virtual void checkPointPost (const std::string& dir,std::ostream& os) override;
 
     void archive_folder(const std::string &dir);
 
@@ -75,6 +81,26 @@ public:
     // Advance grids at this level in time.
     virtual amrex::Real advance(amrex::Real time, amrex::Real dt, int iteration,
                                 int ncycle) override;
+
+    enum class TimeIntegrator {
+        OneStep = 0,
+        StrangSplitting,
+        Symplectic,
+    };
+
+    static TimeIntegrator time_integration_scheme;
+
+    void advance_euler(Real time, Real dt, int iteration, int ncycle);
+    void advance_strang(Real time, Real dt, int iteration, int ncycle);
+    void apply_derivative(Vector<std::pair<int, MultiFab> > &dU);
+
+    Real estTimeStep();
+
+#ifdef AMREX_PARTICLES
+    void init_particles();
+    void writeParticles(const std::string& dir);
+    void ParticlePostRestart (const std::string &dir);
+#endif
 
     virtual void computeInitialDt(int finest_level, int sub_cycle,
                                   amrex::Vector<int>& n_cycle,
@@ -108,165 +134,118 @@ public:
                           amrex::Real time, int n_error_buf = 0,
                           int ngrow = 0) override;
 
-    virtual int WorkEstType() override { return gd.Cost_Idx; }
+    virtual int WorkEstType() override { return 0; }
+
+    static void read_params();
+
+    int get_level() {return level;}
+    Amr* get_parent() {return parent;}
+    Real get_cum_time() {return parent->cumTime();}
+    Real get_dt() {return parent->dtLevel(level);}
 
     // Define data descriptors.
+    static DescriptorList& get_desc_lst () noexcept { return desc_lst; }
     static void variableSetUp();
 
     // Cleanup data descriptors at end of run.
     static void variableCleanUp();
 
-protected:
-
-    static bool first_step;
-
-    static GlobalData gd;
-
-    static void get_lua_script();
-    static void save_lua_script();
-
-    // initialization routines for all of the different types of states
-
-    //    static void init_source_terms();
-
-    static void read_params();
-
     MFP& getLevel(int lev) { return dynamic_cast<MFP&>(parent->getLevel(lev)); }
 
+    static State* get_state_ptr(const int idx) {return states[idx].get();}
+    static State& get_state(const int idx) { return *states[idx]; }
+    static State& get_state(const std::string& name);
+
+    static Action* get_source_ptr(const int idx) {return actions[idx].get();}
+    static Action& get_source(const int idx) { return *actions[idx]; }
+    static Action& get_source(const std::string& name);
+
+    void build_eb();
     void avgDown();
 
+    static void set_lua_script(const std::string &script);
+    static void save_lua_script();
+    static void read_config();
+    static void update_ref();
 
-    amrex::iMultiFab level_mask;
-    void buildMetrics();
+    void write_info(nlohmann::json &js) const;
 
+    static sol::state lua;
+    static std::string lua_script;  // lua script that defines our problem
 
-    amrex::Real estTimeStep();
+    static Real cfl;
+    static Real force_dt;
 
-    // Compute initial time step.
-    amrex::Real initialTimeStep();
+    static int Cost_Idx;
 
-    void printTotal();
+    static bool archive_checkpoint;
+    static int verbosity;
+    static int linear_solver_verbosity;
 
-    bool is_vacuum(const Box& bx, const FArrayBox& fab, const int idx);
+    enum class RefineBoxType : int {
+        ForceRefine=0,
+        NoRefine,
+        OnlyRefine,
+    };
 
-#ifdef AMREX_PARTICLES
-    static int particle_verbosity;
-    static Vector<std::string> particle_names;
-    static Vector<int> particle_idx;
-    static Vector<amrex::AmrTracerParticleContainer*> particles;
+    static Vector<RefineBoxType> refine_box_type;
+    static Vector<amrex::RealBox> refine_boxes;
+    static bool only_refine_in_box;
+    static bool derefine_box;
 
-    static void read_particle_params ();
-    void init_particles();
-    void writeParticles(const std::string& dir);
-    void ParticlePostRestart (const std::string &dir);
-    void advance_particles (int iteration, amrex::Real time, amrex::Real dt);
-    void AdvectWithUcc (AmrTracerParticleContainer* pc,
-                        const MultiFab& Ucc,
-                        int lev,
-                        Real dt
-                        EB_OPTIONAL(,const FabArray<EBCellFlagFab>& flags)
-                        );
+    static bool refine_cutcells;
 
-    void push_particles (ParTileType& ptile,
-                         const FArrayBox& prim,
-                         Array<FArrayBox, AMREX_SPACEDIM> &rlo,
-                         Array<FArrayBox, AMREX_SPACEDIM> &rhi,
-                         const int vel_idx,
-                         const Real dt
-                         EB_OPTIONAL(,const EBCellFlagFab& flag)
-                         );
+    static bool zero_dimensional;
 
-#endif
+    static IntVect tile_size;
 
-#ifdef AMREX_USE_EB
-    std::vector<amrex::EBFluxRegister> flux_reg;
+    static Vector<std::unique_ptr<State>> states;
+    static Vector<std::string> state_names;
+    static std::map<std::string, int> state_index;
+    static Vector<size_t> eulerian_states; // mapping from data_idx to global_idx
+    static Vector<size_t> lagrangian_states;
 
-    Vector<EBData>& getEBData() {return gd.eb_data[level];}
-    EBData& getEBData(const int idx) {return gd.eb_data[level][idx];}
-    EBData& getEBData(const int ilev, const int idx) {return gd.eb_data[ilev][idx];}
-    EBData& getFineEBData(const int idx) {return gd.eb_data[level+1][idx];}
-    FArrayBox get_eb_faces(const MFIter &mfi, const int idx);
-    void tag_cut_cells (TagBoxArray& tags, const int idx);
-#else
-    std::vector<amrex::YAFluxRegister> flux_reg;
-#endif
+    static bool need_scratch_space;
+    Vector<std::pair<int,MultiFab>> eulerian_du;
+
+    static Vector<std::unique_ptr<Action>> actions;
+    static Vector<std::string> source_names;
+    static std::map<std::string, int> source_index;
+
+    static std::map<std::string,Array<int,AMREX_SPACEDIM+1>> plot_variables;
+    static Vector<std::pair<std::string,Optional3D1VFunction>> plot_functions;
+
+    static Real x_ref, n_ref, m_ref, rho_ref, T_ref, u_ref, n0;
+    static Real lightspeed, beta, skin_depth, Larmor, Debye;
+    static bool plasma_params_set;
+
+    enum LevelMask {
+        Inside = 0, // valid cells
+        Covered,    // ghost cells covered by valid cells of this level
+        NotCovered, // ghost cells not covered
+        PhysBnd,    // outside domain
+    };
 
     static constexpr int level_mask_interior =   0;  // valid cells
     static constexpr int level_mask_covered =    1;  // ghost cells covered by valid cells of this level
     static constexpr int level_mask_notcovered = 2;  // ghost cells not covered
     static constexpr int level_mask_physbnd =    3;  // outside domain
 
-    static bool archive_checkpoint;
+    iMultiFab level_mask;
 
-    // calculate the starting condition for all states via the provided lua
-    // functions for each component of the state vector
-    void init_data(const Box& box,
-                   EB_OPTIONAL(const EBCellFlagFab &flag,)
-                   FArrayBox& src,
-                   const Real* dx,
-                   const Real* prob_lo,
-                   const int idx);
-
-    // provide an estimate of the minimum time step required for the stable
-    // computation of a single time update
-    void estimate_dt (const Box& box,
-                      Vector<const FArrayBox*>& src,
-                      EB_OPTIONAL(Vector<const FArrayBox*>& vfrac,)
-                      const Real* dx,
-                      Real& dt);
-
-    // elliptic solutions of field variables
-
-    void solve_static_fields(const Real time);
-
-    void correct_dynamic_fields(const Real time);
+#ifdef AMREX_USE_EB
+    static Vector<DataEB> eb_def;
+    static Vector<Vector<EBData>> eb_data;
+    EBData& get_eb_data(const int idx) { return eb_data[level][idx]; }
+    EBData& get_eb_data(const int lev, const int idx) { return eb_data[lev][idx]; }
+#endif
 
 
-    void project_divergence(const Real time);
-
-    void solve_divergence(const int state_idx,
-                          const int vector_idx,
-                          const int phi_idx,
-                          const BCRec &bc,
-                          Vector<MultiFab*> S_cc_ptr={});
-
-    // calculate any modifications to face values due to source terms
-    void calc_face_source (const Box& box,
-                           Vector<FArrayBox*>& src_dat,
-                           Vector<Array<FArrayBox, AMREX_SPACEDIM> > &R_lo,
-                           Vector<Array<FArrayBox, AMREX_SPACEDIM> > &R_hi,
-                           EB_OPTIONAL(const Vector<const EBCellFlagFab*> &flag,)
-                           const Real* dx,
-                           Real time,
-                           Real dt);
-
-    // calculate source terms for cell centred values
-    void calc_cell_source (const Box& box,
-                           Vector<FArrayBox*>& src_dat,
-                           Vector<FArrayBox*>& dst_dat,
-                           EB_OPTIONAL(Vector<const EBCellFlagFab*> &flags,)
-                           EB_OPTIONAL(Vector<const FArrayBox*> &volfrac,)
-                           Real time, Real dt);
-
-    // calculate and apply cell source terms, this acts directly on data at 'time'
-    void apply_cell_sources(const Real time,
-                            const Real dt);
-
-    // calculate and apply cell transport terms, this acts directly on data at 'time'
-    void apply_cell_transport(amrex::Real time,
-                              amrex::Real dt);
-
-
-    // tag cells for refinement according to the passed in configuration parameters
-    void tag_refinement(const Box& box,
-                        const FArrayBox &src,
-                        EB_OPTIONAL(const EBCellFlagFab& flags,)
-                        TagBox &tags,
-                        const int n,
-                        const Real threshold,
-                        const Real min_val,
-                        const char tagval,
-                        const char clearval);
+#ifdef AMREX_USE_EB
+    std::vector<amrex::EBFluxRegister> flux_reg;
+#else
+    std::vector<amrex::YAFluxRegister> flux_reg;
+#endif
 
 };
 
