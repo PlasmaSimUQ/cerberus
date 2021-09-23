@@ -570,13 +570,14 @@ class ReadBoxLib:
         else:
             self.limits = [self.data["dom_lo"], self.data["dom_hi"]]        
 
+        finest_level = self.data["finest_level"]
         n_levels = self.data["n_levels"]
         self.dim = self.data["dim"]
 
         if max_level < 0: 
             self.max_level = n_levels + max_level
         else:
-            self.max_level = min(max_level, n_levels)
+            self.max_level = min(max_level, n_levels, finest_level)
 
 
         if self.data:
