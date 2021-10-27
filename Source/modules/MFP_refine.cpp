@@ -4,11 +4,9 @@
 Refinement::Refinement(){}
 
 #ifdef AMREX_USE_EB
-void Refinement::tag_cut_cells (MFP* mfp, TagBoxArray& tags)
+void Refinement::tag_cut_cells (MFP* mfp, TagBoxArray& tags, const int idx)
 {
     BL_PROFILE("Refinement::tag_cut_cells");
-
-    State& istate = MFP::get_state(idx);
 
     const char   tagval = TagBox::SET;
 

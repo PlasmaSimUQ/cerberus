@@ -204,15 +204,14 @@ void State::update_eb_flags(const Geometry &geom,
 
 void State::get_refinement_tags(MFP* mfp, TagBoxArray& tags)
 {
-    if (refine) {
+    if (refine)
         refine->get_tags(mfp, tags);
 
 #ifdef AMREX_USE_EB
-        if (MFP::refine_cutcells) {
-            refine->tag_cut_cells(mfp, tags);
-        }
+    if (MFP::refine_cutcells)
+        Refinement::tag_cut_cells(mfp, tags, global_idx);
 #endif
-    }
+
 }
 
 void State::write_info(nlohmann::json &js) const

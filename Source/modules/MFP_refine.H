@@ -24,7 +24,7 @@ public:
 
     virtual void get_tags(MFP* mfp, TagBoxArray& tags) const = 0;
 #ifdef AMREX_USE_EB
-    void tag_cut_cells (MFP* mfp, TagBoxArray& tags);
+    static void tag_cut_cells (MFP* mfp, TagBoxArray& tags, const int idx);
 #endif
 
     int idx;
