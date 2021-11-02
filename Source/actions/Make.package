@@ -28,6 +28,12 @@ CEXE_sources += MFP_collisions.cpp
 CEXE_headers += MFP_current.H
 CEXE_sources += MFP_current.cpp
 
+CEXE_headers += MFP_udf.H
+CEXE_sources += MFP_udf.cpp
+
+CEXE_headers += MFP_damp_div_mhd.H
+CEXE_sources += MFP_damp_div_mhd.cpp
+
 include $(TOP)/Source/actions/sPIC/Make.package
 
 

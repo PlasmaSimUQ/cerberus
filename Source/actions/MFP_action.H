@@ -25,8 +25,10 @@ public:
         Lorentz,
         Plasma5,
 #ifdef SYMPLECTIC
-        Symplectic
+        Symplectic,
 #endif
+        Current,
+        UserDefined,
     };
 
     int action_idx;

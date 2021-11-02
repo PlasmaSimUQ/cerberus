@@ -1,0 +1,5 @@
+CEXE_headers += MFP_mhd_refine.H
+CEXE_sources += MFP_mhd_refine.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/states/Eulerian/MHD/refine
+VPATH_LOCATIONS   += $(TOP)/Source/states/Eulerian/MHD/refine

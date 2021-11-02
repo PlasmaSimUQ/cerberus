@@ -49,9 +49,15 @@ Elliptic::Elliptic(const int idx, const sol::table &def)
 
     State& istate = MFP::get_state(field_state_name);
 
-    switch (istate.get_type()) {
+    select = istate.get_type();
+
+    switch (select) {
     case State::StateType::Field:
         field = static_cast<FieldState*>(&istate);
+        state_indexes.push_back(istate.global_idx);
+        break;
+    case State::StateType::MHD:
+        mhd = static_cast<MHDState*>(&istate);
         state_indexes.push_back(istate.global_idx);
         break;
     default:
@@ -632,10 +638,41 @@ void Elliptic::project_divergence(MFP* mfp, const Real time)
     BL_PROFILE("Elliptic::project_divergence");
     // MLNodeLaplacian not implemented for 1D
 #if AMREX_SPACEDIM > 1
+    //----
+    // B field divergence clean
+
+    switch (select) {
+    case State::StateType::Field:
+        project_divergence_field(mfp, time);
+        break;
+    case State::StateType::MHD:
+        project_divergence_mhd(mfp, time);
+        break;
+    default:
+        Abort("An invalid state has been defined for the '"+name+"' action");
+    }
+#endif
+}
+
+
+void Elliptic::project_divergence_mhd(MFP* mfp, const Real time)
+{
+    BL_PROFILE("Elliptic::project_divergence_mhd");
+    // MLNodeLaplacian not implemented for 1D
+#if AMREX_SPACEDIM > 1
+    solve_divergence(mfp, mhd->data_idx, +MHDDef::ConsIdx::Bx, +MHDDef::ConsIdx::psi, mhd->boundary_conditions.phys_fill_bc[+MHDDef::ConsIdx::Bx]);
+#endif
+}
+
+
+void Elliptic::project_divergence_field(MFP* mfp, const Real time)
+{
+    BL_PROFILE("Elliptic::project_divergence");
+    // MLNodeLaplacian not implemented for 1D
+#if AMREX_SPACEDIM > 1
 
     //----
     // B field divergence clean
-    // have some switch for MHD state here
 
     solve_divergence(mfp, field->data_idx, +FieldDef::ConsIdx::Bx, +FieldDef::ConsIdx::psi, field->boundary_conditions.phys_fill_bc[+FieldDef::ConsIdx::Bx]);
 
@@ -738,6 +775,7 @@ void Elliptic::project_divergence(MFP* mfp, const Real time)
 #endif
 }
 
+
 void Elliptic::solve_divergence(MFP* mfp,
                                 const int state_idx,
                                 const int vector_idx,
@@ -834,6 +872,11 @@ void Elliptic::solve_divergence(MFP* mfp,
     const Real time = amr.cumTime();
 
 
+#ifdef AMREX_USE_EB
+        State& istate = MFP::get_state(state_idx);
+        EB2::IndexSpace::push(const_cast<EB2::IndexSpace*>(istate->eb2_index));
+#endif
+
     for (int ilev = 0; ilev < nlevels; ++ilev) {
 
         AmrLevel& ilevel = amr.getLevel(ilev);
@@ -845,10 +888,6 @@ void Elliptic::solve_divergence(MFP* mfp,
         field_ptr[ilev] = &field_data[ilev];
 
         // Set field including ghost cells
-
-#ifdef AMREX_USE_EB
-        EB2::IndexSpace::push(const_cast<EB2::IndexSpace*>(field->eb2_index));
-#endif
 
         AmrLevel::FillPatch(ilevel, field_data[ilev], 1, time, state_idx, vector_idx, AMREX_SPACEDIM,0);
 

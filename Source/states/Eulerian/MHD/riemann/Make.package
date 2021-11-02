@@ -1,0 +1,11 @@
+CEXE_headers += MFP_mhd_riemann.H
+CEXE_sources += MFP_mhd_riemann.cpp
+
+CEXE_headers += MFP_mhd_hlle.H
+CEXE_sources += MFP_mhd_hlle.cpp
+
+CEXE_headers += MFP_mhd_shockdetector.H
+CEXE_sources += MFP_mhd_shockdetector.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/states/Eulerian/MHD/riemann
+VPATH_LOCATIONS   += $(TOP)/Source/states/Eulerian/MHD/riemann

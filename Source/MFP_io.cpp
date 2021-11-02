@@ -54,9 +54,10 @@ void MFP::calc_slope(const Box& box,
                      #endif
                      const Real *dx,
                      int index,
-                     int dim)
+                     int dim,
+                     Reconstruction &reco)
 {
-    /*
+
     BL_PROFILE("State::calc_slope");
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
@@ -111,7 +112,7 @@ void MFP::calc_slope(const Box& box,
         }
     }
 
-    */
+
     return;
 }
 
@@ -204,7 +205,7 @@ void MFP::getPlotData(MultiFab &plot_data,
 
 #ifdef AMREX_USE_EB
             EBData& eb = get_eb_data(istate.global_idx);
-            //            const EBCellFlagFab& flag = eb.flags[mfi];
+            const EBCellFlagFab& flag = eb.flags[mfi];
             const FArrayBox& vfrac = eb.volfrac[mfi];
 #endif
 
@@ -220,7 +221,7 @@ void MFP::getPlotData(MultiFab &plot_data,
 
             // get any gradients
 
-            /*for (const std::string& var_name : updated) {
+            for (const std::string& var_name : updated) {
 
                 const Array<int,AMREX_SPACEDIM+1> var_grad = plot_variables[var_name];
 
@@ -229,13 +230,13 @@ void MFP::getPlotData(MultiFab &plot_data,
 
                     // this should really go in the startup routine in global_data.cpp
                     // but it would require a not insignificant amount of work, so here it is
-                    if (istate.reconstruction->stencil_length < 2) {
+                    if (istate.reconstructor->stencil_length < 2) {
                         ClassFactory<Reconstruction> rfact = GetReconstructionFactory();
                         std::string msg = "";
                         msg += "Gradient requested for "+var_name+" but state '";
                         msg += istate.name;
                         msg += "' has an invalid reconstruction '";
-                        msg += istate.reconstruction->get_tag();
+                        msg += istate.reconstructor->get_tag();
                         msg += "' (stencil length < 2). Options are ";
                         msg += vec2str(rfact.getKeys());
                         Abort(msg);
@@ -252,9 +253,9 @@ void MFP::getPlotData(MultiFab &plot_data,
                                flag,
            #endif
                                dx, 0, i,
-                               *istate.reconstruction.get());
+                               *istate.reconstructor.get());
                 }
-            }*/
+            }
         }
 
         //        plot_FABs_2d(dat_arrays,0,false,true);

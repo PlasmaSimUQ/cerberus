@@ -17,6 +17,9 @@ FieldHLLE::FieldHLLE(const int i)
 
     Real c0 = MFP::lightspeed;
     Real c2 = c0*c0;
+    Real ch = istate.div_speed;
+    Real ch2 = ch*ch;
+    Real cc = ch2/c2;
 }
 
 void FieldHLLE::solve(Array<Real,+FieldDef::ConsIdx::NUM> &L,
@@ -33,8 +36,8 @@ void FieldHLLE::solve(Array<Real,+FieldDef::ConsIdx::NUM> &L,
     FL[+FieldDef::ConsIdx::Dx]   =   L[+FieldDef::ConsIdx::phi];
     FL[+FieldDef::ConsIdx::Dy]   =   L[+FieldDef::ConsIdx::Bz]/L[+FieldDef::ConsIdx::mu];
     FL[+FieldDef::ConsIdx::Dz]   = - L[+FieldDef::ConsIdx::By]/L[+FieldDef::ConsIdx::mu];
-    FL[+FieldDef::ConsIdx::psi] =   0;
-    FL[+FieldDef::ConsIdx::phi] =   0;
+    FL[+FieldDef::ConsIdx::psi] =    L[+FieldDef::ConsIdx::Bx]*cc;
+    FL[+FieldDef::ConsIdx::phi] =    L[+FieldDef::ConsIdx::Dx]*cc;
 
     FR[+FieldDef::ConsIdx::Bx]   =   R[+FieldDef::ConsIdx:: psi];
     FR[+FieldDef::ConsIdx::By]   = - R[+FieldDef::ConsIdx:: Dz]/R[+FieldDef::ConsIdx::ep];
@@ -42,8 +45,8 @@ void FieldHLLE::solve(Array<Real,+FieldDef::ConsIdx::NUM> &L,
     FR[+FieldDef::ConsIdx::Dx]   =   R[+FieldDef::ConsIdx:: phi];
     FR[+FieldDef::ConsIdx::Dy]   =   R[+FieldDef::ConsIdx:: Bz]/R[+FieldDef::ConsIdx::mu];
     FR[+FieldDef::ConsIdx::Dz]   = - R[+FieldDef::ConsIdx:: By]/R[+FieldDef::ConsIdx::mu];
-    FR[+FieldDef::ConsIdx::psi] =   0;
-    FR[+FieldDef::ConsIdx::phi] =   0;
+    FR[+FieldDef::ConsIdx::psi] =    R[+FieldDef::ConsIdx::Bx]*cc;
+    FR[+FieldDef::ConsIdx::phi] =    R[+FieldDef::ConsIdx::Dx]*cc;
 
     Real speed = c0; // UPDATE THIS TO ACCOMMODATE DIV SPEED
 
