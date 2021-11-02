@@ -41,6 +41,7 @@ public:
         Field,
         TracerParticle,
         ChargedParticle,
+        MHD,
         NUM
     };
 

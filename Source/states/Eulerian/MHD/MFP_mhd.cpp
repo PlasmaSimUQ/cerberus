@@ -1,242 +1,113 @@
-#include "MFP_field.H"
-#include "MFP_fillbc.H"
-#include "MFP_field_refine.H"
+#include "MFP_mhd.H"
+#include "MFP_lua.H"
+#include "MFP.H"
+#include "MFP_diagnostics.H"
 #include "MFP_transforms.H"
+#include "MFP_mhd_refine.H"
 
-Vector<set_bc> FieldState::bc_set = {
-    &set_x_D_bc,
-    &set_y_D_bc,
-    &set_z_D_bc,
+#include "Eigen"
+
+Vector<std::string> MHDState::cons_names = {
+    "rho",
+    "x_mom",
+    "y_mom",
+    "z_mom",
+    "nrg",
+    "x_B",
+    "y_B",
+    "z_B",
+    "psi"
+};
+
+Vector<std::string> MHDState::prim_names = {
+    "rho",
+    "x_vel",
+    "y_vel",
+    "z_vel",
+    "p",
+    "x_B",
+    "y_B",
+    "z_B",
+    "psi"
+};
+
+Array<int,2> MHDState::cons_vector_idx = {+MHDDef::ConsIdx::Xmom, +MHDDef::ConsIdx::Bx};
+Array<int,2> MHDState::prim_vector_idx = {+MHDDef::PrimIdx::Xvel, +MHDDef::PrimIdx::Bx};
+
+std::map<std::string, int> MHDState::bc_names = {{"interior",  PhysBCType::interior},
+                                                   {"inflow",    PhysBCType::inflow},
+                                                   {"outflow",   PhysBCType::outflow},
+                                                   {"symmetry",  PhysBCType::symmetry},
+                                                   {"slipwall",  PhysBCType::slipwall},
+                                                   {"noslipwall",PhysBCType::noslipwall}};
+
+Vector<set_bc> MHDState::bc_set = {
+    &set_scalar_bc,
+    &set_x_vel_bc,
+    &set_y_vel_bc,
+    &set_z_vel_bc,
+    &set_scalar_bc,
     &set_x_B_bc,
     &set_y_B_bc,
     &set_z_B_bc,
     &set_scalar_bc,
-    &set_scalar_bc,
-    &set_scalar_bc,
-    &set_scalar_bc,
 };
 
-Vector<std::string> FieldState::cons_names = {
-    "x_D",
-    "y_D",
-    "z_D",
-    "x_B",
-    "y_B",
-    "z_B",
-    "phi",
-    "psi",
-    "mu",
-    "ep",
-};
+std::string MHDState::tag = "mhd";
+bool MHDState::registered = GetStateFactory().Register(MHDState::tag, StateBuilder<MHDState>);
 
-Array<int,+FieldDef::VectorIdx::Cons> FieldState::vector_idx = {+FieldDef::FieldDef::ConsIdx::Bx, +FieldDef::FieldDef::ConsIdx::Dx};
+MHDState::MHDState(){}
 
-std::map<std::string, int> FieldState::bc_names = {{"interior",  PhysBCType::interior},
-                                                   {"inflow",    PhysBCType::inflow},
-                                                   {"outflow",   PhysBCType::outflow},
-                                                   {"symmetry",  PhysBCType::symmetry},
-                                                   {"asymmetry",  4}};
-
-std::string FieldState::tag = "field";
-bool FieldState::registered = GetStateFactory().Register(FieldState::tag, StateBuilder<FieldState>);
-
-
-FieldState::FieldState(){}
-
-FieldState::FieldState(const sol::table &def)
+MHDState::MHDState(const sol::table& def)
 {
+    num_grow = 0;
     name = def.get<std::string>("name");
     global_idx = def.get<int>("global_idx");
 }
 
-FieldState::~FieldState(){}
+MHDState::~MHDState(){}
 
-void FieldState::init_data(MFP* mfp, const Real time)
+#ifdef AMREX_USE_EB
+void MHDState::set_eb_bc(const sol::table &bc_def)
 {
 
-    const Real* dx = mfp->Geom().CellSize();
-    const Real* prob_lo = mfp->Geom().ProbLo();
+    std::string bc_type = bc_def.get<std::string>("type");
 
-    MultiFab& S_new = mfp->get_data(data_idx, time);
-
-    for (MFIter mfi(S_new); mfi.isValid(); ++mfi) {
-        const Box& box = mfi.validbox();
-        FArrayBox& src = S_new[mfi];
-
-        const Dim3 lo = amrex::lbound(box);
-        const Dim3 hi = amrex::ubound(box);
-        Array4<Real> const& h4 = src.array();
-
-        Real x, y, z;
-        for     (int k = lo.z; k <= hi.z; ++k) {
-            z = prob_lo[2] + (k + 0.5)*dx[2];
-            for   (int j = lo.y; j <= hi.y; ++j) {
-                y = prob_lo[1] + (j + 0.5)*dx[1];
-                AMREX_PRAGMA_SIMD
-                        for (int i = lo.x; i <= hi.x; ++i) {
-                    x = prob_lo[0] + (i + 0.5)*dx[0];
-
-                    // grab the variables as defined by the user functions
-                    for (int icomp=0; icomp<+FieldDef::ConsIdx::NUM; ++icomp) {
-                        const auto& f = functions[icomp];
-
-                        h4(i,j,k,icomp) = f(x, y, z);
-
-                    }
-                }
-            }
-        }
+    if (bc_type == MHDSlipWall::tag) {
+        eb_bcs.push_back(std::unique_ptr<MHDBoundaryEB>(new MHDSlipWall(flux_solver.get())));
+    } else if (bc_type == DirichletWallMHD::tag) {
+        eb_bcs.push_back(std::unique_ptr<MHDBoundaryEB>(new DirichletWallMHD(flux_solver.get(), bc_def)));
+    } else {
+        Abort("Requested EB bc of type '" + bc_type + "' which is not compatible with state '" + name + "'");
     }
-
-    return;
 }
+#endif
 
-Real FieldState::get_allowed_time_step(MFP* mfp) const
+
+void MHDState::set_udf()
 {
-    const Real* dx = mfp->Geom().CellSize();
+    using namespace std::placeholders;
 
-    Real dt = dx[0]/fastest_speed;
-    for (int i=1; i<AMREX_SPACEDIM; ++i) {
-        dt = std::min(dt, dx[i]/fastest_speed);
-    }
-
-    return dt;
-}
-
-Vector<std::string> FieldState::get_plot_output_names() const
-{
-    Vector<std::string> out;
-    out.insert(out.end(), cons_names.begin(), cons_names.end());
-#ifdef AMREX_USE_EB
-    out.push_back("vfrac");
-#endif
-    return out;
-}
-
-void FieldState::get_plot_output(const Box& box,
-                                 const FArrayBox& src,
-                                 std::map<std::string,FArrayBox>& out,
-                                 Vector<std::string>& updated
-                                 #ifdef AMREX_USE_EB
-                                 ,const FArrayBox& vfrac
-                                 #endif
-                                 ) const
-{
-    BL_PROFILE("FieldState::get_state_values");
-    const Dim3 lo = amrex::lbound(box);
-    const Dim3 hi = amrex::ubound(box);
-
-#ifdef AMREX_USE_EB
-    Array4<const Real> const& vf4 = vfrac.array();
-#endif
-
-    updated.resize(0);
-
-    // check conserved variables
-    std::map<std::string,int> cons_tags;
-    for (int i=0; i<+FieldDef::ConsIdx::NUM; ++i) {
-        const std::string s = cons_names[i];
-        const std::string var_name = s+"-"+name;
-        if ( out.find(var_name) == out.end() ) continue;
-        cons_tags[var_name] = i;
-        updated.push_back(var_name);
-    }
-
-    // additional variables
-    Vector<std::string> other;
-
-#ifdef AMREX_USE_EB
-    const std::string vfrac_name = "vfrac-"+name;
-    bool load_vfrac = out.find(vfrac_name) != out.end();
-    if (load_vfrac) other.push_back(vfrac_name);
-#endif
-
-    updated.insert(updated.end(), other.begin(), other.end());
-
-    std::map<std::string,Array4<Real>> out4;
-    for (const std::string& s : updated) {
-        out[s].resize(box, 1);
-        out4[s] = out[s].array();
-    }
-
-    Array4<const Real> const& src4 = src.array();
-
-    for     (int k = lo.z; k <= hi.z; ++k) {
-        for   (int j = lo.y; j <= hi.y; ++j) {
-            AMREX_PRAGMA_SIMD
-                    for (int i = lo.x; i <= hi.x; ++i) {
-
-#ifdef AMREX_USE_EB
-                if (vf4(i,j,k) == 0.0) {
-                    for (const std::string& s : updated) {
-                        out4[s](i,j,k) = 0.0;
-                    }
-                    continue;
-                }
-#endif
-
-                if (!cons_tags.empty()) {
-                    for (const auto& var : cons_tags) {
-                        out4[var.first](i,j,k) = src4(i,j,k,var.second);
-                    }
-                }
-
-#ifdef AMREX_USE_EB
-                if (load_vfrac)  out4[vfrac_name](i,j,k)  = vf4(i,j,k);
-#endif
-            }
-        }
-    }
-
-
-    return;
-}
-
-void FieldState::set_udf()
-{
     sol::state& lua = MFP::lua;
-
-    bool success;
 
     sol::table state_def = lua["states"][name];
 
     // check if we have 'value' defined
-    sol::table value = state_def["value"].get_or(sol::table());
+    const sol::table value = state_def["value"].get_or(sol::table());
 
-    if ((!value.valid() || value.empty()) && ParallelDescriptor::IOProcessor())
-        Warning("WARNING: State '"+name+"' does not have 'value' defined for initial conditions, using defaults");
+    if (!value.valid())
+        Abort("State "+name+" does not have 'value' defined for initial conditions");
 
+    functions.resize(+MHDDef::PrimIdx::NUM);
 
+    // now for the primitives
+    for (int i = 0; i<+MHDDef::PrimIdx::NUM; ++i) {
 
-    const Vector<std::pair<int,Real>> init_with_value = {
-        {+FieldDef::ConsIdx::phi, 0.0},
-        {+FieldDef::ConsIdx::psi, 0.0},
-        {+FieldDef::ConsIdx::mu, 1.0},
-        {+FieldDef::ConsIdx::ep, 1.0},
-    };
-
-    for (int i = 0; i<cons_names.size(); ++i) {
-
-        const std::string &comp = cons_names[i];
+        std::string comp = prim_names[i];
 
         Optional3D1VFunction v;
 
-        if (!value.valid() || value.empty()) {
-            v.set_value(0.0);
-            success = false;
-        } else {
-            success = get_udf(value[comp], v, 0.0);
-        }
-
-        // set default values
-        if (!success) {
-            for (const auto &j : init_with_value) {
-                if (i == j.first) {
-                    v.set_value(j.second);
-                    break;
-                }
-            }
-        }
+        get_udf(value[comp], v, 0.0);
 
         functions[i] = v;
 
@@ -245,35 +116,56 @@ void FieldState::set_udf()
     return;
 }
 
-void FieldState::set_flux()
+void MHDState::set_flux()
 {
 
     if (!is_transported()) return;
 
-    ClassFactory<FieldRiemannSolver> ffact = GetFieldRiemannSolverFactory();
+    ClassFactory<MHDRiemannSolver> rfact = GetMHDRiemannSolverFactory();
 
     sol::table state_def = MFP::lua["states"][name];
     state_def["global_idx"] = global_idx;
+    state_def["gamma"] = gamma;
+    state_def["div_transport"] = div_transport;
 
     std::string flux = state_def["flux"].get_or<std::string>("null");
 
     if (flux == "null")
-        Abort("Flux option required for state '"+name+"'. Options are "+vec2str(ffact.getKeys()));
+        Abort("Flux option required for state '"+name+"'. Options are "+vec2str(rfact.getKeys()));
 
-    flux_solver = ffact.Build(flux, state_def);
+    flux_solver = rfact.Build(flux, state_def);
 
     if (!flux_solver)
-        Abort("Invalid flux solver option '"+flux+"'. Options are "+vec2str(ffact.getKeys()));
+        Abort("Invalid flux solver option '"+flux+"'. Options are "+vec2str(rfact.getKeys()));
 
 
     return;
 
 }
 
-void FieldState::set_refinement()
+void MHDState::set_shock_detector()
 {
 
-    ClassFactory<Refinement> rfact = GetFieldRefinementFactory();
+    ClassFactory<MHDShockDetector> sdfact = GetMHDShockDetectorFactory();
+
+    sol::table sd_def = MFP::lua["states"][name]["shock_detector"].get_or(sol::table());
+
+    if (!sd_def.valid()) return;
+
+    sd_def["global_idx"] = global_idx;
+
+    std::string sd_name = sd_def["name"].get_or<std::string>("");
+
+    shock_detector = sdfact.Build(sd_name, sd_def);
+
+    if (!sd_name.empty() && !shock_detector)
+        Abort("Invalid shock_detector option '"+sd_name+"'. Options are "+vec2str(sdfact.getKeys()));
+}
+
+void MHDState::set_refinement()
+{
+
+    ClassFactory<Refinement> rfact = GetMHDRefinementFactory();
 
     sol::table r_def = MFP::lua["states"][name]["refinement"].get_or(sol::table());
 
@@ -289,9 +181,9 @@ void FieldState::set_refinement()
         Abort("Invalid refinement option '"+r_name+"'. Options are "+vec2str(rfact.getKeys()));
 }
 
-void FieldState::init_from_lua()
+void MHDState::init_from_lua()
 {
-    BL_PROFILE("FieldState::init_from_lua");
+    BL_PROFILE("MHDState::init_from_lua");
 
     EulerianState::init_from_lua();
 
@@ -299,10 +191,20 @@ void FieldState::init_from_lua()
 
     const sol::table state_def = lua["states"][name];
 
+
+    //
+    // get gamma
+    //
+
+
+    gamma = state_def["gamma"];
+
+
     //
     // user defined functions
     //
     set_udf();
+
 
     //
     // domain boundary conditions
@@ -310,110 +212,69 @@ void FieldState::init_from_lua()
 
     const Vector<std::string> dir_name = {"x", "y", "z"};
     const Vector<std::string> side_name = {"lo", "hi"};
-
-    // mapping between name and index for various groupings
-    std::map<std::string,std::map<std::string, int>> bc2index;
-    for (int i=+FieldDef::ConsIdx::Dx; i<=+FieldDef::ConsIdx::Dz; ++i) {
-        bc2index["fill_D_bc"][cons_names[i]] = i;
-    }
-
-    for (int i=+FieldDef::ConsIdx::Bx; i<=+FieldDef::ConsIdx::Bz; ++i) {
-        bc2index["fill_B_bc"][cons_names[i]] = i;
-    }
-
-    bc2index["fill_ep_bc"][cons_names[+FieldDef::ConsIdx::ep]] = +FieldDef::ConsIdx::ep;
-    bc2index["fill_mu_bc"][cons_names[+FieldDef::ConsIdx::mu]] = +FieldDef::ConsIdx::mu;
-
-    bc2index["fill_psi_bc"] = {{"psi",+FieldDef::ConsIdx::psi}};
-    bc2index["fill_phi_bc"] = {{"phi",+FieldDef::ConsIdx::phi}};
+    const Vector<std::string>& mhd_var = prim_names;
+    const int N = mhd_var.size();
 
     BoundaryState &bs = boundary_conditions;
-
-
-    bs.fill_bc.resize(+FieldDef::ConsIdx::NUM);
-    bs.phys_fill_bc.resize(+FieldDef::ConsIdx::NUM);
+    bs.phys_fill_bc.resize(+MHDDef::PrimIdx::NUM);
 
     for (int ax = 0; ax < AMREX_SPACEDIM; ++ax) {
-
-
         for (int lh=0; lh<2; ++lh) {
 
-#ifdef AMREX_USE_EB
-            bool is_symmetry = false;
-#endif
-            for (const auto &bc : bc2index) {
+            std::string side_bc = state_def["bc"][dir_name[ax]][side_name[lh]]["fill_mhd_bc"].get_or<std::string>("outflow");
+            int i_side_bc = bc_names.at(side_bc);
 
-                // get the base boundary condition for cell centered values
-                std::string side_bc = state_def["bc"][dir_name[ax]][side_name[lh]][bc.first].get_or<std::string>("outflow");
-                int i_side_bc = bc_names.at(side_bc);
-#ifdef AMREX_USE_EB
-                if (i_side_bc == PhysBCType::symmetry || i_side_bc == 4) is_symmetry = true;
-#endif
-                // fill in the bc list for AMReX as well as gather any custom values/functions
-                for (const auto &var : bc.second) {
+            // get any custom values/functions
+            for (int j=0; j<N; ++j) {
 
-                    if (lh==0) {
-                        bs.phys_fill_bc[var.second].setLo(ax,i_side_bc);
-                    } else {
-                        bs.phys_fill_bc[var.second].setHi(ax,i_side_bc);
-                    }
+                if (lh==0) {
+                    bs.phys_fill_bc[j].setLo(ax,i_side_bc);
+                } else {
+                    bs.phys_fill_bc[j].setHi(ax,i_side_bc);
+                }
 
-                    const sol::object bcv = state_def["bc"][dir_name[ax]][side_name[lh]][var.first].get_or(sol::object());
+                const sol::object v = state_def["bc"][dir_name[ax]][side_name[lh]][mhd_var[j]].get_or(sol::object());
+                Optional3D1VFunction f = get_udf(v);
+                bs.set(ax,mhd_var[j],lh,f);
 
-                    Optional3D1VFunction v;
-
-                    // special case for phi and psi (set to zero in boundary)
-                    if (var.second == +FieldDef::ConsIdx::phi || var.second == +FieldDef::ConsIdx::psi) {
-                        get_udf(bcv,v,0.0);
-                    } else {
-                        v = get_udf(bcv);
-                    }
-                    bs.set(ax,cons_names[var.second],lh,v);
-
-                    // special case for inflow condition
-                    if (i_side_bc == PhysBCType::inflow && !v.is_valid()) {
-                        Abort("Setting '"+bc.first+" = inflow' requires all primitive variables to be defined, '" + var.first + "' is not defined");
-                    }
+                // special case for inflow condition
+                if (i_side_bc == PhysBCType::inflow && !f.is_valid()) {
+                    Abort("Setting 'fill_mhd_bc = inflow' requires all primitive variables to be defined, '" + mhd_var[j] + "' is not defined");
                 }
             }
 
+
+
 #ifdef AMREX_USE_EB
+            bool is_symmetry = (i_side_bc == PhysBCType::symmetry) || (i_side_bc == PhysBCType::slipwall);
             if (lh==0) {
                 bs.eb_bc.setLo(ax,is_symmetry ? BCType::reflect_even : BCType::foextrap);
             } else {
                 bs.eb_bc.setHi(ax,is_symmetry ? BCType::reflect_even : BCType::foextrap);
             }
 #endif
-
         }
+
     }
 
     // check validity of inflow bc
     boundary_conditions.post_init();
 
-    // handle static fields (electrostatic, magnetostatic)
-    is_static = state_def.get_or("static", 0);
-    if (is_static) reflux = false;
-
     //
     // divergence handling
     //
 
-    relative_div_speed = state_def["div_transport"].get_or(0.0);
-
-    div_speed = relative_div_speed*MFP::lightspeed;
-
-    fastest_speed = std::max(MFP::lightspeed, div_speed);
-
-    div_damping = state_def["div_damping"].get_or(0.0);
-
-
+    div_transport = state_def["div_transport"].get_or(0.0);
 
     //
     // riemann solver
     //
-
     set_flux();
+
+    //
+    // shock detector
+    //
+    set_shock_detector();
 
     //
     // refinement
@@ -421,18 +282,14 @@ void FieldState::init_from_lua()
 
     set_refinement();
 
-
-
-    return;
 }
 
-
-void FieldState::variable_setup(Vector<int> periodic)
+void MHDState::variable_setup(Vector<int> periodic)
 {
 
-    boundary_conditions.fill_bc.resize(+FieldDef::ConsIdx::NUM);
+    boundary_conditions.fill_bc.resize(+MHDDef::PrimIdx::NUM);
 
-    for (int icomp=0; icomp < +FieldDef::ConsIdx::NUM; ++icomp) {
+    for (int icomp=0; icomp < +MHDDef::ConsIdx::NUM; ++icomp) {
         set_bc s = bc_set[icomp]; // the function that sets the bc
 
         // make sure our periodicity isn't being overwritten
@@ -447,8 +304,8 @@ void FieldState::variable_setup(Vector<int> periodic)
         (*s)(boundary_conditions.fill_bc[icomp], boundary_conditions.phys_fill_bc[icomp]);
     }
 
-    Vector<std::string> comp_names(+FieldDef::ConsIdx::NUM);
-    for (int icomp=0; icomp < +FieldDef::ConsIdx::NUM; ++icomp) {
+    Vector<std::string> comp_names(+MHDDef::ConsIdx::NUM);
+    for (int icomp=0; icomp < +MHDDef::ConsIdx::NUM; ++icomp) {
         comp_names[icomp] = cons_names[icomp] + "-" + name;
     }
 
@@ -468,7 +325,7 @@ void FieldState::variable_setup(Vector<int> periodic)
     data_idx = desc_lst.size();
 
     desc_lst.addDescriptor(data_idx, IndexType::TheCellType(),
-                           StateDescriptor::Point, ng, +FieldDef::ConsIdx::NUM,
+                           StateDescriptor::Point, ng, +MHDDef::ConsIdx::NUM,
                            interp, state_data_extrap,
                            store_in_checkpoint);
 
@@ -482,7 +339,428 @@ void FieldState::variable_setup(Vector<int> periodic)
     }
 }
 
-void FieldState::calc_primitives(const Box& box,
+void MHDState::init_data(MFP* mfp, const Real time)
+{
+
+    const Real* dx = mfp->Geom().CellSize();
+    const Real* prob_lo = mfp->Geom().ProbLo();
+
+    MultiFab& S_new = mfp->get_data(data_idx, time);
+
+    Array<Real,+MHDDef::ConsIdx::NUM> U;
+    Array<Real,+MHDDef::PrimIdx::NUM> Q;
+
+    for (MFIter mfi(S_new); mfi.isValid(); ++mfi) {
+        const Box& box = mfi.validbox();
+        FArrayBox& S_data = S_new[mfi];
+
+        const Dim3 lo = amrex::lbound(box);
+        const Dim3 hi = amrex::ubound(box);
+        Array4<Real> const& S4 = S_data.array();
+
+#ifdef AMREX_USE_EB
+        FabArray<EBCellFlagFab>& flags = mfp->get_eb_data(global_idx).flags;
+        Array4<const EBCellFlag> const& flag4 = flags.array(mfi);
+#endif
+
+        Real x, y, z;
+        for     (int k = lo.z; k <= hi.z; ++k) {
+            z = prob_lo[2] + (k + 0.5)*dx[2];
+            for   (int j = lo.y; j <= hi.y; ++j) {
+                y = prob_lo[1] + (j + 0.5)*dx[1];
+                AMREX_PRAGMA_SIMD
+                        for (int i = lo.x; i <= hi.x; ++i) {
+                    x = prob_lo[0] + (i + 0.5)*dx[0];
+
+#ifdef AMREX_USE_EB
+                    const EBCellFlag &cflag = flag4(i,j,k);
+
+                    if (cflag.isCovered()) {
+                        for (int n=0; n<+MHDDef::ConsIdx::NUM; ++n) {
+                            S4(i,j,k,n) = 0.0;
+                        }
+                        continue;
+                    }
+#endif
+
+                    // grab the primitive variables as defined by the user functions
+                    for (int icomp=0; icomp<+MHDDef::PrimIdx::NUM; ++icomp) {
+                        const auto& f = functions[icomp];
+
+                        Q[icomp] = f(x, y, z);
+
+                    }
+
+                    // convert primitive to conserved
+                    prim2cons(Q, U);
+
+                    // copy into array
+                    for (int n=0; n<+MHDDef::ConsIdx::NUM; ++n) {
+                        S4(i,j,k,n) = U[n];
+                    }
+                }
+            }
+        }
+    }
+}
+
+// in place conversion from conserved to primitive
+bool MHDState::cons2prim(Array<Real, +MHDDef::ConsIdx::NUM>& U, Array<Real, +MHDDef::PrimIdx::NUM>& Q) const
+{
+    BL_PROFILE("MHDState::cons2prim");
+
+    Real rho = U[+MHDDef::ConsIdx::Density];
+    Real rhoinv = 1/rho;
+    Real u = U[+MHDDef::ConsIdx::Xmom]*rhoinv;
+    Real v = U[+MHDDef::ConsIdx::Ymom]*rhoinv;
+    Real w = U[+MHDDef::ConsIdx::Zmom]*rhoinv;
+
+    Real Bx = U[+MHDDef::ConsIdx::Bx];
+    Real By = U[+MHDDef::ConsIdx::By];
+    Real Bz = U[+MHDDef::ConsIdx::Bz];
+
+    Real nrg = U[+MHDDef::ConsIdx::Eden] - 0.5*(rho*(u*u + v*v + w*w) + Bx*Bx + By*By + Bz*Bz);
+
+    Real p = nrg*(gamma - 1.0);
+
+    Q[+MHDDef::PrimIdx::Density] = rho;
+    Q[+MHDDef::PrimIdx::Xvel] = u;
+    Q[+MHDDef::PrimIdx::Yvel] = v;
+    Q[+MHDDef::PrimIdx::Zvel] = w;
+    Q[+MHDDef::PrimIdx::Prs] = p;
+    Q[+MHDDef::PrimIdx::Bx] = Bx;
+    Q[+MHDDef::PrimIdx::By] = By;
+    Q[+MHDDef::PrimIdx::Bz] = Bz;
+    Q[+MHDDef::PrimIdx::psi] = U[+MHDDef::ConsIdx::psi];
+
+
+    return prim_valid(Q);
+}
+
+void MHDState::prim2cons(Array<Real, +MHDDef::PrimIdx::NUM>& Q, Array<Real, +MHDDef::ConsIdx::NUM>& U) const
+{
+    BL_PROFILE("MHDState::prim2cons");
+
+    Real rho = Q[+MHDDef::PrimIdx::Density];
+    Real mx = rho*Q[+MHDDef::PrimIdx::Xvel];
+    Real my = rho*Q[+MHDDef::PrimIdx::Yvel];
+    Real mz = rho*Q[+MHDDef::PrimIdx::Zvel];
+    Real p = Q[+MHDDef::PrimIdx::Prs];
+
+    Real Bx = Q[+MHDDef::PrimIdx::Bx];
+    Real By = Q[+MHDDef::PrimIdx::By];
+    Real Bz = Q[+MHDDef::PrimIdx::Bz];
+
+    U[+MHDDef::ConsIdx::Density] = rho;
+    U[+MHDDef::ConsIdx::Xmom] = mx;
+    U[+MHDDef::ConsIdx::Ymom] = my;
+    U[+MHDDef::ConsIdx::Zmom] = mz;
+    U[+MHDDef::ConsIdx::Eden] = p/(gamma - 1) + 0.5*(mx*mx + my*my + mz*mz)/rho + 0.5*(Bx*Bx + By*By + Bz*Bz);
+    U[+MHDDef::ConsIdx::Bx] = Bx;
+    U[+MHDDef::ConsIdx::By] = By;
+    U[+MHDDef::ConsIdx::Bz] = Bz;
+    U[+MHDDef::ConsIdx::psi] = Q[+MHDDef::PrimIdx::psi];
+
+}
+
+bool MHDState::prim_valid(const Array<Real, +MHDDef::PrimIdx::NUM> &Q) const
+{
+    if ((Q[+MHDDef::PrimIdx::Density] <= 0.0) ||  (Q[+MHDDef::PrimIdx::Prs] <= 0.0)
+            ) {
+        //        amrex::Abort("Primitive values outside of physical bounds!!");
+        return false;
+    }
+    return true;
+}
+
+bool MHDState::cons_valid(const Array<Real, +MHDDef::ConsIdx::NUM> &U) const
+{
+    if ((U[+MHDDef::ConsIdx::Density] <= 0.0) ||  (U[+MHDDef::ConsIdx::Eden] <= 0.0)
+            ) {
+        //        amrex::Abort("Primitive values outside of physical bounds!!");
+        return false;
+    }
+    return true;
+}
+
+RealArray MHDState::get_speed_from_cons(const Array<Real,+MHDDef::ConsIdx::NUM> &U) const
+{
+    BL_PROFILE("MHDState::get_speed_from_cons");
+    Real rho = U[+MHDDef::ConsIdx::Density];
+    Real ed = U[+MHDDef::ConsIdx::Eden];
+    Real rhoinv = 1/rho;
+
+    Real ux = U[+MHDDef::ConsIdx::Xmom]*rhoinv;
+    Real uy = U[+MHDDef::ConsIdx::Ymom]*rhoinv;
+    Real uz = U[+MHDDef::ConsIdx::Zmom]*rhoinv;
+
+    Real kineng = 0.5*rho*(ux*ux + uy*uy + uz*uz);
+    Real p = (ed - kineng)*(gamma - 1);
+
+    Real Bx = U[+MHDDef::ConsIdx::Bx];
+    Real By = U[+MHDDef::ConsIdx::By];
+    Real Bz = U[+MHDDef::ConsIdx::Bz];
+
+    Real B = std::sqrt(Bx*Bx + By*By + Bz*Bz);
+
+    Real cf = std::sqrt( (gamma*p + B) / rho);
+
+    RealArray s = {AMREX_D_DECL(cf + std::abs(ux), cf + std::abs(uy), cf + std::abs(uz))};
+
+    return s;
+
+}
+
+RealArray MHDState::get_speed_from_prim(const Array<Real, +MHDDef::PrimIdx::NUM> &Q) const
+{
+    BL_PROFILE("MHDState::get_speed_from_prim");
+
+    Real rho = Q[+MHDDef::PrimIdx::Density];
+    Real ux = Q[+MHDDef::PrimIdx::Xvel];
+    Real uy = Q[+MHDDef::PrimIdx::Yvel];
+    Real uz = Q[+MHDDef::PrimIdx::Zvel];
+    Real p = Q[+MHDDef::PrimIdx::Prs];
+
+    Real Bx = Q[+MHDDef::PrimIdx::Bx];
+    Real By = Q[+MHDDef::PrimIdx::By];
+    Real Bz = Q[+MHDDef::PrimIdx::Bz];
+
+    Real B = std::sqrt(Bx*Bx + By*By + Bz*Bz);
+
+    Real cf = std::sqrt( (gamma*p + B) / rho);
+
+    RealArray s = {AMREX_D_DECL(cf + std::abs(ux), cf + std::abs(uy), cf + std::abs(uz))};
+
+    return s;
+
+}
+
+Vector<std::string> MHDState::get_plot_output_names() const
+{
+    Vector<std::string> out;
+    out.insert(out.end(), cons_names.begin(), cons_names.end());
+    out.insert(out.end(), prim_names.begin(), prim_names.end());
+#ifdef AMREX_USE_EB
+    out.push_back("vfrac");
+#endif
+
+    return out;
+}
+
+void MHDState::get_plot_output(const Box& box,
+                                 const FArrayBox& src,
+                                 std::map<std::string,FArrayBox>& out,
+                                 Vector<std::string>& updated
+                                 #ifdef AMREX_USE_EB
+                                 ,const FArrayBox& vfrac
+                                 #endif
+                                 ) const
+{
+    BL_PROFILE("MHDState::get_state_values");
+    const Dim3 lo = amrex::lbound(box);
+    const Dim3 hi = amrex::ubound(box);
+
+#ifdef AMREX_USE_EB
+    Array4<const Real> const& vf4 = vfrac.array();
+#endif
+
+    updated.resize(0);
+
+    // check conserved variables
+    std::map<std::string,int> cons_tags;
+    for (int i=0; i<+MHDDef::ConsIdx::NUM; ++i) {
+        const std::string s = cons_names[i];
+        const std::string var_name = s+"-"+name;
+        if ( out.find(var_name) == out.end() ) continue;
+        cons_tags[var_name] = i;
+        updated.push_back(var_name);
+    }
+
+    // check primitive variables
+    std::map<std::string,int> prim_tags;
+    for (int i=0; i<+MHDDef::PrimIdx::NUM; ++i) {
+        const std::string s = prim_names[i];
+        if (s == cons_names[0]) continue;
+        const std::string var_name = s+"-"+name;
+        if ( out.find(var_name) == out.end() ) continue;
+        prim_tags[var_name] = i;
+        updated.push_back(var_name);
+    }
+
+#ifdef AMREX_USE_EB
+    const std::string vfrac_name = "vfrac-"+name;
+    bool load_vfrac = out.find(vfrac_name) != out.end();
+#endif
+
+    std::map<std::string,Array4<Real>> out4;
+    for (const std::string& s : updated) {
+        out[s].resize(box, 1);
+        out[s].setVal(0.0);
+        out4[s] = out[s].array();
+    }
+
+    // temporary storage for retrieving the state data
+    Array<Real,+MHDDef::ConsIdx::NUM> S;
+    Array<Real,+MHDDef::PrimIdx::NUM> Q;
+
+    Array4<const Real> const& src4 = src.array();
+
+    for     (int k = lo.z; k <= hi.z; ++k) {
+        for   (int j = lo.y; j <= hi.y; ++j) {
+            AMREX_PRAGMA_SIMD
+                    for (int i = lo.x; i <= hi.x; ++i) {
+
+#ifdef AMREX_USE_EB
+                if (vf4(i,j,k) == 0.0) {
+                    continue;
+                }
+#endif
+
+                for (int n=0; n<+MHDDef::ConsIdx::NUM; ++n) {
+                    S[n] = src4(i,j,k,n);
+
+                    if (std::isnan(S[n])) {
+                        Abort();
+                    }
+
+                }
+
+
+#ifdef AMREX_USE_EB
+                if (load_vfrac)  out4[vfrac_name](i,j,k)  = vf4(i,j,k);
+#endif
+
+                if (!cons_tags.empty()) {
+                    for (const auto& var : cons_tags) {
+                        out4[var.first](i,j,k) = S[var.second];
+                    }
+                }
+
+                if (!prim_tags.empty()) {
+                    cons2prim(S, Q);
+
+                    for (const auto& var : prim_tags) {
+                        out4[var.first](i,j,k) = Q[var.second];
+                    }
+                }
+            }
+        }
+    }
+
+
+    return;
+}
+
+Real MHDState::get_allowed_time_step(MFP* mfp) const
+{
+    const Real* dx = mfp->Geom().CellSize();
+
+    MultiFab& data = mfp->get_new_data(data_idx);
+
+    Array<Real,+MHDDef::ConsIdx::NUM> U;
+
+    Real max_speed = std::numeric_limits<Real>::min();
+
+    for (MFIter mfi(data); mfi.isValid(); ++mfi) {
+        const Box& box = mfi.tilebox();
+        const Dim3 lo = amrex::lbound(box);
+        const Dim3 hi = amrex::ubound(box);
+
+
+#ifdef AMREX_USE_EB
+        // get the EB data required for later calls
+        const FArrayBox& vfrac = mfp->get_eb_data(global_idx).volfrac[mfi];
+
+        if (vfrac.getType() == FabType::covered) continue;
+
+        Array4<const Real> const& vf4 = vfrac.array();
+#endif
+        Array4<const Real> const& data4 = data[mfi].array();
+
+        for     (int k = lo.z; k <= hi.z; ++k) {
+            for   (int j = lo.y; j <= hi.y; ++j) {
+                AMREX_PRAGMA_SIMD
+                        for (int i = lo.x; i <= hi.x; ++i) {
+
+#ifdef AMREX_USE_EB
+                    if (vf4(i,j,k) == 0.0) {
+                        continue;
+                    }
+#endif
+
+                    for (int n = 0; n<+MHDDef::ConsIdx::NUM; ++n) {
+                        U[n] = data4(i,j,k,n);
+                    }
+
+                    const RealArray speed = get_speed_from_cons(U);
+
+
+                    for (int d=0; d<AMREX_SPACEDIM; ++d) {
+                        max_speed = std::max(max_speed, speed[d]);
+                    }
+                }
+            }
+        }
+    }
+
+    Real dt = dx[0]/max_speed;
+    for (int i=1; i<AMREX_SPACEDIM; ++i) {
+        dt = std::min(dt, dx[i]/max_speed);
+    }
+
+    if (div_transport > 0.0) {
+        ParallelDescriptor::ReduceRealMin(dt);
+        flux_solver->update_max_speed(mfp->cfl*dx[0]/dt);
+    }
+
+    return dt;
+}
+
+void MHDState::calc_velocity(const Box& box,
+                               FArrayBox& cons,
+                               FArrayBox &prim
+                               #ifdef AMREX_USE_EB
+                               ,const FArrayBox& vfrac
+                               #endif
+                               ) const
+{
+    BL_PROFILE("MHDState::calc_velocity");
+
+
+    prim.resize(box, AMREX_SPACEDIM);
+
+    const Dim3 lo = amrex::lbound(box);
+    const Dim3 hi = amrex::ubound(box);
+    Array4<Real> const& s4 = cons.array();
+    Array4<Real> const& p4 = prim.array();
+
+#ifdef AMREX_USE_EB
+    Array4<const Real> const& vfrac4 = vfrac.array();
+#endif
+
+    for     (int k = lo.z; k <= hi.z; ++k) {
+        for   (int j = lo.y; j <= hi.y; ++j) {
+            AMREX_PRAGMA_SIMD
+                    for (int i = lo.x; i <= hi.x; ++i) {
+
+#ifdef AMREX_USE_EB
+                if (vfrac4(i,j,k) == 0.0) continue;
+#endif
+
+                const Real irho = 1/s4(i,j,k,+MHDDef::ConsIdx::Density);
+
+                for (int n = 0; n<AMREX_SPACEDIM; ++n) {
+                    p4(i,j,k,n) =  irho*s4(i,j,k,+MHDDef::ConsIdx::Xmom+n);
+                }
+
+            }
+        }
+    }
+
+    return;
+}
+
+void MHDState::calc_primitives(const Box& box,
                                  FArrayBox& cons,
                                  FArrayBox& prim,
                                  const Real* dx,
@@ -493,11 +771,12 @@ void FieldState::calc_primitives(const Box& box,
                                  #endif
                                  ) const
 {
-    BL_PROFILE("FieldState::calc_primitives");
+    BL_PROFILE("MHDState::calc_primitives");
 
-    Array<Real, +FieldDef::ConsIdx::NUM> U;
+    Array<Real,+MHDDef::ConsIdx::NUM> U;
+    Array<Real,+MHDDef::PrimIdx::NUM> Q;
 
-    prim.resize(box, +FieldDef::ConsIdx::NUM);
+    prim.resize(box, +MHDDef::PrimIdx::NUM);
 
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
@@ -545,7 +824,7 @@ void FieldState::calc_primitives(const Box& box,
 
                         const Real vf = vfrac4(ii,jj,kk);
                         if (vf > 0.0) {
-                            for (int n=0; n<+FieldDef::ConsIdx::NUM; ++n) {
+                            for (int n=0; n<+MHDDef::ConsIdx::NUM; ++n) {
                                 U[n] += vf*s4(ii,jj,kk,n);
                             }
 
@@ -557,11 +836,11 @@ void FieldState::calc_primitives(const Box& box,
                     // average out the volume fraction weighted contributions, otherwise,
                     // fill in the primitives with zeros
                     if (vtot > 0.0) {
-                        for (int n=0; n<+FieldDef::ConsIdx::NUM; ++n) {
+                        for (int n=0; n<+MHDDef::ConsIdx::NUM; ++n) {
                             U[n] /= vtot;
                         }
                     } else {
-                        for (int n=0; n<+FieldDef::ConsIdx::NUM; ++n) {
+                        for (int n=0; n<+MHDDef::PrimIdx::NUM; ++n) {
                             p4(i,j,k,n) = 0.0;
                         }
                         continue;
@@ -569,16 +848,20 @@ void FieldState::calc_primitives(const Box& box,
                 } else {
 #endif
                     // grab the conserved variables
-                    for (int n=0; n<+FieldDef::ConsIdx::NUM; ++n) {
+                    for (int n=0; n<+MHDDef::ConsIdx::NUM; ++n) {
                         U[n] = s4(i,j,k,n);
                     }
 #ifdef AMREX_USE_EB
                 }
 #endif
 
+
+                // convert to primitive
+                cons2prim(U, Q);
+
                 // copy into primitive
-                for (int n=0; n<+FieldDef::ConsIdx::NUM; ++n) {
-                    p4(i,j,k,n) = U[n];
+                for (int n=0; n<+MHDDef::PrimIdx::NUM; ++n) {
+                    p4(i,j,k,n) = Q[n];
                 }
             }
         }
@@ -587,7 +870,7 @@ void FieldState::calc_primitives(const Box& box,
     return;
 }
 
-void FieldState::update_boundary_cells(const Box& box,
+void MHDState::update_boundary_cells(const Box& box,
                                        const Geometry &geom,
                                        FArrayBox &prim,
                                        #ifdef AMREX_USE_EB
@@ -595,7 +878,7 @@ void FieldState::update_boundary_cells(const Box& box,
                                        #endif
                                        const Real time) const
 {
-    BL_PROFILE("FieldState::update_boundary_cells");
+    BL_PROFILE("MHDState::update_boundary_cells");
     Vector<BoundaryInfo> limits = get_bc_limits(box, geom);
 
     if (limits.empty())
@@ -606,7 +889,7 @@ void FieldState::update_boundary_cells(const Box& box,
     const Real* prob_lo = geom.ProbLo();
 
     Real x, y, z;
-    std::map<std::string, Real> U{{"t", time}};
+    std::map<std::string, Real> Q{{"t", time}};
 
     Array<int,3> grab;
 
@@ -629,19 +912,19 @@ void FieldState::update_boundary_cells(const Box& box,
 
             for (int k=L.kmin; k<=L.kmax; ++k) {
                 z = prob_lo[2] + (k + 0.5)*dx[2];
-                U["z"] = z;
+                Q["z"] = z;
                 if (L.dir != 2) {
                     grab[2] = k;
                 }
                 for (int j=L.jmin; j<=L.jmax; ++j) {
                     y = prob_lo[1] + (j + 0.5)*dx[1];
-                    U["y"] = y;
+                    Q["y"] = y;
                     if (L.dir != 1) {
                         grab[1] = j;
                     }
                     for (int i=L.imin; i<=L.imax; ++i) {
                         x = prob_lo[0] + (i + 0.5)*dx[0];
-                        U["x"] = x;
+                        Q["x"] = x;
                         if (L.dir != 0) {
                             grab[0] = i;
                         }
@@ -652,15 +935,15 @@ void FieldState::update_boundary_cells(const Box& box,
 #endif
 
                         // get data from closest internal cell
-                        for (int n=0; n<+FieldDef::ConsIdx::NUM; ++n) {
-                            U[cons_names[n]] = p4(grab[0],grab[1],grab[2],n);
+                        for (int n=0; n<+MHDDef::PrimIdx::NUM; ++n) {
+                            Q[prim_names[n]] = p4(grab[0],grab[1],grab[2],n);
                         }
 
-                        // update the conserved from our UDFs, but only those that are valid functions
-                        for (int n=0; n<+FieldDef::ConsIdx::NUM; ++n) {
-                            const Optional3D1VFunction &f = boundary_conditions.get(L.lo_hi, L.dir, cons_names[n]);
+                        // update the primitives from our UDFs, but only those that are valid functions
+                        for (int n=0; n<+MHDDef::PrimIdx::NUM; ++n) {
+                            const Optional3D1VFunction &f = boundary_conditions.get(L.lo_hi, L.dir, prim_names[n]);
                             if (f.is_valid()) {
-                                p4(i,j,k,n) = f(U);
+                                p4(i,j,k,n) = f(Q);
                             }
                         }
                     }
@@ -670,7 +953,7 @@ void FieldState::update_boundary_cells(const Box& box,
     }
 }
 
-void FieldState::calc_reconstruction(const Box& box,
+void MHDState::calc_reconstruction(const Box& box,
                                      FArrayBox &prim,
                                      Array<FArrayBox, AMREX_SPACEDIM> &rlo,
                                      Array<FArrayBox, AMREX_SPACEDIM> &rhi
@@ -680,7 +963,7 @@ void FieldState::calc_reconstruction(const Box& box,
                                      #endif
                                      ) const
 {
-    BL_PROFILE("FieldState::calc_reconstruction");
+    BL_PROFILE("MHDState::calc_reconstruction");
 
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
@@ -711,8 +994,8 @@ void FieldState::calc_reconstruction(const Box& box,
 
         // make sure our arrays for putting lo and hi reconstructed values into
         // are the corect size
-        rlo[d].resize(box, +FieldDef::ConsIdx::NUM);
-        rhi[d].resize(box, +FieldDef::ConsIdx::NUM);
+        rlo[d].resize(box, +MHDDef::ConsIdx::NUM);
+        rhi[d].resize(box, +MHDDef::ConsIdx::NUM);
 
 #ifdef AMREX_USE_EB
         if (check_eb) {
@@ -725,7 +1008,7 @@ void FieldState::calc_reconstruction(const Box& box,
         Array4<Real> const& hi4 = rhi[d].array();
 
         // cycle over all components
-        for (int n = 0; n<+FieldDef::ConsIdx::NUM; ++n) {
+        for (int n = 0; n<+MHDDef::ConsIdx::NUM; ++n) {
 
             for     (int k = lo.z; k <= hi.z; ++k) {
                 for   (int j = lo.y; j <= hi.y; ++j) {
@@ -763,9 +1046,7 @@ void FieldState::calc_reconstruction(const Box& box,
     return;
 }
 
-
-
-void FieldState::calc_time_averaged_faces(const Box& box,
+void MHDState::calc_time_averaged_faces(const Box& box,
                                           const FArrayBox &prim,
                                           Array<FArrayBox, AMREX_SPACEDIM> &rlo,
                                           Array<FArrayBox, AMREX_SPACEDIM> &rhi,
@@ -775,11 +1056,13 @@ void FieldState::calc_time_averaged_faces(const Box& box,
                                           const Real* dx,
                                           Real dt) const
 {
-    BL_PROFILE("FieldState::calc_time_averaged_faces");
+    BL_PROFILE("MHDState::calc_time_averaged_faces");
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
     Array4<const Real> const& p4 = prim.array();
+
+    Array<Real,+MHDDef::PrimIdx::NUM> Q;
 
 #ifdef AMREX_USE_EB
     Array4<const EBCellFlag> const& f4 = flag.array();
@@ -801,6 +1084,13 @@ void FieldState::calc_time_averaged_faces(const Box& box,
                 }
 #endif
 
+                for (int n=0; n<+MHDDef::PrimIdx::NUM; ++n) {
+                    Q[n] = p4(i,j,k,n);
+                }
+
+                const RealArray local_c = get_speed_from_prim(Q);
+
+
                 for (int d=0; d<AMREX_SPACEDIM; ++d) {
 
                     Array4<Real> const& lo4 = rlo[d].array();
@@ -809,7 +1099,7 @@ void FieldState::calc_time_averaged_faces(const Box& box,
                     dt_2dx = 0.5*dt/dx[d];
 
                     // cycle over all components
-                    for (int n=0; n<+FieldDef::ConsIdx::NUM; ++n) {
+                    for (int n=0; n<+MHDDef::PrimIdx::NUM; ++n) {
 
                         lo_face = lo4(i,j,k,n);
                         hi_face = hi4(i,j,k,n);
@@ -817,8 +1107,8 @@ void FieldState::calc_time_averaged_faces(const Box& box,
 
                         a6 = 6.0*centre - 3*(lo_face + hi_face);
 
-                        lo4(i,j,k,n) += fastest_speed*dt_2dx*(hi_face - lo_face + (1 - fastest_speed*ft*dt_2dx)*a6);
-                        hi4(i,j,k,n) -= fastest_speed*dt_2dx*(hi_face - lo_face - (1 - fastest_speed*ft*dt_2dx)*a6);
+                        lo4(i,j,k,n) += local_c[d]*dt_2dx*(hi_face - lo_face + (1 - local_c[d]*ft*dt_2dx)*a6);
+                        hi4(i,j,k,n) -= local_c[d]*dt_2dx*(hi_face - lo_face - (1 - local_c[d]*ft*dt_2dx)*a6);
 
                     }
                 }
@@ -834,7 +1124,7 @@ void FieldState::calc_time_averaged_faces(const Box& box,
 * but resides at the interface
 */
 
-void FieldState::face_bc(const int dir,
+void MHDState::face_bc(const int dir,
                          Box const& box,
                          const FArrayBox& src,
                          FArrayBox& dest,
@@ -845,7 +1135,7 @@ void FieldState::face_bc(const int dir,
                          const Real time,
                          const bool do_all) const
 {
-    BL_PROFILE("FieldState::face_bc");
+    BL_PROFILE("MHDState::face_bc");
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
@@ -857,7 +1147,7 @@ void FieldState::face_bc(const int dir,
     const Real* dx = geom.CellSize();
 
     Real x, y, z;
-    std::map<std::string, Real> U{{"t", time}};
+    std::map<std::string, Real> Q{{"t", time}};
 
     // define the limits of our operations
     Vector<BoundaryInfo> limits;
@@ -949,7 +1239,7 @@ void FieldState::face_bc(const int dir,
 
     if (do_all) {
         // first do the usual boundary conditions
-        for (int n=0; n<+FieldDef::ConsIdx::NUM; ++n) {
+        for (int n=0; n<+MHDDef::PrimIdx::NUM; ++n) {
             const BCRec &bc = boundary_conditions.fill_bc[n];
 
             for (const auto &L : limits) {
@@ -1012,13 +1302,13 @@ void FieldState::face_bc(const int dir,
 
             for (int k=L.kmin; k<=L.kmax; ++k) {
                 z = prob_lo[2] + (k+offset[2])*dx[2];
-                U["z"] = z;
+                Q["z"] = z;
                 for (int j=L.jmin; j<=L.jmax; ++j) {
                     y = prob_lo[1] + (j+offset[1])*dx[1];
-                    U["y"] = y;
+                    Q["y"] = y;
                     for (int i=L.imin; i<=L.imax; ++i) {
                         x = prob_lo[0] + (i+offset[0])*dx[0];
-                        U["x"] = x;
+                        Q["x"] = x;
 
 #ifdef AMREX_USE_EB
                         if (f4(i,j,k).isCovered()) {
@@ -1027,15 +1317,15 @@ void FieldState::face_bc(const int dir,
 #endif
 
                         // load data from the other side of the face
-                        for (int n=0; n<+FieldDef::ConsIdx::NUM; ++n) {
-                            U[cons_names[n]] = s4(i,j,k,n);
+                        for (int n=0; n<+MHDDef::PrimIdx::NUM; ++n) {
+                            Q[prim_names[n]] = s4(i,j,k,n);
                         }
 
                         // update the primitives from our UDFs, but only those that are valid functions
-                        for (int n=0; n<+FieldDef::ConsIdx::NUM; ++n) {
-                            const Optional3D1VFunction &f = boundary_conditions.get(L.lo_hi, dir, cons_names[n]);
+                        for (int n=0; n<+MHDDef::PrimIdx::NUM; ++n) {
+                            const Optional3D1VFunction &f = boundary_conditions.get(L.lo_hi, dir, prim_names[n]);
                             if (f.is_valid()) {
-                                d4(i,j,k,n) = f(U);
+                                d4(i,j,k,n) = f(Q);
                             }
                         }
                     }
@@ -1047,22 +1337,21 @@ void FieldState::face_bc(const int dir,
     return;
 }
 
-
-
 // given all of the available face values load the ones expected by the flux calc into a vector
-void FieldState::load_state_for_flux(const Array4<const Real> &face,
-                                     int i, int j, int k, Array<Real, +FieldDef::ConsIdx::NUM> &S) const
+void MHDState::load_state_for_flux(const Array4<const Real> &face,
+                                     int i, int j, int k,
+                                   Array<Real,+MHDDef::PrimIdx::NUM> &S) const
 {
-    BL_PROFILE("FieldState::load_state_for_flux");
+    BL_PROFILE("MHDState::load_state_for_flux");
 
-    for (int n=0; n<+FieldDef::ConsIdx::NUM; ++n) {
+    for (size_t n=0; n<+MHDDef::PrimIdx::NUM; ++n) {
         S[n] = face(i,j,k,n);
     }
 
     return;
 }
 
-void FieldState::calc_fluxes(const Box& box,
+void MHDState::calc_fluxes(const Box& box,
                              FArrayBox &cons,
                              Array<FArrayBox, AMREX_SPACEDIM> &r_lo,
                              Array<FArrayBox, AMREX_SPACEDIM> &r_hi,
@@ -1073,10 +1362,11 @@ void FieldState::calc_fluxes(const Box& box,
                              const Real *dx,
                              const Real dt) const
 {
-    BL_PROFILE("FieldState::calc_fluxes");
+    BL_PROFILE("MHDState::calc_fluxes");
 
     Array<int, 3> index;
-    Array<Real, +FieldDef::ConsIdx::NUM> L, R, F;
+    Array<Real,+MHDDef::PrimIdx::NUM> L, R;
+    Array<Real,+MHDDef::ConsIdx::NUM> F;
 
 #ifdef AMREX_USE_EB
     Array4<const EBCellFlag> const& f4 = flag.array();
@@ -1119,18 +1409,27 @@ void FieldState::calc_fluxes(const Box& box,
 
 
                     // rotate the vectors
-                    transform_global2local(L, d, vector_idx);
-                    transform_global2local(R, d, vector_idx);
+                    transform_global2local(L, d, prim_vector_idx);
+                    transform_global2local(R, d, prim_vector_idx);
 
 
-                    flux_solver->solve(L, R, F);
+                    Real shk = 0.0;
+
+                    if (shock_detector) {
+                        shk = shock_detector->solve(L, R);
+                    }
+
+                    flux_solver->solve(L, R, F, &shk);
 
                     // rotate the flux back to local frame
-                    transform_local2global(F, d, vector_idx);
+                    transform_local2global(F, d, cons_vector_idx);
 
                     // load the flux into the array
-                    for (int n=0; n<+FieldDef::ConsIdx::NUM; ++n) {
+                    for (int n=0; n<+MHDDef::ConsIdx::NUM; ++n) {
                         flux4(i,j,k,n) += F[n];
+
+                        AMREX_ASSERT(std::isfinite(flux4(i,j,k,n)));
+
                     }
 
                 }
@@ -1142,7 +1441,7 @@ void FieldState::calc_fluxes(const Box& box,
 }
 
 
-void FieldState::correct_face_prim(const Box& box,
+void MHDState::correct_face_prim(const Box& box,
                                    Array<FArrayBox, AMREX_SPACEDIM> &r_lo,
                                    Array<FArrayBox, AMREX_SPACEDIM> &r_hi,
                                    const Array<FArrayBox, AMREX_SPACEDIM> &fluxes,
@@ -1156,7 +1455,8 @@ void FieldState::correct_face_prim(const Box& box,
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
-    Array<Real, +FieldDef::ConsIdx::NUM> Left, Rght;
+    Array<Real,+MHDDef::PrimIdx::NUM> L_prim, R_prim;
+    Array<Real,+MHDDef::ConsIdx::NUM> L_cons, R_cons;
 
 #ifdef AMREX_USE_EB
     Array4<const EBCellFlag> const& f4 = flag.array();
@@ -1221,11 +1521,14 @@ void FieldState::correct_face_prim(const Box& box,
 #endif
 
                         // get left and right states
-                        for (int n=0; n<+FieldDef::ConsIdx::NUM; ++n ) {
-                            Left[n] = hi4(i-idx1[0],j-idx1[1],k-idx1[2],n);
-                            Rght[n] = lo4(i,j,k,n);
+                        for (int n=0; n<+MHDDef::PrimIdx::NUM; ++n ) {
+                            L_prim[n] = hi4(i-idx1[0],j-idx1[1],k-idx1[2],n);
+                            R_prim[n] = lo4(i,j,k,n);
                         }
 
+                        // convert to conserved
+                        prim2cons(L_prim, L_cons);
+                        prim2cons(R_prim, R_cons);
 
                         /* example for x-direction in 2D
                                    * L & R = reconstructed x- face values
@@ -1247,25 +1550,29 @@ void FieldState::correct_face_prim(const Box& box,
                                    */
 
                         // left side
-                        for (int n=0; n<+FieldDef::ConsIdx::NUM; ++n ) {
+                        for (int n=0; n<+MHDDef::ConsIdx::NUM; ++n ) {
                             loF = flux4(i-idx1[0],j-idx1[1],k-idx1[2],n);
                             hiF = flux4(i-idx1[0]+idx2[0],j-idx1[1]+idx2[1],k-idx1[2]+idx2[2],n);
 
-                            Left[n] += 0.5*dt/dx[d2]*(loF - hiF);
+                            L_cons[n] += 0.5*dt/dx[d2]*(loF - hiF);
                         }
 
                         // right side
-                        for (int n=0; n<+FieldDef::ConsIdx::NUM; ++n ) {
+                        for (int n=0; n<+MHDDef::ConsIdx::NUM; ++n ) {
                             loF = flux4(i,j,k,n);
                             hiF = flux4(i+idx2[0],j+idx2[1],k+idx2[2],n);
 
-                            Rght[n] += 0.5*dt/dx[d2]*(loF - hiF);
+                            R_cons[n] += 0.5*dt/dx[d2]*(loF - hiF);
                         }
 
+                        // convert to primitive
+                        cons2prim(L_cons, L_prim);
+                        cons2prim(R_cons, R_prim);
+
                         // update reconstruction
-                        for (int n=0; n<+FieldDef::ConsIdx::NUM; ++n ) {
-                            hi4(i-idx1[0],j-idx1[1],k-idx1[2],n) = Left[n];
-                            lo4(i,j,k,n) = Rght[n];
+                        for (int n=0; n<+MHDDef::PrimIdx::NUM; ++n ) {
+                            hi4(i-idx1[0],j-idx1[1],k-idx1[2],n) = L_prim[n];
+                            lo4(i,j,k,n) = R_prim[n];
                         }
                     }
                 }
@@ -1274,9 +1581,10 @@ void FieldState::correct_face_prim(const Box& box,
     }
 }
 
+
 #ifdef AMREX_USE_EB
 
-void FieldState::calc_wall_fluxes(const Box& box,
+void MHDState::calc_wall_fluxes(const Box& box,
                                   const FArrayBox &prim,
                                   Array<FArrayBox, AMREX_SPACEDIM> &fluxes,
                                   const EBCellFlagFab& flag,
@@ -1287,7 +1595,7 @@ void FieldState::calc_wall_fluxes(const Box& box,
                                   const Real *dx,
                                   const Real dt) const
 {
-    BL_PROFILE("FieldState::calc_wall_fluxes");
+    BL_PROFILE("MHDState::calc_wall_fluxes");
 
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
@@ -1299,7 +1607,8 @@ void FieldState::calc_wall_fluxes(const Box& box,
     Array<Array4<Real>,AMREX_SPACEDIM> flux4;
     Array<Array4<const Real>,AMREX_SPACEDIM> afrac4;
 
-    Array<Array<Real,+FieldDef::ConsIdx::NUM>,AMREX_SPACEDIM> wall_flux;
+    Array<Vector<Real>,AMREX_SPACEDIM> wall_flux;
+    for (int i=0; i<AMREX_SPACEDIM;++i) { wall_flux[i].resize(+MHDDef::ConsIdx::NUM);}
 
     Array4<const EBCellFlag> const& flag4 = flag.array();
     for (int d=0; d<AMREX_SPACEDIM; ++d) {
@@ -1312,7 +1621,7 @@ void FieldState::calc_wall_fluxes(const Box& box,
 
     const Array4<const Real>& bc_idx4 = bc_idx.array();
 
-    Array<Real,+FieldDef::ConsIdx::NUM> cell_state;
+    Array<Real,+MHDDef::PrimIdx::NUM> cell_state;
 
     Array<Array<Real,3>,3> wall_coord = {{{0,0,0},{0,0,0},{0,0,0}}};
     Array<Real,AMREX_SPACEDIM> wall_centre;
@@ -1344,94 +1653,15 @@ void FieldState::calc_wall_fluxes(const Box& box,
 
                     // the boundary condition
                     const int ebi = (int)nearbyint(bc_idx4(i,j,k));
-                    const FieldBoundaryEB& bc = *eb_bcs[ebi];
+                    const MHDBoundaryEB& bc = *eb_bcs[ebi];
 
                     // calculate the wall flux
-                    bc.solve(wall_coord, cell_state, wall_flux, dx);
+                    bc.solve(wall_coord, wall_centre, cell_state, p4, i, j, k, dx, wall_flux);
 
                     // load the flux into the fab
                     for (int d=0; d<AMREX_SPACEDIM; ++d) {
-                        for (int n=0; n<+FieldDef::ConsIdx::NUM; ++n) {
+                        for (int n=0; n<+MHDDef::ConsIdx::NUM; ++n) {
                             flux4[d](i,j,k,n) += wall_flux[d][n];
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return;
-}
-
-void FieldState::get_wall_value(const Box& box,
-                           Vector<FArrayBox*> bcs_data,
-                           const EBCellFlagFab& flag,
-                           const CutFab &bc_idx,
-                           const FArrayBox& bcent,
-                           const FArrayBox &bnorm,
-                           const Real t,
-                           const Real* dx,
-                           const Real* prob_lo) const
-{
-    BL_PROFILE("EulerianState::get_wall_value");
-    const Dim3 lo = amrex::lbound(box);
-    const Dim3 hi = amrex::ubound(box);
-
-    Array4<const Real> const& bcent4 = bcent.array();
-    Array4<const Real> const& bnorm4 = bnorm.array();
-    Array4<const EBCellFlag> const& flag4 = flag.array();
-    const Array4<const Real>& bc_idx4 = bc_idx.array();
-
-    Vector<Vector<Real>> wall_state;
-
-    Array<Array<Real,3>,3> wall_coord = {{{0,0,0},{0,0,0},{0,0,0}}};
-    Array<Real,AMREX_SPACEDIM> wall_centre;
-
-    Array<Real,3> xyz;
-
-    for     (int k = lo.z; k <= hi.z; ++k) {
-        xyz[2] = prob_lo[2] + (k + 0.5)*dx[2];
-        for   (int j = lo.y; j <= hi.y; ++j) {
-            xyz[1] = prob_lo[1] + (j + 0.5)*dx[1];
-            AMREX_PRAGMA_SIMD
-                    for (int i = lo.x; i <= hi.x; ++i) {
-                xyz[0] = prob_lo[0] + (i + 0.5)*dx[0];
-
-                const EBCellFlag &cflag = flag4(i,j,k);
-
-                if (cflag.isSingleValued()) {
-
-                    // the boundary condition
-                    const int ebi = (int)nearbyint(bc_idx4(i,j,k));
-                    const auto& bc = eb_bcs[ebi];
-
-
-                    for (int d=0; d<AMREX_SPACEDIM; ++d) {
-
-                        // get the wall normal
-                        wall_coord[0][d] = bnorm4(i,j,k,d);
-
-                        // get the centre of the wall (in cell coordinates [0,1])
-                        // and convert to x,y,z coordinates
-                        wall_centre[d] = xyz[d] + bcent4(i,j,k,d)*dx[d];
-                    }
-
-                    // get a local coordinate system with x- aligned with the wall normal
-                    expand_coord(wall_coord);
-
-                    // calculate the wall state
-                    wall_state = bc->get_wall_state(wall_centre, wall_coord, t);
-
-                    for (size_t n=0; n<wall_state.size(); ++n) {
-                        Vector<Real>& ws = wall_state[n];
-
-                        // only proceed if the boundary condition type is in the list
-                        if (ws.empty()) continue;
-
-                        Array4<Real> const& wall4 = bcs_data[n]->array();
-
-                        // load the wall value into the fab
-                        for (size_t n = 0; n<ws.size(); ++n) {
-                            wall4(i,j,k,n) = ws[n];
                         }
                     }
                 }
@@ -1443,7 +1673,8 @@ void FieldState::get_wall_value(const Box& box,
 
 #endif
 
-void FieldState::write_info(nlohmann::json &js) const
+
+void MHDState::write_info(nlohmann::json &js) const
 {
 
     EulerianState::write_info(js);
@@ -1453,7 +1684,6 @@ void FieldState::write_info(nlohmann::json &js) const
     js["type"] = tag;
     js["type_idx"] = +get_type();
 
-
+    js["gamma"] = gamma;
 
 }
-

@@ -17,6 +17,7 @@
 #include "MFP_eb_structs.H"
 #include "MFP_optional_func.H"
 #include "MFP_action.H"
+#include "MFP_reconstruction.H"
 
 class State;
 class Action;
@@ -54,7 +55,8 @@ public:
                 #endif
                     const Real *dx,
                     int index,
-                    int dim);
+                    int dim,
+                    Reconstruction &reco);
 
     void getPlotData(MultiFab &plot_data, std::vector<std::string> &plot_names);
 

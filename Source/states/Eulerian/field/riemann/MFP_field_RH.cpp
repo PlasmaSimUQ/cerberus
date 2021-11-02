@@ -15,7 +15,11 @@ FieldRH::FieldRH(const int i)
 {
     idx = i;
 
+    FieldState& istate = FieldState::get_state_global(idx);
+
     c0 = MFP::lightspeed;
+    ch = istate.div_speed;
+    ch2 = ch*ch;
 }
 
 void FieldRH::solve(Array<Real,+FieldDef::ConsIdx::NUM> &L,
@@ -53,6 +57,18 @@ void FieldRH::solve(Array<Real,+FieldDef::ConsIdx::NUM> &L,
     F[+FieldDef::ConsIdx::Dy] = c0*((Bl*cl + Br*cr) + (Dl/epl - Dr/epr))/(cl*mul + cr*mur);
     F[+FieldDef::ConsIdx::Bz] = c0*((Dl*cl + Dr*cr) + (Bl/mul - Br/mur))/(cl*epl + cr*epr);
 
+    // div clean
+    if (ch > 0) {
+        Pl = L[+FieldDef::ConsIdx::phi];
+        Pr = R[+FieldDef::ConsIdx::phi];
+
+        fl = L[+FieldDef::ConsIdx::Dx];
+        fr = R[+FieldDef::ConsIdx::Dx];
+
+        F[+FieldDef::ConsIdx::Dx] =   0.5*c0*(Pr + Pl)  - 0.5*ch*(fr - fl);
+        F[+FieldDef::ConsIdx::phi] = 0.5*ch2/c0*(fr + fl) - 0.5*ch*(Pr - Pl);
+    }
+
     // B-wave
 
     Dl = L[+FieldDef::ConsIdx::Dz];
@@ -66,6 +82,19 @@ void FieldRH::solve(Array<Real,+FieldDef::ConsIdx::NUM> &L,
 
     F[+FieldDef::ConsIdx::Dz] = c0*(-(Bl*cl + Br*cr) + (Dl/epl - Dr/epr))/(cl*mul + cr*mur);
     F[+FieldDef::ConsIdx::By] = c0*(-(Dl*cl + Dr*cr) + (Bl/mul - Br/mur))/(cl*epl + cr*epr);
+
+    // div clean
+    if (ch > 0) {
+        Pl = L[+FieldDef::ConsIdx::psi];
+        Pr = R[+FieldDef::ConsIdx::psi];
+
+        fl = L[+FieldDef::ConsIdx::Bx];
+        fr = R[+FieldDef::ConsIdx::Bx];
+
+        F[+FieldDef::ConsIdx::Bx] =   0.5*c0*(Pr + Pl)  - 0.5*ch*(fr - fl);
+        F[+FieldDef::ConsIdx::psi] = 0.5*ch2/c0*(fr + fl) - 0.5*ch*(Pr - Pl);
+    }
+
 
 
     return;

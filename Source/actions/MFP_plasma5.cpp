@@ -116,7 +116,13 @@ void Plasma5::explicit_solve(MFP* mfp, Vector<std::pair<int,MultiFab>>& dU, cons
     const Real Debye = MFP::Debye;
     const Real lightspeed = MFP::lightspeed;
 
+    const Real c_h = field->div_speed;
+    const Real div_damp = field->div_damping;
+    const Real c_d = div_damp != 0.0 ? c_h/div_damp : 0.0;
+
     const Real f1 = dt*Larmor/(Debye*Debye*lightspeed);
+    const Real f2 = dt*c_h*c_h*f1/lightspeed;
+    const Real f3 = c_d != 0.0 ? dt*c_h*c_h/(c_d*c_d) : 0.0;
 
     // get charge and current density
     Real charge_density, current_x, current_y, current_z;
@@ -228,6 +234,12 @@ void Plasma5::explicit_solve(MFP* mfp, Vector<std::pair<int,MultiFab>>& dU, cons
                     field_dU4(i,j,k,+FieldDef::ConsIdx::Dx) += -f1*current_x;
                     field_dU4(i,j,k,+FieldDef::ConsIdx::Dy) += -f1*current_y;
                     field_dU4(i,j,k,+FieldDef::ConsIdx::Dz) += -f1*current_z;
+
+                    // source for D divergence correction
+                    field_dU4(i,j,k,+FieldDef::ConsIdx::phi) += -field4(i,j,k,+FieldDef::ConsIdx::phi)*f3 + f2*charge_density;
+
+                    // source for B divergence correction
+                    field_dU4(i,j,k,+FieldDef::ConsIdx::psi) += -field4(i,j,k,+FieldDef::ConsIdx::psi)*f3;
                 }
             }
         }
@@ -291,6 +303,13 @@ void Plasma5::implicit_solve(MFP* mfp, Vector<std::pair<int, MultiFab> > &dU, co
     const Real Larmor = MFP::Larmor;
     const Real Debye = MFP::Debye;
     const Real lightspeed = MFP::lightspeed;
+    const Real c_h = field->div_speed;
+    const Real div_damp = field->div_damping;
+    const Real c_d = div_damp != 0.0 ? c_h/div_damp : 0.0;
+
+    const Real f1 = dt*Larmor/(Debye*Debye*lightspeed);
+    const Real f2 = dt*c_h*c_h*f1/lightspeed;
+    const Real f3 = c_d != 0.0 ? dt*c_h*c_h/(c_d*c_d) : 0.0;
 
     for (MFIter mfi(cost); mfi.isValid(); ++mfi) {
 
@@ -442,6 +461,12 @@ void Plasma5::implicit_solve(MFP* mfp, Vector<std::pair<int, MultiFab> > &dU, co
                         species_dU4[n](i,j,k,+HydroDef::ConsIdx::Eden) += dt*(R[n]*lightspeed/Larmor)*(Ex*mx + Ey*my + Ez*mz);
 
                     }
+
+                    // source for D divergence correction
+                   field_dU4(i,j,k,+FieldDef::ConsIdx::phi) += -field4(i,j,k,+FieldDef::ConsIdx::phi)*f3 + f2*charge_density;
+
+                   // source for B divergence correction
+                   field_dU4(i,j,k,+FieldDef::ConsIdx::psi) += -field4(i,j,k,+FieldDef::ConsIdx::psi)*f3;
                 }
             }
         }
@@ -494,6 +519,7 @@ Real Plasma5::get_allowed_time_step(MFP* mfp)
     Real D2 = Debye*Debye;
 
     Real max_speed = MFP::lightspeed;
+    max_speed = std::max(max_speed, field->div_speed);
 
     Real dt = dx[0]/max_speed;
     for (int d=1; d<AMREX_SPACEDIM; ++d) {
