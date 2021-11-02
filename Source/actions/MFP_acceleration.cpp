@@ -42,7 +42,7 @@ Acceleration::Acceleration(const int idx, const sol::table &def)
 
 void Acceleration::calc_time_derivative(MFP* mfp, Vector<std::pair<int,MultiFab>>& dU, const Real time, const Real dt)
 {
-    BL_PROFILE("Acceleration::solve");
+    BL_PROFILE("Acceleration::calc_time_derivative");
 
     // collect all of the MultiFabs that we need
     MultiFab& cost = mfp->get_new_data(MFP::Cost_Idx);

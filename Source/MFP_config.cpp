@@ -300,7 +300,7 @@ void MFP::read_config()
         std::unique_ptr<Action> act = act_fact.Build(src_type, act_def);
 
         if (!act)
-            Abort("Failed to read source "+act_name+", must be one of "+vec2str(act_tags));
+            Abort("Failed to read action "+act_name+", 'type' must be one of "+vec2str(act_tags));
 
         actions.push_back(std::move(act));
         source_names.push_back(act_name);

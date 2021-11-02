@@ -25,6 +25,9 @@ CEXE_sources += MFP_elliptic.cpp
 CEXE_headers += MFP_collisions.H
 CEXE_sources += MFP_collisions.cpp
 
+CEXE_headers += MFP_current.H
+CEXE_sources += MFP_current.cpp
+
 include $(TOP)/Source/actions/sPIC/Make.package
 
 

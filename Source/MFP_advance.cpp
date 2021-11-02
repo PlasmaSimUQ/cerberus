@@ -64,6 +64,10 @@ Real MFP::advance(Real time, Real dt, int iteration, int ncycle)
         act->apply_change(this,time, dt);
     }
 
+    // do some lua garbage collection
+    lua.script("collectgarbage('collect')");
+    lua.script("collectgarbage('collect')");
+
     return dt;
 }
 
