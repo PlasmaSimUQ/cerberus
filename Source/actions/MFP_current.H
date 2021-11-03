@@ -11,8 +11,6 @@ public:
     Current(const int idx, const sol::table &def);
     ~Current();
 
-    Array<Real,3> get_current(Real x, Real y, Real z, Real t) const;
-
     virtual void calc_time_derivative(MFP* mfp, Vector<std::pair<int, MultiFab> > &dU, const Real time, const Real dt) override;
 
     virtual std::string get_tag() const override {return tag;}

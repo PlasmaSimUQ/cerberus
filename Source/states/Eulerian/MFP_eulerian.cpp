@@ -630,4 +630,6 @@ void EulerianState::write_info(nlohmann::json &js) const
 
     js["num_grow"] = num_grow;
 
+    js["cons_names"] = get_cons_names();
+
 }

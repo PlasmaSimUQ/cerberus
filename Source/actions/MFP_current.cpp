@@ -40,21 +40,6 @@ Current::Current(const int idx, const sol::table &def)
     return;
 }
 
-Array<Real,3> Current::get_current(Real x, Real y, Real z, Real t) const
-{
-    BL_PROFILE("Current::get_current");
-    // calculate the current at this point in time and space
-    Array<Real,3> j;
-
-    std::map<std::string, Real> Q{{"x",x}, {"y",y}, {"z",z}, {"t",t}};
-
-    for (int i = 0; i<3; ++i) {
-        j[i] = scale_factor*current[i](Q);
-    }
-
-    return j;
-}
-
 void Current::calc_time_derivative(MFP* mfp, Vector<std::pair<int,MultiFab>>& dU, const Real time, const Real dt)
 {
     BL_PROFILE("Current::calc_time_derivative");
@@ -112,7 +97,7 @@ void Current::calc_time_derivative(MFP* mfp, Vector<std::pair<int,MultiFab>>& dU
 #endif
 
                     for (int d = 0; d<3; ++d) {
-                        field_dU4(i,j,k,+FieldDef::ConsIdx::Dx + d) += scale_factor*current[d](Q);
+                        field_dU4(i,j,k,+FieldDef::ConsIdx::Dx + d) += dt*scale_factor*current[d](Q);
                     }
                 }
             }
