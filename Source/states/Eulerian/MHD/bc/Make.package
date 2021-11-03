@@ -1,5 +1,0 @@
-CEXE_headers += MFP_mhd_bc.H
-CEXE_sources += MFP_mhd_bc.cpp
-
-INCLUDE_LOCATIONS += $(TOP)/Source/states/Eulerian/MHD/bc
-VPATH_LOCATIONS   += $(TOP)/Source/states/Eulerian/MHD/bc

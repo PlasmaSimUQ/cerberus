@@ -73,6 +73,8 @@ void DirichletWallMHD::solve(Array<Array<Real,3>,3> &wall_coord,
 
 //-----------------------------------------------------------------------------
 
+// TODO: handle magnetic field
+
 std::string MHDSlipWall::tag = "slip_wall";
 
 MHDSlipWall::MHDSlipWall(){}

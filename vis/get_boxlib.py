@@ -906,7 +906,6 @@ class ReadBoxLib:
         S_alphaiqi_mi = 0.0
         S_alphaicpi = 0.0
         S_alphaicvi = 0.0
-        S_alphai = 0.0
         S_alphas = 0.0
 
         alphai = 0.0
@@ -932,8 +931,8 @@ class ReadBoxLib:
         cpi = gamma[n_tracers] / (mass[n_tracers] * (gamma[n_tracers] - 1.0))
         cvi = 1.0 / (mass[n_tracers] * (gamma[n_tracers] - 1.0))
 
-        S_alphaicpi += (1.0 - S_alphai) * cpi
-        S_alphaicvi += (1.0 - S_alphai) * cvi
+        S_alphaicpi += (1.0 - S_alphas) * cpi
+        S_alphaicvi += (1.0 - S_alphas) * cvi
 
         self.flat_data["gamma-"+name] = S_alphaicpi / S_alphaicvi
 

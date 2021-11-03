@@ -1,0 +1,10 @@
+CEXE_headers += MFP_mhd_defs.H
+CEXE_headers += MFP_mhd.H
+CEXE_sources += MFP_mhd.cpp
+
+include $(TOP)/Source/states/Eulerian/mhd/refine/Make.package
+include $(TOP)/Source/states/Eulerian/mhd/bc/Make.package
+include $(TOP)/Source/states/Eulerian/mhd/riemann/Make.package
+
+INCLUDE_LOCATIONS += $(TOP)/Source/states/Eulerian/mhd
+VPATH_LOCATIONS   += $(TOP)/Source/states/Eulerian/mhd
