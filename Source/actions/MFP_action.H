@@ -5,11 +5,28 @@
 #include <AMReX_MultiFab.H>
 #include "sol.hpp"
 #include "MFP_factory.H"
+#include "MFP.H"
 
 class Action;
 class MFP;
 
 using namespace amrex;
+
+struct UpdateData {
+
+    enum class Status {
+        Inactive=0,
+        Local,
+        Filled,
+        Expired,
+        Changed,
+        Zero,
+    };
+
+    Status dU_status = Status::Inactive;
+    Status U_status = Status::Inactive;
+    MultiFab U, dU;
+};
 
 class Action
 {
@@ -20,6 +37,7 @@ public:
     enum class ActionType {
         Acceleration = 0,
         CTU,
+        Flux,
         Elliptic,
         HydroTracer,
         Lorentz,
@@ -29,15 +47,20 @@ public:
 #endif
         Current,
         UserDefined,
+        DampDivergenceMHD,
     };
 
     int action_idx;
     std::string name;
     Vector<int> state_indexes;
 
+    // copy state data
+    void get_data(MFP* mfp, Vector<Array<int,2>>& options, Vector<UpdateData>& update, const Real time) const;
+    virtual void get_data(MFP* mfp, Vector<UpdateData>& update, const Real time) const {}
+
     // calculate time and space derivatives for situations where we can accumulate the effects
-    virtual void calc_time_derivative(MFP* mfp, Vector<std::pair<int,MultiFab>>& dU, const Real time, const Real dt) {}
-    virtual void calc_spatial_derivative(MFP* mfp, Vector<std::pair<int,MultiFab>>& dU, const Real time, const Real dt) {}
+    virtual void calc_time_derivative(MFP* mfp, Vector<UpdateData>& update, const Real time, const Real dt) {}
+    virtual void calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update, const Real time, const Real dt, const Real flux_register_scale) {}
 
     // directly update quantities where an accumulation is not possible, these will overwrite stuff!!
     virtual void apply_time_derivative(MFP* mfp, const Real time, const Real dt) {}

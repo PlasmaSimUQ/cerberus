@@ -9,6 +9,7 @@
 using namespace amrex;
 
 MFP::TimeIntegrator MFP::time_integration_scheme;
+int MFP::time_integration_nsteps;
 
 sol::state MFP::lua;
 std::string MFP::lua_script;
@@ -45,8 +46,6 @@ Vector<std::string> MFP::state_names;
 std::map<std::string, int> MFP::state_index;
 Vector<size_t> MFP::eulerian_states;
 Vector<size_t> MFP::lagrangian_states;
-
-bool MFP::need_scratch_space;
 
 Vector<std::unique_ptr<Action>> MFP::actions;
 Vector<std::string> MFP::source_names;

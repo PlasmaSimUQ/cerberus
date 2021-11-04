@@ -32,15 +32,24 @@ UserDefined::UserDefined(const int idx, const sol::table &def)
     return;
 }
 
-void UserDefined::calc_time_derivative(MFP* mfp, Vector<std::pair<int,MultiFab>>& dU, const Real time, const Real dt)
+void UserDefined::get_data(MFP* mfp, Vector<UpdateData>& update, const Real time) const
+{
+    BL_PROFILE("UserDefined::get_data");
+
+    Vector<Array<int,2>> options = {{state->global_idx, 0}};
+
+    Action::get_data(mfp, options, update, time);
+
+}
+
+void UserDefined::calc_time_derivative(MFP* mfp, Vector<UpdateData>& update, const Real time, const Real dt)
 {
     BL_PROFILE("UserDefined::calc_time_derivative");
 
     // collect all of the MultiFabs that we need
     MultiFab& cost = mfp->get_new_data(MFP::Cost_Idx);
 
-    // mark dU components that have been touched
-    dU[state->data_idx].first = 1;
+    update[state->data_idx].dU_status = UpdateData::Status::Changed;
 
     std::map<std::string, Real> Q{{"x",0.0}, {"y",0.0}, {"z",0.0}, {"t",time}};
     Real x, y, z;
@@ -70,7 +79,7 @@ void UserDefined::calc_time_derivative(MFP* mfp, Vector<std::pair<int,MultiFab>>
 
 #endif
 
-        Array4<Real> const& dU4 = dU[state->data_idx].second.array(mfi);
+        Array4<Real> const& dU4 = update[state->data_idx].dU.array(mfi);
 
 
         for     (int k = lo.z; k <= hi.z; ++k) {
@@ -91,7 +100,8 @@ void UserDefined::calc_time_derivative(MFP* mfp, Vector<std::pair<int,MultiFab>>
 #endif
 
                     for (int d = 0; d<n_cons; ++d) {
-                        dU4(i,j,k,d) += dt*terms[d](Q);
+                        const Real udf = dt*terms[d](Q);
+                        dU4(i,j,k,d) += udf;
                     }
                 }
             }

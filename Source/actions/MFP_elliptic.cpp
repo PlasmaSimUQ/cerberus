@@ -874,7 +874,7 @@ void Elliptic::solve_divergence(MFP* mfp,
 
 #ifdef AMREX_USE_EB
         State& istate = MFP::get_state(state_idx);
-        EB2::IndexSpace::push(const_cast<EB2::IndexSpace*>(istate->eb2_index));
+        EB2::IndexSpace::push(const_cast<EB2::IndexSpace*>(istate.eb2_index));
 #endif
 
     for (int ilev = 0; ilev < nlevels; ++ilev) {

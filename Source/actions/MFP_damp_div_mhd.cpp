@@ -42,16 +42,25 @@ DampDivergenceMHD::DampDivergenceMHD(const int idx, const sol::table &def)
     return;
 }
 
-void DampDivergenceMHD::calc_time_derivative(MFP* mfp, Vector<std::pair<int,MultiFab>>& dU, const Real time, const Real dt)
+void DampDivergenceMHD::get_data(MFP* mfp, Vector<UpdateData>& update, const Real time) const
+{
+    BL_PROFILE("DampDivergenceMHD::get_data");
+
+    Vector<Array<int,2>> options = {{mhd->global_idx, 0}};
+
+    Action::get_data(mfp, options, update, time);
+
+}
+
+void DampDivergenceMHD::calc_time_derivative(MFP* mfp, Vector<UpdateData>& update, const Real time, const Real dt)
 {
     BL_PROFILE("DampDivergenceMHD::calc_time_derivative");
 
     // collect all of the MultiFabs that we need
     MultiFab& cost = mfp->get_new_data(MFP::Cost_Idx);
-    MultiFab& mhd_data = mfp->get_data(mhd->data_idx,time);
 
     // mark dU components that have been touched
-    dU[mhd->data_idx].first = 1;
+    update[mhd->data_idx].dU_status = UpdateData::Status::Changed;
 
     Array<Real,+MHDDef::ConsIdx::NUM> U;
 
@@ -75,8 +84,8 @@ void DampDivergenceMHD::calc_time_derivative(MFP* mfp, Vector<std::pair<int,Mult
 
 #endif
 
-        Array4<Real> const& mhd4 = mhd_data.array(mfi);
-        Array4<Real> const& mhd_dU4 = dU[mhd->data_idx].second.array(mfi);
+        Array4<Real> const& mhd4 = update[mhd->data_idx].U.array(mfi);
+        Array4<Real> const& mhd_dU4 = update[mhd->data_idx].dU.array(mfi);
 
 
         for     (int k = lo.z; k <= hi.z; ++k) {

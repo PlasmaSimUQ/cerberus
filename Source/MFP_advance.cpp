@@ -17,23 +17,6 @@ Real MFP::advance(Real time, Real dt, int iteration, int ncycle)
     MultiFab& C_new = get_new_data(Cost_Idx);
     C_new.setVal(0.0);
 
-    // sety up the scratch space for derivatives of the eulerian data
-    if (eulerian_du.empty() && need_scratch_space) {
-        eulerian_du.resize(eulerian_states.size());
-
-#ifdef AMREX_USE_EB
-        const int num_grow_eb = 2;
-#else
-        const int num_grow_eb = 0;
-#endif
-
-        for (int data_idx=0; data_idx<eulerian_states.size(); ++data_idx) {
-            int nc = state[data_idx].descriptor()->nComp();
-            eulerian_du[data_idx].first = 0;
-            eulerian_du[data_idx].second.define(grids, dmap, nc, num_grow_eb, MFInfo(), Factory());
-        }
-    }
-
     // copy old into new
     for (const int& global_idx : eulerian_states) {
         EulerianState& istate = EulerianState::get_state_global(global_idx);
@@ -43,9 +26,19 @@ Real MFP::advance(Real time, Real dt, int iteration, int ncycle)
         MultiFab::Copy(new_data, old_data,0,0,old_data.nComp(),0);
     }
 
+    // reset any flux registers
+    const int finest_level = parent->finestLevel();
+    for (int data_idx = 0; data_idx < eulerian_states.size(); ++data_idx) {
+        EulerianState& istate = EulerianState::get_state(data_idx);
+        if (istate.reflux && level < finest_level) {
+            MFP& fine_level = getLevel(level + 1);
+            fine_level.flux_reg[data_idx].reset();
+        }
+    }
+
     switch (time_integration_scheme) {
-    case TimeIntegrator::OneStep:
-        advance_euler(time, dt, iteration, ncycle);
+    case TimeIntegrator::RungeKutta:
+        advance_RK(time, dt, iteration, ncycle);
         break;
     case TimeIntegrator::StrangSplitting:
         advance_strang(time, dt, iteration, ncycle);
@@ -56,7 +49,7 @@ Real MFP::advance(Real time, Real dt, int iteration, int ncycle)
         break;
 #endif
     default:
-        advance_euler(time, dt, iteration, ncycle);
+        advance_RK(time, dt, iteration, ncycle);
     }
 
     // apply any post timestep corrections
@@ -71,92 +64,249 @@ Real MFP::advance(Real time, Real dt, int iteration, int ncycle)
     return dt;
 }
 
-void MFP::apply_derivative(Vector<std::pair<int,MultiFab>>& dU)
+void MFP::advance_RK(Real time, Real dt, int iteration, int ncycle)
 {
-    for (int data_idx = 0; data_idx < eulerian_states.size(); ++data_idx) {
+    BL_PROFILE("MFP::advance_RK");
 
-        if (!dU[data_idx].first) continue;
+    Vector<UpdateData> RK_step(eulerian_states.size());
 
-//        plot_FAB_2d(dU[data_idx].second,1, 0, "dU[1] "+EulerianState::get_state(data_idx).name, false, true);
 
-        MultiFab& new_data = get_new_data(data_idx);
-
-        const int nc = dU[data_idx].second.nComp();
-
-        MultiFab::Add(new_data, dU[data_idx].second, 0, 0, nc, 0);
-
-        // zero it out now that it has been applied
-        dU[data_idx].first = 0;
-        dU[data_idx].second.setVal(0.0);
-    }
-}
-
-void MFP::advance_euler(Real time, Real dt, int iteration, int ncycle)
-{
-    BL_PROFILE("MFP::advance_euler");
-
-    // zero out the derivative accumulator
-    for (auto& dU : eulerian_du) {
-        dU.second.setVal(0.0);
+    // set the proportion of contributions for refluxing
+    Real reflux_scaling;
+    if (time_integration_nsteps >= 2) {
+        reflux_scaling = 0.5*dt;
+    } else {
+        reflux_scaling = dt;
     }
 
     for (const auto& act : actions) {
         // calculate any contributions to dU (dU += f(old))
-        act->calc_time_derivative(this, eulerian_du, time, dt);
-        act->calc_spatial_derivative(this, eulerian_du, time, dt);
+        act->get_data(this, RK_step, time);
+        act->calc_time_derivative(this, RK_step, time, dt);
+        act->calc_spatial_derivative(this, RK_step, time, dt, reflux_scaling);
     }
 
     // add dU to new data (new = old + dU)
-    apply_derivative(eulerian_du);
+    for (int data_idx = 0; data_idx < eulerian_states.size(); ++data_idx) {
 
-    //    plot_FAB_2d(eulerian_du[0].second, 0, 0, "eulerian_du", false, true);
+        if (RK_step[data_idx].dU_status != UpdateData::Status::Changed) continue;
+
+        const int nc = RK_step[data_idx].dU.nComp();
+
+        // U^1 = U^0 + dt*dU^0
+        MultiFab& new_data = get_new_data(data_idx);
+        MultiFab::Add(new_data, RK_step[data_idx].dU, 0, 0, nc, 0);
+
+        RK_step[data_idx].U_status = UpdateData::Status::Expired;
+        RK_step[data_idx].dU_status = UpdateData::Status::Expired;
+    }
+
+    if (time_integration_nsteps >= 2) {
+
+        // Euler update (RK1) finished, now do RK2
+        // now holds the Euler update based on time t0
+
+        for (const auto& act : actions) {
+            // load in the new data from the previous RK step
+            // this is done again so that ghost cells are filled in
+            act->get_data(this, RK_step, time+dt);
+
+            act->calc_time_derivative(this, RK_step, time, dt);
+            act->calc_spatial_derivative(this, RK_step, time, dt, reflux_scaling);
+        }
+
+        // final update
+        for (int data_idx = 0; data_idx < eulerian_states.size(); ++data_idx) {
+
+            if (RK_step[data_idx].dU_status != UpdateData::Status::Changed) continue;
+
+            const int nc = RK_step[data_idx].dU.nComp();
+
+//            plot_FAB_2d(RK_step[data_idx].U, 1, 2, "U1", false,true);
+//            plot_FAB_2d(RK_step[data_idx].dU, 1, 2, "dU1", false,true);
+
+            // U^2 = U^1 + dt*dU^1
+            MultiFab::Add(RK_step[data_idx].U, RK_step[data_idx].dU, 0, 0, nc, 0);
+
+            MultiFab& old_data = get_old_data(data_idx);
+            MultiFab& new_data = get_new_data(data_idx);
+
+            // the updated solution
+            // U^n+1 = 0.5*U^0 + 0.5*U^2
+            //       = 0.5*U^0 + 0.5*(U^1 + dt*dU^1)
+            //       = 0.5*U^0 + 0.5*(U^0 + dt*dU^0 + dt*dU^1)
+            //       = U^0 + 0.5*dt*dU^0 + 0.5*dt*dU^1
+            MultiFab::LinComb(new_data, 0.5, old_data, 0, 0.5, RK_step[data_idx].U, 0, 0, nc, 0);
+        }
+    }
 
     // update new data with any one-shot updates based on old data (new = f(old))
     for (const auto& act : actions) {
         act->apply_time_derivative(this, time, dt);
         act->apply_spatial_derivative(this, time, dt);
     }
-
 }
 
 void MFP::advance_strang(Real time, Real dt, int iteration, int ncycle)
 {
-    // zero out the derivative accumulator
-    for (auto& dU : eulerian_du) {
-        dU.second.setVal(0.0);
-    }
+
+    Vector<UpdateData> RK_step(eulerian_states.size());
+
+    ///////////////////////////////////////////////////////////////////////////
+    /// SOURCE TERMS
 
     for (const auto& act : actions) {
         // calculate any contributions to dU (dU += f(old))
-        act->calc_time_derivative(this, eulerian_du, time, dt/2.0);
-
-        // update new data with any one-shot updates based on old data (new* = f(old))
-        act->apply_time_derivative(this, time, dt/2.0);
+        act->get_data(this, RK_step, time);
+        act->calc_time_derivative(this, RK_step, time, 0.5*dt);
     }
 
-    // add dU to new data (new* = old + dU)
-    apply_derivative(eulerian_du);
+    // add dU to new data (new = old + dU)
+    for (int data_idx = 0; data_idx < eulerian_states.size(); ++data_idx) {
+
+        if (RK_step[data_idx].dU_status != UpdateData::Status::Changed) continue;
+
+        const int nc = RK_step[data_idx].dU.nComp();
+
+        // U^1 = U^0 + dt*dU^0
+        if (time_integration_nsteps >= 2) {
+            MultiFab::Add(RK_step[data_idx].U, RK_step[data_idx].dU, 0, 0, nc, 0);
+            RK_step[data_idx].dU.setVal(0.0);
+            RK_step[data_idx].dU_status = UpdateData::Status::Expired;
+        } else {
+            MultiFab& new_data = get_new_data(data_idx);
+            MultiFab::Add(new_data, RK_step[data_idx].dU, 0, 0, nc, 0);
+        }
+    }
+
+    if (time_integration_nsteps >= 2) {
+
+        // Euler update (RK1) finished, now do RK2
+        // RK_step now holds the Euler update based on time t0
+
+        for (const auto& act : actions) {
+            act->calc_time_derivative(this, RK_step, time, 0.5*dt);
+        }
+
+        for (int data_idx = 0; data_idx < eulerian_states.size(); ++data_idx) {
+
+            if (RK_step[data_idx].dU_status != UpdateData::Status::Changed) continue;
+
+            const int nc = RK_step[data_idx].dU.nComp();
+
+            // U^2 = U^1 + dt*dU^1
+            MultiFab::Add(RK_step[data_idx].U, RK_step[data_idx].dU, 0, 0, nc, 0);
+            RK_step[data_idx].dU.setVal(0.0);
+
+            MultiFab& old_data = get_old_data(data_idx);
+            MultiFab& new_data = get_new_data(data_idx);
+
+            // the updated solution
+            // U^n+1 = 0.5*U^0 + 0.5*U^2
+            //       = 0.5*U^0 + 0.5*(U^1 + dt*dU^1)
+            //       = 0.5*U^0 + 0.5*(U^0 + dt*dU^0 + dt*dU^1)
+            //       = U^0 + 0.5*dt*dU^0 + 0.5*dt*dU^1
+            MultiFab::LinComb(new_data, 0.5, old_data, 0, 0.5, RK_step[data_idx].U, 0, 0, nc, 0);
+            RK_step[data_idx].U_status = UpdateData::Status::Expired;
+            RK_step[data_idx].dU_status = UpdateData::Status::Expired;
+        }
+    }
+
 
     for (const auto& act : actions) {
+        // update new data with any one-shot updates based on old data (new* = f(old))
+        act->apply_time_derivative(this, time, 0.5*dt);
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    /// FLUXES
+
+
+    for (const auto& act : actions) {
+
+        act->get_data(this, RK_step, time+dt);
+
         // calculate any contributions to dU (dU += f(new*))
-        act->calc_spatial_derivative(this, eulerian_du, time+dt, dt);
+        act->calc_spatial_derivative(this, RK_step, time+dt, dt, dt);
 
         // update new data with any one-shot updates based on new* data (new** = f(new*))
         act->apply_spatial_derivative(this, time+dt, dt);
     }
 
     // add dU to new data (new** = new* + dU)
-    apply_derivative(eulerian_du);
+    for (int data_idx = 0; data_idx < eulerian_states.size(); ++data_idx) {
 
-    for (const auto& act : actions) {
-        // calculate any contributions to dU (dU += f(new**))
-        act->calc_time_derivative(this, eulerian_du, time+dt, dt/2.0);
+        if (RK_step[data_idx].dU_status != UpdateData::Status::Changed) continue;
 
-        // update new data with any one-shot updates based on old data (new = f(old))
-        act->apply_time_derivative(this, time+dt, dt/2.0);
+        const int nc = RK_step[data_idx].dU.nComp();
+
+        MultiFab& new_data = get_new_data(data_idx);
+        MultiFab::Add(new_data, RK_step[data_idx].dU, 0, 0, nc, 0);
+
+        RK_step[data_idx].U_status = UpdateData::Status::Expired;
+        RK_step[data_idx].dU_status = UpdateData::Status::Expired;
 
     }
 
-    // add dU to new data (new = new** + dU)
-    apply_derivative(eulerian_du);
+    ///////////////////////////////////////////////////////////////////////////
+    /// SOURCE TERMS
+
+    for (const auto& act : actions) {
+        // calculate any contributions to dU (dU += f(old))
+        act->get_data(this, RK_step, time+dt);
+        act->calc_time_derivative(this, RK_step, time+dt, 0.5*dt);
+    }
+
+    // add dU to new data (new = old + dU)
+    for (int data_idx = 0; data_idx < eulerian_states.size(); ++data_idx) {
+
+        if (RK_step[data_idx].dU_status != UpdateData::Status::Changed) continue;
+
+        const int nc = RK_step[data_idx].dU.nComp();
+
+        // U^1 = U^0 + dt*dU^0
+        if (time_integration_nsteps >= 2) {
+            MultiFab::Add(RK_step[data_idx].U, RK_step[data_idx].dU, 0, 0, nc, 0);
+            RK_step[data_idx].dU.setVal(0.0);
+            RK_step[data_idx].dU_status = UpdateData::Status::Inactive;
+        } else {
+            MultiFab& new_data = get_new_data(data_idx);
+            MultiFab::Add(new_data, RK_step[data_idx].dU, 0, 0, nc, 0);
+        }
+    }
+
+    // Euler update (RK1) finished, now do RK2
+    // RK_step now holds the Euler update based on time t1
+
+    if (time_integration_nsteps >= 2) {
+        for (const auto& act : actions) {
+            act->calc_time_derivative(this, RK_step, time+dt, 0.5*dt);
+        }
+
+        for (int data_idx = 0; data_idx < eulerian_states.size(); ++data_idx) {
+
+            if (RK_step[data_idx].dU_status != UpdateData::Status::Changed) continue;
+
+            const int nc = RK_step[data_idx].dU.nComp();
+
+            // U^2 = U^1 + dt*dU^1
+            MultiFab::Add(RK_step[data_idx].U, RK_step[data_idx].dU, 0, 0, nc, 0);
+            RK_step[data_idx].dU.setVal(0.0);
+
+            MultiFab& new_data = get_new_data(data_idx);
+
+            // the updated solution
+            // U^n+1 = 0.5*U^0 + 0.5*U^2
+            MultiFab::LinComb(new_data, 0.5, new_data, 0, 0.5, RK_step[data_idx].U, 0, 0, nc, 0);
+        }
+    }
+
+
+    for (const auto& act : actions) {
+        // update new data with any one-shot updates based on old data (new* = f(old))
+        act->apply_time_derivative(this, time+dt, 0.5*dt);
+    }
+
+    ParallelDescriptor::Barrier();
+
 }

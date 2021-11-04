@@ -14,7 +14,9 @@ public:
     virtual std::string get_tag() const override {return tag;}
     virtual ActionType get_type() const override {return ActionType::CTU;}
 
-    virtual void calc_spatial_derivative(MFP* mfp, Vector<std::pair<int,MultiFab>>& dU, const Real time, const Real dt) override;
+    virtual void get_data(MFP* mfp, Vector<UpdateData>& update, const Real time) const override;
+
+    virtual void calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& dU, const Real time, const Real dt, const Real flux_register_scale) override;
 
     Vector<EulerianState*> states;
 

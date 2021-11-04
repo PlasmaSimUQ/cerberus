@@ -15,11 +15,11 @@ FieldHLLE::FieldHLLE(const int i)
 
     FieldState& istate = static_cast<FieldState&>(MFP::get_state(i));
 
-    Real c0 = MFP::lightspeed;
+    c0 = MFP::lightspeed;
     Real c2 = c0*c0;
     Real ch = istate.div_speed;
     Real ch2 = ch*ch;
-    Real cc = ch2/c2;
+    cc = ch2/c2;
 }
 
 void FieldHLLE::solve(Array<Real,+FieldDef::ConsIdx::NUM> &L,

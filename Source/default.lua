@@ -29,7 +29,7 @@ cfl = 0.0
 -- refine around cutcells
 refine_cutcells = 0
 
-time_integration_scheme = 'one_step'
+time_integration_scheme = 'strang'
 
 force_dt = 0 -- force specific time step
 
