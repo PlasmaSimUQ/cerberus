@@ -17,10 +17,12 @@ public:
         BackwardsEuler,
     };
 
-    virtual void calc_time_derivative(MFP* mfp, Vector<std::pair<int,MultiFab>>& dU,  const Real time, const Real dt) override;
+    virtual void get_data(MFP* mfp, Vector<UpdateData>& update, const Real time) const override;
 
-    void explicit_solve(MFP* mfp, Vector<std::pair<int, MultiFab> > &dU, const Real time, const Real dt);
-    void implicit_solve(MFP* mfp, Vector<std::pair<int,MultiFab>>& dU, const Real time, const Real dt);
+    virtual void calc_time_derivative(MFP* mfp, Vector<UpdateData>& update,  const Real time, const Real dt) override;
+
+    void explicit_solve(MFP* mfp, Vector<UpdateData>& update, const Real time, const Real dt);
+    void implicit_solve(MFP* mfp, Vector<UpdateData> &update, const Real time, const Real dt);
 
     virtual Real get_allowed_time_step(MFP* mfp) override;
 

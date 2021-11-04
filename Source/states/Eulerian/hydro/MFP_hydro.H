@@ -61,7 +61,7 @@ public:
     virtual int get_num_grow() const override {return num_grow;}
     virtual void set_num_grow(int n) override {num_grow = std::max(n, num_grow);}
 
-    virtual int get_num_cons() const override {return +HydroDef::ConsIdx::NUM;}
+    virtual int get_num_cons() const override {return n_cons();}
     virtual const Vector<std::string>& get_cons_names() const override {return cons_names;}
 
     virtual Vector<std::string> get_plot_output_names() const override;

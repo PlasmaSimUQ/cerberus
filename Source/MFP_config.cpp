@@ -74,17 +74,19 @@ void MFP::read_config()
 
     std::string time_integrator = lua["time_integration_scheme"];
 
-    if (time_integrator == "one_step") {
-        time_integration_scheme = TimeIntegrator::OneStep;
-        need_scratch_space = true;
+    if (time_integrator == "euler") {
+        time_integration_scheme = TimeIntegrator::RungeKutta;
+        time_integration_nsteps = 1;
+    } else if (time_integrator == "RK2") {
+        time_integration_scheme = TimeIntegrator::RungeKutta;
+        time_integration_nsteps = 2;
     } else if (time_integrator == "strang") {
         time_integration_scheme = TimeIntegrator::StrangSplitting;
-        need_scratch_space = true;
+        time_integration_nsteps = 2;
     } else if (time_integrator == "symplectic") {
         time_integration_scheme = TimeIntegrator::Symplectic;
-        need_scratch_space = false;
     } else {
-        Abort("Time integration scheme '"+time_integrator+"' is not recognised, try ['one_step', 'strang', 'symplectic']");
+        Abort("Time integration scheme '"+time_integrator+"' is not recognised, try ['runge-kutta', 'strang', 'symplectic']");
     }
 
     linear_solver_verbosity = lua["linear_solver_verbosity"];

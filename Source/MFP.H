@@ -85,16 +85,16 @@ public:
                                 int ncycle) override;
 
     enum class TimeIntegrator {
-        OneStep = 0,
+        RungeKutta = 0,
         StrangSplitting,
         Symplectic,
     };
 
     static TimeIntegrator time_integration_scheme;
+    static int time_integration_nsteps;
 
-    void advance_euler(Real time, Real dt, int iteration, int ncycle);
+    void advance_RK(Real time, Real dt, int iteration, int ncycle);
     void advance_strang(Real time, Real dt, int iteration, int ncycle);
-    void apply_derivative(Vector<std::pair<int, MultiFab> > &dU);
 
     Real estTimeStep();
 
@@ -206,9 +206,6 @@ public:
     static std::map<std::string, int> state_index;
     static Vector<size_t> eulerian_states; // mapping from data_idx to global_idx
     static Vector<size_t> lagrangian_states;
-
-    static bool need_scratch_space;
-    Vector<std::pair<int,MultiFab>> eulerian_du;
 
     static Vector<std::unique_ptr<Action>> actions;
     static Vector<std::string> source_names;

@@ -40,7 +40,21 @@ Acceleration::Acceleration(const int idx, const sol::table &def)
     return;
 }
 
-void Acceleration::calc_time_derivative(MFP* mfp, Vector<std::pair<int,MultiFab>>& dU, const Real time, const Real dt)
+void Acceleration::get_data(MFP* mfp, Vector<UpdateData>& update, const Real time) const
+{
+    BL_PROFILE("Acceleration::get_data");
+
+    Vector<Array<int,2>> options(species.size());
+
+    for (size_t i=0; i<species.size();++i) {
+        options[i] = {species[i]->global_idx, 0};
+    }
+
+    Action::get_data(mfp, options, update, time);
+
+}
+
+void Acceleration::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, const Real time, const Real dt)
 {
     BL_PROFILE("Acceleration::calc_time_derivative");
 
@@ -49,12 +63,9 @@ void Acceleration::calc_time_derivative(MFP* mfp, Vector<std::pair<int,MultiFab>
 
     size_t n_species = species.size();
 
-    Vector<MultiFab*> species_data;
     for (const HydroState* hstate : species) {
-        species_data.push_back(&(mfp->get_data(hstate->data_idx, time)));
-
         // mark dU components that have been touched
-        dU[hstate->data_idx].first = 1;
+        update[hstate->data_idx].dU_status = UpdateData::Status::Changed;
     }
 
     Vector<Array4<Real>> species4(n_species);
@@ -85,8 +96,8 @@ void Acceleration::calc_time_derivative(MFP* mfp, Vector<std::pair<int,MultiFab>
 #endif
 
         for (int n=0; n<n_species; ++n) {
-            species4[n] = species_data[n]->array(mfi);
-            species_dU4[n] = dU[species[n]->data_idx].second.array(mfi);
+            species4[n] = update[species[n]->data_idx].U.array(mfi);
+            species_dU4[n] = update[species[n]->data_idx].dU.array(mfi);
         }
 
 

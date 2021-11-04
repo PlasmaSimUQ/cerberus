@@ -16,6 +16,8 @@ public:
     virtual std::string get_tag() const override {return tag;}
     virtual ActionType get_type() const override {return ActionType::CTU;}
 
+    virtual void get_data(MFP* mfp, Vector<UpdateData>& update, const Real time) const override;
+
     static Real get_coulomb_logarithm(const Real& T_i, const Real& T_e, const Real& nd_e);
 
     enum class IonDiffusiveVariable {
@@ -185,7 +187,7 @@ public:
 
 
 
-    virtual void calc_spatial_derivative(MFP* mfp, Vector<std::pair<int,MultiFab>>& dU, const Real time, const Real dt) override;
+    virtual void calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& dU, const Real time, const Real dt, const Real flux_register_scale) override;
 
     void calc_slopes(const Box& box,
                      const FArrayBox& src,
@@ -230,7 +232,7 @@ public:
 
     static int rhs(Real t, Array<Real,+VectorIdx::NUM> y, Array<Real,+VectorIdx::NUM> &dydt, Array<Real,+DataIdx::NUM>& data);
     static bool check_invalid(Array<Real,+VectorIdx::NUM> &y, Array<Real,+DataIdx::NUM>& data);
-    virtual void calc_time_derivative(MFP* mfp, Vector<std::pair<int,MultiFab>>& dU, const Real time, const Real dt) override;
+    virtual void calc_time_derivative(MFP* mfp, Vector<UpdateData>& dU, const Real time, const Real dt) override;
 
     enum class BraginskiiStateIdx {
         Ion=0,

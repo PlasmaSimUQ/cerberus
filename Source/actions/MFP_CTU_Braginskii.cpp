@@ -60,6 +60,18 @@ BraginskiiCTU::BraginskiiCTU(const int idx, const sol::table &def)
     return;
 }
 
+void BraginskiiCTU::get_data(MFP* mfp, Vector<UpdateData>& update, const Real time) const
+{
+    BL_PROFILE("BraginskiiCTU::get_data");
+
+    Vector<Array<int,2>> options = {
+        {ion_state->global_idx, 1},{electron_state->global_idx, 1}, {field_state->global_idx, 1}
+    };
+
+    Action::get_data(mfp, options, update, time);
+
+}
+
 Real BraginskiiCTU::get_coulomb_logarithm(const Real& T_i, const Real& T_e, const Real& nd_e)
 {
     BL_PROFILE("BraginskiiSource::get_coulomb_logarithm");
@@ -1565,16 +1577,13 @@ void BraginskiiCTU::IsotropicBraginskiiViscousTensorHeatFlux(FluxSpecies flux_ty
 
 
 
-void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<std::pair<int,MultiFab>>& dU, const Real time, const Real dt)
+void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update, const Real time, const Real dt, const Real flux_register_scale)
 {
     BL_PROFILE("BraginskiiCTU::calc_spatial_derivative");
 
-    const DescriptorList& desc_lst = mfp->get_desc_lst();
     const Geometry& geom = mfp->Geom();
     const int level = mfp->get_level();
     const int finest_level = mfp->get_parent()->finestLevel();
-    const BoxArray& grids = mfp->boxArray();
-    const DistributionMapping& dmap = mfp->DistributionMap();
 
     const size_t n_states = states.size();
     Vector<int> data_indexes;
@@ -1584,22 +1593,17 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<std::pair<int,Multi
         EulerianState &istate = EulerianState::get_state_global(global_idx);
         data_indexes.push_back(istate.data_idx);
         data_states.push_back(&istate);
-
-        // tag the dU as modified
-        dU[istate.data_idx].first = 1;
-    }
-
-    // get the maximum wave speed from the time step and cell spacing
-    RealVect speed_max;
-    for (int d=0; d<AMREX_SPACEDIM; ++d) {
-        speed_max[d] = dt/(mfp->cfl*geom.CellSize(d));
     }
 
 
     // ==========================================================================
     // all of level storage
 
-    Vector<MultiFab> local_old(n_states); // local data that covers the whole level
+    Vector<MultiFab*> local_old(n_states); // local data that covers the whole level
+    for (size_t i=0; i<n_states; ++i) {
+        local_old[i] = &update[data_indexes[i]].U;
+        update[data_indexes[i]].dU_status = UpdateData::Status::Changed;
+    }
     Vector<FabType> active(n_states); // flag for calculation
 
     Vector<YAFluxRegister*> fr_as_crse(n_states, nullptr);
@@ -1616,15 +1620,6 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<std::pair<int,Multi
         EulerianState &istate = *data_states[idx];
         const int data_idx = data_indexes[idx];
 
-        int ns = desc_lst[data_idx].nComp();
-
-        local_old[idx].define(grids, dmap, ns, num_grow, MFInfo(),mfp->Factory());
-
-        // get a full array of data at this level
-#ifdef AMREX_USE_EB
-        EB2::IndexSpace::push(const_cast<EB2::IndexSpace*>(istate.eb2_index));
-#endif
-        mfp->FillPatch(*mfp, local_old[idx], num_grow, time, data_idx, 0, ns);
 
         if (istate.reflux && level < finest_level) {
             MFP& fine_level = mfp->getLevel(level + 1);
@@ -1633,10 +1628,6 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<std::pair<int,Multi
 
         if (istate.reflux && level > 0) {
             fr_as_fine[idx] = &mfp->flux_reg[data_idx];
-        }
-
-        if (fr_as_crse[idx]) {
-            fr_as_crse[idx]->reset();
         }
     }
 
@@ -1674,7 +1665,7 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<std::pair<int,Multi
             EulerianState &istate = *data_states[idx];
 
             // get a pointer to the conserved quantities
-            conserved[idx] = &local_old[idx][mfi];
+            conserved[idx] = &(*local_old[idx])[mfi];
 
             active[idx] = FabType::regular;
 
@@ -1685,7 +1676,7 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<std::pair<int,Multi
             // ===============================================
             // 1.1 Calculate primitive values within each cell
 
-            FArrayBox& cons = local_old[idx][mfi];
+            FArrayBox& cons = (*local_old[idx])[mfi];
             FArrayBox& prim = primitives[idx];
 
             istate.calc_primitives(pbox,
@@ -1743,7 +1734,7 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<std::pair<int,Multi
             if (active[idx] == FabType::covered)
                 continue;
 
-            nu = local_old[idx].nComp();
+            nu = local_old[idx]->nComp();
             for (int d=0; d<AMREX_SPACEDIM; ++d) {
                 // get a node centered box in direction d that encloses the original box
                 Box fbox = surroundingNodes(box, d);
@@ -1864,9 +1855,9 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<std::pair<int,Multi
             EulerianState &istate = *data_states[idx];
             const int data_idx = data_indexes[idx];
 
-            nu = local_old[idx].nComp();
+            nu = local_old[idx]->nComp();
 
-            FArrayBox& du = dU[data_idx].second[mfi];
+            FArrayBox& du = update[data_idx].dU[mfi];
 
 
             // calculate divergence
@@ -1878,11 +1869,11 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<std::pair<int,Multi
                                    dt);
 
             if (fr_as_crse[idx]) {
-                fr_as_crse[idx]->CrseAdd(mfi, {AMREX_D_DECL(&fluxes[idx][0], &fluxes[idx][1], &fluxes[idx][2])}, dx, dt, RunOn::Cpu);
+                fr_as_crse[idx]->CrseAdd(mfi, {AMREX_D_DECL(&fluxes[idx][0], &fluxes[idx][1], &fluxes[idx][2])}, dx, flux_register_scale, RunOn::Cpu);
             }
 
             if (fr_as_fine[idx]) {
-                fr_as_fine[idx]->FineAdd(mfi, {AMREX_D_DECL(&fluxes[idx][0], &fluxes[idx][1], &fluxes[idx][2])}, dx, dt, RunOn::Cpu);
+                fr_as_fine[idx]->FineAdd(mfi, {AMREX_D_DECL(&fluxes[idx][0], &fluxes[idx][1], &fluxes[idx][2])}, dx, flux_register_scale, RunOn::Cpu);
             }
 
 
@@ -2241,7 +2232,7 @@ bool BraginskiiCTU::check_invalid(Array<Real,+VectorIdx::NUM> &y, Array<Real,+Da
     return false;
 }
 
-void BraginskiiCTU::calc_time_derivative(MFP* mfp, Vector<std::pair<int,MultiFab>>& dU, const Real time, const Real dt)
+void BraginskiiCTU::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, const Real time, const Real dt)
 {
     BL_PROFILE("Plasma5::explicit_solve");
 
@@ -2250,15 +2241,13 @@ void BraginskiiCTU::calc_time_derivative(MFP* mfp, Vector<std::pair<int,MultiFab
 
     // collect all of the MultiFabs that we need
     MultiFab& cost = mfp->get_new_data(MFP::Cost_Idx);
-    MultiFab& ion_data = mfp->get_data(ion_state->data_idx,time);
-    MultiFab& field_data = mfp->get_data(field_state->data_idx,time);
 
-    // need filled data for calculating electron temperature slopes
-    const BoxArray& grids = mfp->boxArray();
-    const DistributionMapping& dmap = mfp->DistributionMap();
-    const int ng = 1; // number of ghost cells
-    MultiFab electron_data(grids, dmap, nc_e, ng, MFInfo(),mfp->Factory());
-    mfp->FillPatch(*mfp, electron_data, ng, time, electron_state->data_idx, 0, nc_e);
+    MultiFab& ion_data = update[ion_state->data_idx].U;
+    MultiFab& field_data = update[field_state->data_idx].U;
+    MultiFab& electron_data = update[electron_state->data_idx].U;
+
+    update[ion_state->data_idx].dU_status = UpdateData::Status::Changed;
+    update[electron_state->data_idx].dU_status = UpdateData::Status::Changed;
 
     Vector<Real> U_i(nc_i), U_e(nc_e);
 
@@ -2281,10 +2270,10 @@ void BraginskiiCTU::calc_time_derivative(MFP* mfp, Vector<std::pair<int,MultiFab
         Array4<const Real> const& field4 = field_data.array(mfi);
 
         Array4<const Real> const& ion4 = ion_data.array(mfi);
-        Array4<Real> const& ion_dU4 = dU[ion_state->data_idx].second.array(mfi);
+        Array4<Real> const& ion_dU4 = update[ion_state->data_idx].dU.array(mfi);
 
         Array4<const Real> const& electron4 = electron_data.array(mfi);
-        Array4<Real> const& electron_dU4 = dU[electron_state->data_idx].second.array(mfi);
+        Array4<Real> const& electron_dU4 = update[electron_state->data_idx].dU.array(mfi);
 
         // get the electron temperature slopes
         FArrayBox slopes;

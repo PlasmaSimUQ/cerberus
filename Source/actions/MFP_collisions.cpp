@@ -79,7 +79,22 @@ Collisions::Collisions(const int idx, const sol::table &def)
     return;
 }
 
-void Collisions::calc_time_derivative(MFP* mfp, Vector<std::pair<int, MultiFab> > &dU, const Real time, const Real dt)
+void Collisions::get_data(MFP* mfp, Vector<UpdateData>& update, const Real time) const
+{
+    BL_PROFILE("Collisions::get_data");
+
+    Vector<Array<int,2>> options(species.size());
+
+    for (size_t i=0; i<species.size();++i) {
+        options[i] = {species[i]->global_idx, 0};
+    }
+
+    Action::get_data(mfp, options, update, time);
+
+}
+
+
+void Collisions::calc_time_derivative(MFP* mfp, Vector<UpdateData>& update, const Real time, const Real dt)
 {
     BL_PROFILE("Collisions::calc_time_derivative");
 
@@ -98,7 +113,7 @@ void Collisions::calc_time_derivative(MFP* mfp, Vector<std::pair<int, MultiFab> 
     Vector<MultiFab*> species_data;
     for (size_t i=0; i<n_species;++i) {
         const HydroState& hstate = *species[i];
-        species_data.push_back(&(mfp->get_data(hstate.data_idx,time)));
+        species_data.push_back(&update[hstate.data_idx].U);
         U[i].resize(hstate.n_cons());
     }
 
@@ -116,7 +131,7 @@ void Collisions::calc_time_derivative(MFP* mfp, Vector<std::pair<int, MultiFab> 
 
 
     for (int n=0; n<n_species; ++n) {
-        dU[species[n]->data_idx].first = 1;
+        update[species[n]->data_idx].dU_status = UpdateData::Status::Changed;
     }
 
     for (MFIter mfi(cost); mfi.isValid(); ++mfi) {
@@ -141,7 +156,7 @@ void Collisions::calc_time_derivative(MFP* mfp, Vector<std::pair<int, MultiFab> 
 
         for (int n=0; n<n_species; ++n) {
             species4[n] = species_data[n]->array(mfi);
-            species_dU4[n] = dU[species[n]->data_idx].second.array(mfi);
+            species_dU4[n] = update[species[n]->data_idx].dU.array(mfi);
         }
 
 
