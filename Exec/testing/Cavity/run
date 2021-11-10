@@ -12,4 +12,6 @@ python make_particles_file.py
 
 mpirun -n 8 ${EXE} ${INPUTS} 2>&1 | tee run_log.txt
 
+../visit.sh .
+
 python3 plot.py

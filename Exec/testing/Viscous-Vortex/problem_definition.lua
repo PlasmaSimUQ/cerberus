@@ -46,7 +46,7 @@ verbosity = 1
 cfl = 0.5
 
 
-time_integration_scheme = 'one_step'
+time_integration_scheme = 'euler'
 
 refine_boxes = {
     {{-8, -8}, {8, 8}, type='force_refine'},
