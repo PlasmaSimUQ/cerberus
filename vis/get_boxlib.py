@@ -947,7 +947,7 @@ class ReadBoxLib:
             self.retrieve()
         
         #intercept special cases here
-        for special in ["mass","charge","gamma"]:
+        for special in ["mass-","charge-","gamma-"]:
             if special in component:
 
                 for name in self.data["hydro_names"]:
