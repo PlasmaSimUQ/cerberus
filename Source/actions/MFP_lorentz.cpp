@@ -70,7 +70,6 @@ void Lorentz::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, const R
     size_t n_species = species.size();
 
     Vector<Vector<Real>> U(species.size());
-    Vector<MultiFab*> species_data;
     for (size_t i=0; i<species.size();++i) {
         const HydroState& hstate = *species[i];
         U[i].resize(hstate.n_cons());
@@ -124,8 +123,9 @@ void Lorentz::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, const R
 //        Array4<Real> const& field_dU4 = update[field->data_idx].second.array(mfi);
 
         for (int n=0; n<n_species; ++n) {
-            species4[n] = species_data[n]->array(mfi);
-            species_dU4[n] = update[species[n]->data_idx].dU.array(mfi);
+            const int data_idx = species[n]->data_idx;
+            species4[n] = update[data_idx].U.array(mfi);
+            species_dU4[n] = update[data_idx].dU.array(mfi);
         }
 
 

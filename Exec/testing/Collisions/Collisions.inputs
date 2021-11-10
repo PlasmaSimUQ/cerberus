@@ -59,7 +59,7 @@ amr.plot_per          = -1
 
 mfp.lua = "
 
-time_integration_scheme = 'one_step'
+time_integration_scheme = 'RK2'
 
 verbosity = 2
 cfl = 0.5
