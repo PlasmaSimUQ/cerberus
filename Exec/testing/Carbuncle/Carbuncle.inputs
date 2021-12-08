@@ -125,9 +125,12 @@ states = {
 
     neutral = {
         type='hydro',
-        mass=1.0,  
-        charge=0.0, 
-        gamma=gam, 
+        gas = {
+            type='thermally_perfect',
+            mass=1.0,  
+            charge=0.0, 
+            gamma=gam, 
+        },
         reconstruction='minmod', 
         flux='HLLE/HLLC',
         shock_detector={name='pressure_jump_detector', threshold=0.1},

@@ -96,9 +96,12 @@ states = {
     
     ion = {
         type='hydro',
-        mass=1.0,  
-        charge= 1.0, 
-        gamma=5/3, 
+        gas={
+          type='thermally_perfect',
+          mass=1.0,
+          charge=1.0,
+          gamma=5/3,
+        },
         reconstruction='minmod', 
         flux='HLLC',
         refinement={name='hydro_gradient', rho=0.1},
@@ -110,9 +113,12 @@ states = {
 
     electron = {
         type='hydro',
-        mass=1.0, 
-        charge=-1.0, 
-        gamma=5/3, 
+        gas={
+          type='thermally_perfect',
+          mass=1.0,
+          charge=-1.0,
+          gamma=5/3,
+        },
         reconstruction='minmod',  
         flux='HLLC',
         refinement={name='hydro_gradient', rho=0.1},

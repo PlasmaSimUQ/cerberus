@@ -27,9 +27,12 @@ states = {
 
     air = {
         type='hydro',
-        mass=1.0,
-        charge= 0.0,
-        gamma=1.4,
+        gas={
+          type='thermally_perfect',
+          mass=1.0,
+          charge= 0.0,
+          gamma=1.4,
+        },
         reconstruction='MC', 
         flux='HLLC',
         viscosity=viscosity,
