@@ -213,8 +213,8 @@ void Plasma5::explicit_solve(MFP* mfp, Vector<UpdateData>& update, const Real ti
                         mz =    sp4(i,j,k,+HydroDef::ConsIdx::Zmom);
 
 
-                        m = species[n]->get_mass_from_cons(UU);
-                        q = species[n]->get_charge_from_cons(UU);
+                        m = species[n]->gas->get_mass_from_cons(UU);
+                        q = species[n]->gas->get_charge_from_cons(UU);
 
                         r = q/m;
 
@@ -385,8 +385,8 @@ void Plasma5::implicit_solve(MFP* mfp, Vector<UpdateData>& update, const Real ti
                         my =    sp4(i,j,k,+HydroDef::ConsIdx::Ymom);
                         mz =    sp4(i,j,k,+HydroDef::ConsIdx::Zmom);
 
-                        m = species[n]->get_mass_from_cons(UU);
-                        q = species[n]->get_charge_from_cons(UU);
+                        m = species[n]->gas->get_mass_from_cons(UU);
+                        q = species[n]->gas->get_charge_from_cons(UU);
 
                         r = q/m;
                         R[n] = r;
@@ -578,8 +578,8 @@ Real Plasma5::get_allowed_time_step(MFP* mfp)
 
                         rho =   sp4(i,j,k,+HydroDef::ConsIdx::Density);
 
-                        m = species[n]->get_mass_from_cons(UU);
-                        q = species[n]->get_charge_from_cons(UU);
+                        m = species[n]->gas->get_mass_from_cons(UU);
+                        q = species[n]->gas->get_charge_from_cons(UU);
 
                         r = q/m;
 

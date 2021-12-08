@@ -589,16 +589,20 @@ class ReadBoxLib:
             self.data["hydro_mass"] = []
             self.data["hydro_charge"] = []
             self.data["hydro_gamma"] = []
+            self.data["hydro_comp_names"] = []
 
             for i in range(self.data["num_state"]):
                 istate = self.data["state_%i"%i]
                 self.names.append(istate["name"])
 
                 if istate["type"] == "hydro":
-                    self.data["hydro_names"].append(istate["name"])
-                    self.data["hydro_mass"].append(istate["mass"])
-                    self.data["hydro_charge"].append(istate["charge"])
-                    self.data["hydro_gamma"].append(istate["gamma"])
+                    gas = istate["gas"]
+                    if gas["type"] == "thermally_perfect":
+                        self.data["hydro_names"].append(istate["name"])
+                        self.data["hydro_mass"].append(gas["mass"])
+                        self.data["hydro_charge"].append(gas["charge"])
+                        self.data["hydro_gamma"].append(gas["gamma"])
+                        self.data["hydro_comp_names"].append(gas["comp_names"])
 
         self.flat_data = {}
         self.retrieval_sites = []

@@ -51,6 +51,8 @@ void EulerianState::init_from_lua()
     sol::state& lua = MFP::lua;
     const sol::table state_def = lua["states"][name];
 
+    effective_zero = state_def.get_or("effective_zero", 1e-14);
+
     //
     // reflux
     //

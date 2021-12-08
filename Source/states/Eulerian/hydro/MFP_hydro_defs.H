@@ -3,6 +3,8 @@
 
 #include "MFP_utility.H"
 
+using namespace amrex;
+
 struct HydroDef
 {
     enum class ConsIdx : int {

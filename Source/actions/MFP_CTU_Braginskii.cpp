@@ -116,14 +116,14 @@ void BraginskiiCTU::get_ion_coeffs(const Vector<Real>& Q_i,
 
     //Extract and assign parameters from Q_i and Q_e
     //--- electron state and properties required for calcs -------Note move this
-    charge_e= estate.get_charge_from_prim(Q_e); // electron propertis
-    mass_e  = estate.get_mass_from_prim(Q_e);
-    T_e     = estate.get_temperature_from_prim(Q_e);
+    charge_e= estate.gas->get_charge_from_prim(Q_e); // electron propertis
+    mass_e  = estate.gas->get_mass_from_prim(Q_e);
+    T_e     = estate.gas->get_temperature_from_prim(Q_e);
     nd_e    = Q_e[+HydroDef::PrimIdx::Density]/mass_e;
     //--- ion state and properties required for calcs
-    charge_i= istate.get_charge_from_prim(Q_i);
-    mass_i  = istate.get_mass_from_prim(Q_i);
-    T_i     = istate.get_temperature_from_prim(Q_i); //
+    charge_i= istate.gas->get_charge_from_prim(Q_i);
+    mass_i  = istate.gas->get_mass_from_prim(Q_i);
+    T_i     = istate.gas->get_temperature_from_prim(Q_i); //
     nd_i    = Q_i[+HydroDef::PrimIdx::Density]/mass_i;
     //Magnetic field
     Real Bx=B_xyz[0], By=B_xyz[1], Bz=B_xyz[2];
@@ -225,15 +225,15 @@ Real BraginskiiCTU::get_max_speed_ions(const Vector<amrex::Real>& U_i,
 
     //Extract and assign parameters from Q_i and Q_e
     //--- electron state and properties required for calcs -------Note move this
-    charge_e= estate.get_charge_from_cons(U_e); // electron propertis
-    mass_e  = estate.get_mass_from_cons(U_e);
-    T_e     = estate.get_temperature_from_cons(U_e);
+    charge_e= estate.gas->get_charge_from_cons(U_e); // electron propertis
+    mass_e  = estate.gas->get_mass_from_cons(U_e);
+    T_e     = estate.gas->get_temperature_from_cons(U_e);
     nd_e    = U_e[+HydroDef::ConsIdx::Density]/mass_e;
 
     //--- ion state and properties required for calcs
-    charge_i= istate.get_charge_from_cons(U_i);
-    mass_i  = istate.get_mass_from_cons(U_i);
-    T_i     = istate.get_temperature_from_cons(U_i); //
+    charge_i= istate.gas->get_charge_from_cons(U_i);
+    mass_i  = istate.gas->get_mass_from_cons(U_i);
+    T_i     = istate.gas->get_temperature_from_cons(U_i); //
     nd_i    = U_i[+HydroDef::ConsIdx::Density]/mass_i;
 
     //Magnetic field
@@ -316,7 +316,7 @@ Real BraginskiiCTU::get_max_speed_ions(const Vector<amrex::Real>& U_i,
     }
 
     Real rho = U_i[+HydroDef::ConsIdx::Density];
-    Real cp_ion = istate.get_cp_from_cons(U_i);
+    Real cp_ion = istate.gas->get_cp_from_cons(U_i);
     Real nu_thermal = kappa1/rho/cp_ion/cfl; //thermal diffusivity
     Real nu_visc = (eta0/rho)/cfl;
 
@@ -360,14 +360,14 @@ void BraginskiiCTU::get_electron_coeffs(
 
     //Extract and assign parameters from Q_i and Q_e
     //--- electron state and properties required for calcs -------Note move this
-    charge_i= istate.get_charge_from_prim(Q_i); // electron propertis
-    mass_i  = istate.get_mass_from_prim(Q_i);
-    T_i     = istate.get_temperature_from_prim(Q_i);
+    charge_i= istate.gas->get_charge_from_prim(Q_i); // electron propertis
+    mass_i  = istate.gas->get_mass_from_prim(Q_i);
+    T_i     = istate.gas->get_temperature_from_prim(Q_i);
     nd_i    = Q_i[+HydroDef::PrimIdx::Density]/mass_i;
     //--- ion state and properties required for calcs
-    charge_e= estate.get_charge_from_prim(Q_e);
-    mass_e  = estate.get_mass_from_prim(Q_e);
-    T_e     = estate.get_temperature_from_prim(Q_e); //
+    charge_e= estate.gas->get_charge_from_prim(Q_e);
+    mass_e  = estate.gas->get_mass_from_prim(Q_e);
+    T_e     = estate.gas->get_temperature_from_prim(Q_e); //
     nd_e    = Q_e[+HydroDef::PrimIdx::Density]/mass_e;
     //Magnetic field
     Real Bx=B_xyz[0], By=B_xyz[1], Bz=B_xyz[2];
@@ -479,19 +479,19 @@ Real BraginskiiCTU::get_max_speed_electrons(const Vector<Real>& U_e,
     //Extract and assign parameters from Q_i and Q_e
 
     //--- electron state and properties required for calcs -------Note move this
-    charge_e= estate.get_charge_from_cons(U_e); // electron propertis
-    mass_e  = estate.get_mass_from_cons(U_e);
+    charge_e= estate.gas->get_charge_from_cons(U_e); // electron propertis
+    mass_e  = estate.gas->get_mass_from_cons(U_e);
 
     //Print() << "\nmass_i" << mass_i << "\n";
-    T_e     = estate.get_temperature_from_cons(U_e);
+    T_e     = estate.gas->get_temperature_from_cons(U_e);
     const Real rho_e = U_e[+HydroDef::ConsIdx::Density];
     nd_e    = rho_e/mass_e;
 
     //--- ion state and properties required for calcs
-    charge_i= istate.get_charge_from_cons(U_i);
-    mass_i  = istate.get_mass_from_cons(U_i);
+    charge_i= istate.gas->get_charge_from_cons(U_i);
+    mass_i  = istate.gas->get_mass_from_cons(U_i);
     //Print() << "\nmass_i" << mass_i << "\n";
-    T_i     = istate.get_temperature_from_cons(U_i); //
+    T_i     = istate.gas->get_temperature_from_cons(U_i); //
     const Real rho_i = U_i[+HydroDef::ConsIdx::Density];
     nd_i    = rho_i/mass_i;
 
@@ -576,7 +576,7 @@ Real BraginskiiCTU::get_max_speed_electrons(const Vector<Real>& U_e,
 
     // add in the kappa and beta, i have tio figure out how to take these into account,
     // the viscous characteristic speed is not properly taken account of.
-    Real cp_ele = estate.get_cp_from_cons(U_e);
+    Real cp_ele = estate.gas->get_cp_from_cons(U_e);
     Real nu_thermal = electron_coeffs.kappa1/rho_e/cp_ele/cfl; //thermal diffusivity
     Real nu_visc = (electron_coeffs.eta0/rho_e)/cfl;
 
@@ -1923,7 +1923,7 @@ void BraginskiiCTU::calc_slopes(const Box& box,
                 }
 
                 // get temperature
-                b4(i,j,k) = electron_state->get_temperature_from_cons(U);
+                b4(i,j,k) = electron_state->gas->get_temperature_from_cons(U);
             }
         }
     }
@@ -2299,13 +2299,13 @@ void BraginskiiCTU::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, c
                         U_e[l] = electron4(i,j,k,l);
                     }
 
-                    data[+DataIdx::IonMass] = ion_state->get_mass_from_cons(U_i);;
-                    data[+DataIdx::IonCharge] = ion_state->get_charge_from_cons(U_i);
-                    data[+DataIdx::IonGamma] = ion_state->get_gamma_from_cons(U_i);
+                    data[+DataIdx::IonMass] = ion_state->gas->get_mass_from_cons(U_i);;
+                    data[+DataIdx::IonCharge] = ion_state->gas->get_charge_from_cons(U_i);
+                    data[+DataIdx::IonGamma] = ion_state->gas->get_gamma_from_cons(U_i);
                     data[+DataIdx::IonDensity] = U_i[+HydroDef::ConsIdx::Density];
-                    data[+DataIdx::ElectronMass] = electron_state->get_mass_from_cons(U_e);
-                    data[+DataIdx::ElectronCharge] = electron_state->get_charge_from_cons(U_e);
-                    data[+DataIdx::ElectronGamma] = electron_state->get_gamma_from_cons(U_e);
+                    data[+DataIdx::ElectronMass] = electron_state->gas->get_mass_from_cons(U_e);
+                    data[+DataIdx::ElectronCharge] = electron_state->gas->get_charge_from_cons(U_e);
+                    data[+DataIdx::ElectronGamma] = electron_state->gas->get_gamma_from_cons(U_e);
                     data[+DataIdx::ElectronDensity] = U_e[+HydroDef::ConsIdx::Density];
                     data[+DataIdx::Bx] = field4(i,j,k,+FieldDef::ConsIdx::Bx);
                     data[+DataIdx::By] = field4(i,j,k,+FieldDef::ConsIdx::By);

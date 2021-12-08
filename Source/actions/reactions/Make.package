@@ -1,0 +1,8 @@
+CEXE_headers += MFP_collisions.H
+CEXE_sources += MFP_collisions.cpp
+
+CEXE_headers += MFP_collisions_rambo.H
+CEXE_sources += MFP_collisions_rambo.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/actions/reactions
+VPATH_LOCATIONS   += $(TOP)/Source/actions/reactions
