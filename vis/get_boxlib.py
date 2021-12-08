@@ -138,6 +138,7 @@ def parse_plot_header(name, fid, data):
 
     # number of levels
     data["n_levels"] = int(fid.readline().rstrip()) + 1
+    data["finest_level"] = data["n_levels"]
 
     data["levels"] = []
     for i in range(data["n_levels"]):
