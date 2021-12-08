@@ -175,8 +175,8 @@ void Lorentz::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, const R
                         mz =    sp4(i,j,k,+HydroDef::ConsIdx::Zmom);
 
 
-                        m = species[n]->get_mass_from_cons(UU);
-                        q = species[n]->get_charge_from_cons(UU);
+                        m = species[n]->gas->get_mass_from_cons(UU);
+                        q = species[n]->gas->get_charge_from_cons(UU);
 
                         r = q/m;
 

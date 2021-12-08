@@ -11,6 +11,7 @@ class HydroState;
 #include "MFP_reconstruction.H"
 #include "MFP_hydro_riemann.H"
 #include "MFP_hydro_viscous.H"
+#include "MFP_hydro_gas.H"
 #include "MFP_hydro_bc.H"
 #include "MFP_hydro_shockdetector.H"
 
@@ -33,8 +34,6 @@ public:
     static std::map<std::string, int> bc_names;
     static Vector<set_bc> bc_set;
 
-    bool mass_const, charge_const, gamma_const;
-    Vector<Real> mass, charge, gamma;
     int n_species;
     int n_tracers;
     static std::string multicomp_prim_name;
@@ -43,6 +42,7 @@ public:
 
     std::unique_ptr<HydroRiemannSolver> flux_solver;
     std::unique_ptr<HydroShockDetector> shock_detector;
+    std::unique_ptr<HydroGas> gas;
     std::unique_ptr<HydroViscous> viscous;
 
     virtual StateType get_type() const override {return StateType::Hydro;}
@@ -74,6 +74,7 @@ public:
                              #endif
                                  ) const override;
 
+    void set_gas();
     void set_viscosity();
 
     Real init_from_number_density(std::map<std::string, Real> data);
@@ -86,29 +87,6 @@ public:
     virtual void variable_setup(Vector<int> periodic) override;
     virtual void init_data(MFP* mfp, const Real time) override;
     virtual void init_from_lua() override;
-
-
-
-    Real get_mass_from_cons(const Vector<Real> &U, const int density_idx=+HydroDef::ConsIdx::Density, const int tracer_idx=+HydroDef::ConsIdx::NUM) const;
-    Real get_charge_from_cons(const Vector<Real> &U, const int density_idx=+HydroDef::ConsIdx::Density, const int tracer_idx=+HydroDef::ConsIdx::NUM) const;
-    Real get_gamma_from_cons(const Vector<Real> &U, const int density_idx=+HydroDef::ConsIdx::Density, const int tracer_idx=+HydroDef::ConsIdx::NUM) const;
-    Real get_cp_from_cons(const Vector<Real> &U, const int density_idx=+HydroDef::ConsIdx::Density, const int tracer_idx=+HydroDef::ConsIdx::NUM) const;
-
-    Real get_mass_from_prim(const Vector<Real> &Q, const int idx=+HydroDef::PrimIdx::NUM) const;
-    Real get_charge_from_prim(const Vector<Real> &Q, const int tracer_idx=+HydroDef::PrimIdx::Density) const;
-    Real get_gamma_from_prim(const Vector<Real> &Q, const int idx=+HydroDef::PrimIdx::NUM) const;
-    Real get_cp_from_prim(const Vector<Real> &Q, const int tracer_idx=+HydroDef::PrimIdx::NUM) const;
-
-    bool cons2prim(Vector<Real>& U, Vector<Real>& Q) const;
-    void prim2cons(Vector<Real>& Q, Vector<Real>& U) const;
-
-    bool prim_valid(const Vector<Real>& Q) const;
-    bool cons_valid(const Vector<Real>& U) const;
-    Real get_energy_from_cons(const Vector<Real>& U) const;
-    Real get_temperature_from_cons(const Vector<Real>& U) const;
-    Real get_temperature_from_prim(const Vector<Real>& Q) const;
-    RealArray get_speed_from_cons(const Vector<Real>& U) const;
-    RealArray get_speed_from_prim(const Vector<Real>& Q) const;
 
     virtual Real get_allowed_time_step(MFP* mfp) const override;
 

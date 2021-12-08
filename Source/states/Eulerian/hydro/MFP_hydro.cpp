@@ -85,6 +85,26 @@ void HydroState::set_eb_bc(const sol::table &bc_def)
 }
 #endif
 
+void HydroState::set_gas()
+{
+
+    //
+    // gas model
+    //
+
+    ClassFactory<HydroGas> gfact = GetHydroGasFactory();
+
+    sol::table state_def = MFP::lua["states"][name];
+    state_def["global_idx"] = global_idx;
+
+    std::string gas_type = state_def["gas"]["type"].get_or<std::string>("");
+
+    gas = gfact.Build(gas_type, state_def);
+
+    if (!gas_type.empty() && !gas)
+        Abort("Invalid gas option '"+gas_type+"'. Options are "+vec2str(gfact.getKeys()));
+}
+
 void HydroState::set_viscosity()
 {
 
@@ -112,22 +132,17 @@ void HydroState::set_viscosity()
 Real HydroState::init_from_number_density(std::map<std::string, Real> data)
 {
 
+    Vector<Real> Q(n_prim());
+
     Real nd = other_functions["nd"](data);
-    Real mass_inv = 0.0;
-    if (mass_const)
-        return nd * mass[0];
+    if (gas->mass_const)
+        return nd * gas->mass[0];
 
-    Real alphai = 0.0;
-    Real S_alphas = 0.0;
     for (int i=0; i < n_tracers; ++i) {
-        alphai = functions[+HydroDef::PrimIdx::NUM + i](data);
-        alphai = std::clamp(alphai, 0.0, 1.0);
-        S_alphas += alphai;
-        mass_inv += alphai / mass[i];
+        Q[+HydroDef::PrimIdx::NUM + i] = functions[+HydroDef::PrimIdx::NUM + i](data);
     }
-    mass_inv += (1.0-S_alphas) / mass[n_tracers]; // deduce alpha value for final component
 
-    return nd / mass_inv;
+    return gas->get_density_from_number_density(nd, Q);
 }
 
 void HydroState::set_udf()
@@ -160,14 +175,12 @@ void HydroState::set_udf()
         }
 
         // handle the situation where we have only one component but still want to have a tracer
-        if (n_species == 1) {
+        if (gas->n_species() == 1) {
             n_tracers = alpha_list.size();
-            n_species = n_tracers + 1;
 
             // expand the components to suit
-            mass.resize(n_species,mass[0]);
-            charge.resize(n_species,charge[0]);
-            gamma.resize(n_species,gamma[0]);
+            gas->mass.resize(n_tracers + 1,gas->mass[0]);
+            gas->charge.resize(n_tracers + 1,gas->charge[0]);
         }
 
         // are there enough tracer functions?
@@ -184,7 +197,7 @@ void HydroState::set_udf()
             }
         }
     } else {
-        const int i_stop = i_start + n_species-1;
+        const int i_stop = i_start + n_tracers;
         functions.resize(i_stop);
         for (int i = i_start; i<i_stop; ++i) {
             functions[i].set_value(0.0);
@@ -207,9 +220,6 @@ void HydroState::set_udf()
             if (i == +HydroDef::PrimIdx::Density) {
 
                 check = value["nd"].valid();
-
-                if (!check)
-                    Abort("State "+name+" does not have 'rho' or 'nd' defined for initial conditions");
 
                 Optional3D1VFunction nd;
                 success = get_udf(value["nd"], nd, 0.0);
@@ -316,27 +326,16 @@ void HydroState::init_from_lua()
 
 
     //
-    // get mass, charge, and density
+    // gas definition
     //
+    set_gas();
 
-    set_values(state_def["mass"], mass);
-    set_values(state_def["charge"], charge);
-    set_values(state_def["gamma"], gamma);
+    n_tracers = gas->n_tracers();
 
-    if (any_equal(mass.begin(), mass.end(), 0.0) or any_equal(gamma.begin(), gamma.end(), 0.0))
-        Abort("State: "+name+"; mass and gamma cannot be 0");
-
-    mass_const = all_equal(mass.begin(), mass.end(), mass[0]);
-    charge_const = all_equal(charge.begin(), charge.end(), charge[0]);
-    gamma_const = all_equal(gamma.begin(), gamma.end(), gamma[0]);
-
-    if ((mass.size() != charge.size()) or (mass.size() != gamma.size()) or (charge.size() != gamma.size()))
-        Abort("State: "+name+"; 'mass', 'charge' and 'gamma' must have the same number of components");
-
-
-    n_species = mass.size();
-    n_tracers = n_species - 1;
-
+    //
+    // viscous definition
+    //
+    set_viscosity();
 
     //
     // user defined functions
@@ -346,11 +345,6 @@ void HydroState::init_from_lua()
     for (int i = 0; i < n_tracers; ++i) {
         bc_set.push_back(&set_scalar_bc);
     }
-
-    //
-    // viscous terms coefficients
-    //
-    set_viscosity();
 
 
     //
@@ -577,8 +571,12 @@ void HydroState::init_data(MFP* mfp, const Real time)
 
                     }
 
+                    gas->define_rho_p_T(Q);
+
+                    gas->prim_valid(Q);
+
                     // convert primitive to conserved
-                    prim2cons(Q, U);
+                    gas->prim2cons(Q, U);
 
                     // copy into array
                     for (int n=0; n<n_cons(); ++n) {
@@ -591,392 +589,6 @@ void HydroState::init_data(MFP* mfp, const Real time)
 }
 
 
-Real HydroState::get_mass_from_prim(const Vector<Real> &Q, const int tracer_idx) const
-{
-    BL_PROFILE("HydroState::get_mass_from_prim");
-
-    if (mass_const) return mass[0];
-
-    Real S_alphai_mi = 0.0;
-    Real S_alphas = 0.0;
-
-    Real alphai = 0.0;
-    for (int i = 0; i < n_tracers; ++i) {
-        alphai = Q[tracer_idx + i];
-        alphai = std::clamp(alphai, 0.0, 1.0);
-        S_alphas += alphai;
-        S_alphai_mi += alphai / mass[i];
-    }
-
-    S_alphai_mi += (1.0-S_alphas) / mass[n_tracers];
-
-    return 1.0 / S_alphai_mi;
-}
-
-Real HydroState::get_mass_from_cons(const Vector<Real> &U, const int density_idx, const int tracer_idx) const
-{
-    BL_PROFILE("HydroState::get_mass_from_cons");
-
-    if (mass_const) return mass[0];
-
-    Real rho = U[density_idx];
-
-    Real S_alphai_mi = 0.0;
-    Real S_alphas = 0.0;
-
-    Real alphai = 0.0;
-    for (int i = 0; i < n_tracers; ++i) {
-        alphai = U[tracer_idx + i] / rho;
-        alphai = std::clamp(alphai, 0.0, 1.0);
-        S_alphas += alphai;
-        S_alphai_mi += alphai / mass[i];
-    }
-
-    S_alphai_mi += (1.0-S_alphas) / mass[n_tracers];
-
-    return 1.0 / S_alphai_mi;
-}
-
-Real HydroState::get_charge_from_prim(const Vector<Real> &Q, const int tracer_idx) const
-{
-    BL_PROFILE("HydroState::get_charge_from_prim");
-
-    if (charge_const) return charge[0];
-
-    Real S_alphaiqi_mi = 0;
-    Real S_alphai_mi = 0;
-    Real S_alphas = 0;
-
-    Real alphai = 0.0;
-    for (int i = 0; i < n_tracers; ++i) {
-        alphai = Q[tracer_idx + i];
-        alphai = std::clamp(alphai, 0.0, 1.0);
-        S_alphaiqi_mi += alphai * charge[i] / mass[i];
-        S_alphai_mi += alphai / mass[i];
-        S_alphas += alphai;
-    }
-
-    S_alphaiqi_mi += (1.0-S_alphas) * charge[n_tracers] / mass[n_tracers];
-    S_alphai_mi += (1.0-S_alphas) / mass[n_tracers];
-
-    return S_alphaiqi_mi / S_alphai_mi;
-}
-
-Real HydroState::get_charge_from_cons(const Vector<Real> &U, const int density_idx, const int tracer_idx) const
-{
-    BL_PROFILE("HydroState::get_charge_from_cons");
-
-    if (charge_const) return charge[0];
-
-    Real rho = U[density_idx];
-
-    Real S_alphaiqi_mi = 0;
-    Real S_alphai_mi = 0;
-    Real S_alphas = 0;
-
-    Real alphai = 0.0;
-    for (int i = 0; i < n_tracers; ++i) {
-        alphai = U[tracer_idx + i] / rho;
-        alphai = std::clamp(alphai, 0.0, 1.0);
-        S_alphaiqi_mi += alphai * charge[i] / mass[i];
-        S_alphai_mi += alphai / mass[i];
-        S_alphas += alphai;
-    }
-
-    S_alphaiqi_mi += (1.0-S_alphas) * charge[n_tracers] / mass[n_tracers];
-    S_alphai_mi += (1.0-S_alphas) / mass[n_tracers];
-
-    return S_alphaiqi_mi / S_alphai_mi;
-}
-
-Real HydroState::get_gamma_from_prim(const Vector<Real> &Q, const int idx) const
-{
-    BL_PROFILE("HydroState::get_gamma_from_prim");
-
-    if (gamma_const) return gamma[0];
-
-    Real S_alphaicpi = 0.0;
-    Real S_alphaicvi = 0.0;
-    Real S_alphai = 0.0;
-
-    Real cvi = 0.0;
-    Real cpi = 0.0;
-    Real alphai = 0.0;
-    for (int i = 0; i < n_tracers; ++i) {
-        alphai = Q[idx + i];
-        alphai = std::clamp(alphai, 0.0, 1.0);
-        S_alphai += alphai;
-
-        cpi = gamma[i] / (mass[i] * (gamma[i] - 1.0));
-        cvi = 1.0 / (mass[i] * (gamma[i] - 1.0));
-
-        S_alphaicpi += alphai * cpi;
-        S_alphaicvi += alphai * cvi;
-    }
-
-    cpi = gamma[n_tracers] / (mass[n_tracers] * (gamma[n_tracers] - 1.0));
-    cvi = 1.0 / (mass[n_tracers] * (gamma[n_tracers] - 1.0));
-
-    S_alphaicpi += (1.0 - S_alphai) * cpi;
-    S_alphaicvi += (1.0 - S_alphai) * cvi;
-
-    return S_alphaicpi / S_alphaicvi;
-}
-
-Real HydroState::get_gamma_from_cons(const Vector<Real> &U, const int density_idx, const int tracer_idx) const
-{
-    BL_PROFILE("HydroState::get_gamma_from_cons");
-
-    if (gamma_const) return gamma[0];
-
-    Real rho = U[density_idx];
-
-    Real S_alphaicpi = 0.0;
-    Real S_alphaicvi = 0.0;
-    Real S_alphai = 0.0;
-
-    Real cvi = 0.0;
-    Real cpi = 0.0;
-    Real alphai = 0.0;
-    for (int i = 0; i < n_tracers; ++i) {
-        alphai = U[tracer_idx + i] / rho;
-        alphai = std::clamp(alphai, 0.0, 1.0);
-        S_alphai += alphai;
-
-        cpi = gamma[i] / (mass[i] * (gamma[i] - 1.0));
-        cvi = 1.0 / (mass[i] * (gamma[i] - 1.0));
-
-        S_alphaicpi += alphai * cpi;
-        S_alphaicvi += alphai * cvi;
-    }
-
-    cpi = gamma[n_tracers] / (mass[n_tracers] * (gamma[n_tracers] - 1.0));
-    cvi = 1.0 / (mass[n_tracers] * (gamma[n_tracers] - 1.0));
-
-    S_alphaicpi += (1.0 - S_alphai) * cpi;
-    S_alphaicvi += (1.0 - S_alphai) * cvi;
-
-    return S_alphaicpi / S_alphaicvi;
-}
-
-Real HydroState::get_cp_from_prim(const Vector<Real> &Q, const int tracer_idx) const
-{
-    BL_PROFILE("HydroState::get_cp_from_prim");
-
-    if (gamma_const && mass_const) return gamma[0]/(mass[0]*(gamma[0]-1));
-
-    Real S_alphai = 0.0;
-    Real S_alphaicpi = 0.0;
-
-    Real cpi = 0.0;
-    Real alphai = 0.0;
-    for (int i = 0; i < n_tracers; ++i) {
-        alphai = Q[tracer_idx + i];
-        alphai = std::clamp(alphai, 0.0, 1.0);
-        S_alphai += alphai;
-
-        cpi = gamma[i] / (mass[i] * (gamma[i] - 1.0));
-        S_alphaicpi += alphai * cpi;
-    }
-
-    cpi = gamma[n_tracers] / (mass[n_tracers] * (gamma[n_tracers] - 1.0));
-    S_alphaicpi += (1.0- S_alphai) * cpi;
-
-    return S_alphaicpi;
-}
-
-Real HydroState::get_cp_from_cons(const Vector<Real> &U, const int density_idx, const int tracer_idx) const
-{
-    BL_PROFILE("HydroState::get_cp_from_cons");
-
-    if (gamma_const && mass_const) return gamma[0]/(mass[0]*(gamma[0]-1));
-
-    Real rho = U[density_idx];
-
-    Real S_alphai = 0.0;
-    Real S_alphaicpi = 0.0;
-
-    Real cpi = 0.0;
-    Real alphai = 0.0;
-    for (int i = 0; i < n_tracers; ++i) {
-        alphai = U[tracer_idx + i] / rho;
-        alphai = std::clamp(alphai, 0.0, 1.0);
-        S_alphai += alphai;
-
-        cpi = gamma[i] / (mass[i] * (gamma[i] - 1.0));
-        S_alphaicpi += alphai * cpi;
-    }
-
-    cpi = gamma[n_tracers] / (mass[n_tracers] * (gamma[n_tracers] - 1.0));
-    S_alphaicpi += (1.0- S_alphai) * cpi;
-
-    return S_alphaicpi;
-
-}
-
-
-// in place conversion from conserved to primitive
-bool HydroState::cons2prim(Vector<Real>& U, Vector<Real>& Q) const
-{
-    BL_PROFILE("HydroState::cons2prim");
-
-    Real rho = U[+HydroDef::ConsIdx::Density];
-    Real mx = U[+HydroDef::ConsIdx::Xmom];
-    Real my = U[+HydroDef::ConsIdx::Ymom];
-    Real mz = U[+HydroDef::ConsIdx::Zmom];
-    Real ed = U[+HydroDef::ConsIdx::Eden];
-
-    Real rhoinv = 1/rho;
-    Real u = mx*rhoinv;
-    Real v = my*rhoinv;
-    Real w = mz*rhoinv;
-    Real ke = 0.5*rho*(u*u + v*v + w*w);
-    Real m = get_mass_from_cons(U);
-    Real g = get_gamma_from_cons(U);
-    Real cp = get_cp_from_cons(U);
-    Real p = (ed - ke)*(g - 1);
-    Real T = p*rhoinv*m;
-
-    Q[+HydroDef::PrimIdx::Density] = rho;
-    Q[+HydroDef::PrimIdx::Xvel] = u;
-    Q[+HydroDef::PrimIdx::Yvel] = v;
-    Q[+HydroDef::PrimIdx::Zvel] = w;
-    Q[+HydroDef::PrimIdx::Prs] = p;
-    Q[+HydroDef::PrimIdx::Temp] = T;
-    Q[+HydroDef::PrimIdx::Gamma] = g;
-    Q[+HydroDef::PrimIdx::SpHeat] = cp;
-
-    for (int i = 0; i < n_tracers; ++i) {
-        Q[+HydroDef::PrimIdx::NUM + i] = U[+HydroDef::ConsIdx::NUM + i] * rhoinv;
-    }
-
-    return prim_valid(Q);
-}
-
-void HydroState::prim2cons(Vector<Real>& Q, Vector<Real>& U) const
-{
-    BL_PROFILE("HydroState::prim2cons");
-
-    Real rho = Q[+HydroDef::PrimIdx::Density];
-    Real u = Q[+HydroDef::PrimIdx::Xvel];
-    Real v = Q[+HydroDef::PrimIdx::Yvel];
-    Real w = Q[+HydroDef::PrimIdx::Zvel];
-    Real p = Q[+HydroDef::PrimIdx::Prs];
-
-    Real mx = u*rho;
-    Real my = v*rho;
-    Real mz = w*rho;
-    Real ke = 0.5*rho*(u*u + v*v + w*w);
-    Real g = get_gamma_from_prim(Q);
-    Real ed = p/(g - 1) + ke;
-
-    U[+HydroDef::ConsIdx::Density] = rho;
-    U[+HydroDef::ConsIdx::Xmom] = mx;
-    U[+HydroDef::ConsIdx::Ymom] = my;
-    U[+HydroDef::ConsIdx::Zmom] = mz;
-    U[+HydroDef::ConsIdx::Eden] = ed;
-
-    for (int i = 0; i < n_tracers; ++i) {
-        U[+HydroDef::ConsIdx::NUM + i] = Q[+HydroDef::PrimIdx::NUM + i] * rho;
-    }
-
-}
-
-bool HydroState::prim_valid(const Vector<Real> &Q) const
-{
-    if ((Q[+HydroDef::PrimIdx::Density] <= 0.0) ||  (Q[+HydroDef::PrimIdx::Prs] <= 0.0)
-            ) {
-        //        amrex::Abort("Primitive values outside of physical bounds!!");
-        return false;
-    }
-    return true;
-}
-
-bool HydroState::cons_valid(const Vector<Real> &U) const
-{
-    if ((U[+HydroDef::ConsIdx::Density] <= 0.0) ||  (U[+HydroDef::ConsIdx::Eden] <= 0.0)
-            ) {
-        //        amrex::Abort("Primitive values outside of physical bounds!!");
-        return false;
-    }
-    return true;
-}
-
-Real HydroState::get_energy_from_cons(const Vector<Real> &U) const
-{
-    return U[+HydroDef::ConsIdx::Eden];
-}
-
-Real HydroState::get_temperature_from_cons(const Vector<Real> &U) const
-{
-    BL_PROFILE("HydroState::get_temperature_from_cons");
-
-    Real rho = U[+HydroDef::ConsIdx::Density];
-    Real mx = U[+HydroDef::ConsIdx::Xmom];
-    Real my = U[+HydroDef::ConsIdx::Ymom];
-    Real mz = U[+HydroDef::ConsIdx::Zmom];
-    Real ed = U[+HydroDef::ConsIdx::Eden];
-
-    Real rhoinv = 1/rho;
-    Real u = mx*rhoinv;
-    Real v = my*rhoinv;
-    Real w = mz*rhoinv;
-    Real ke = 0.5*rho*(u*u + v*v + w*w);
-    Real m = get_mass_from_cons(U);
-    Real g = get_gamma_from_cons(U);
-    Real p = (ed - ke)*(g - 1);
-    Real T = p*rhoinv*m;
-
-    return T;
-
-}
-
-Real HydroState::get_temperature_from_prim(const Vector<Real> &Q) const
-{
-    return Q[+HydroDef::PrimIdx::Temp];
-}
-
-RealArray HydroState::get_speed_from_cons(const Vector<Real> &U) const
-{
-    BL_PROFILE("HydroState::get_speed_from_cons");
-    Real rho = U[+HydroDef::ConsIdx::Density];
-    Real mx = U[+HydroDef::ConsIdx::Xmom];
-    Real my = U[+HydroDef::ConsIdx::Ymom];
-    Real mz = U[+HydroDef::ConsIdx::Zmom];
-    Real ed = U[+HydroDef::ConsIdx::Eden];
-
-    Real rhoinv = 1/rho;
-    Real u = mx*rhoinv;
-    Real v = my*rhoinv;
-    Real w = mz*rhoinv;
-    Real ke = 0.5*rho*(u*u + v*v + w*w);
-    Real g = get_gamma_from_cons(U);
-    Real p = (ed - ke)*(g - 1);
-
-    Real a = std::sqrt(g*p*rhoinv);
-
-    RealArray s = {AMREX_D_DECL(a + std::abs(u), a + std::abs(v), a + std::abs(w))};
-
-    return s;
-
-}
-
-RealArray HydroState::get_speed_from_prim(const Vector<Real> &Q) const
-{
-    BL_PROFILE("HydroState::get_speed_from_prim");
-
-    Real g = get_gamma_from_prim(Q);
-
-    Real a = std::sqrt(g*Q[+HydroDef::PrimIdx::Prs]/Q[+HydroDef::PrimIdx::Density]);
-
-    RealArray s = {AMREX_D_DECL(a + std::abs(Q[+HydroDef::PrimIdx::Xvel]),
-                   a + std::abs(Q[+HydroDef::PrimIdx::Yvel]),
-                   a + std::abs(Q[+HydroDef::PrimIdx::Zvel]))};
-
-
-    return s;
-
-}
 
 Vector<std::string> HydroState::get_plot_output_names() const
 {
@@ -1097,22 +709,23 @@ void HydroState::get_plot_output(const Box& box,
                     for (int i = lo.x; i <= hi.x; ++i) {
 
 #ifdef AMREX_USE_EB
-                if (vf4(i,j,k) == 0.0) {
-                    continue;
-                }
+                if (vf4(i,j,k) == 0.0) continue;
 #endif
 
                 for (int n=0; n<n_cons(); ++n) {
                     S[n] = src4(i,j,k,n);
 
-                    if (std::isnan(S[n])) {
-                        Abort();
-                    }
+                    //                    if (std::isnan(S[n])) {
+                    //                        Abort();
+                    //                    }
 
                 }
 
-                if (load_charge) out4[charge_name](i,j,k) = get_charge_from_cons(S);
-                if (load_mass)   out4[mass_name](i,j,k)   = get_mass_from_cons(S);
+                if (S[+HydroDef::ConsIdx::Density] < effective_zero) continue;
+
+
+                if (load_charge) out4[charge_name](i,j,k) = gas->get_charge_from_cons(S);
+                if (load_mass)   out4[mass_name](i,j,k)   = gas->get_mass_from_cons(S);
                 //                if (load_gamma)  out4[gamma_name](i,j,k)  = get_gamma_from_cons(S);
 #ifdef AMREX_USE_EB
                 if (load_vfrac)  out4[vfrac_name](i,j,k)  = vf4(i,j,k);
@@ -1125,7 +738,7 @@ void HydroState::get_plot_output(const Box& box,
                 }
 
                 if (!prim_tags.empty()) {
-                    cons2prim(S, Q);
+                    gas->cons2prim(S, Q);
 
                     for (const auto& var : prim_tags) {
                         out4[var.first](i,j,k) = Q[var.second];
@@ -1171,16 +784,16 @@ Real HydroState::get_allowed_time_step(MFP* mfp) const
                         for (int i = lo.x; i <= hi.x; ++i) {
 
 #ifdef AMREX_USE_EB
-                    if (vf4(i,j,k) == 0.0) {
-                        continue;
-                    }
+                    if (vf4(i,j,k) == 0.0) continue;
 #endif
 
                     for (int n = 0; n<n_cons(); ++n) {
                         U[n] = data4(i,j,k,n);
                     }
 
-                    const RealArray speed = get_speed_from_cons(U);
+                    if (U[+HydroDef::ConsIdx::Density] < effective_zero) continue;
+
+                    const RealArray speed = gas->get_speed_from_cons(U);
 
 
                     for (int d=0; d<AMREX_SPACEDIM; ++d) {
@@ -1345,7 +958,7 @@ void HydroState::calc_primitives(const Box& box,
 
 
                 // convert to primitive
-                cons2prim(U, Q);
+                gas->cons2prim(U, Q);
 
                 // copy into primitive
                 for (int n=0; n<n_prim(); ++n) {
@@ -1531,7 +1144,7 @@ void HydroState::calc_reconstruction(const Box& box,
                     Q[n] = src4(i,j,k,n);
                 }
 
-                gam4(i,j,k) = get_gamma_from_prim(Q) - 1.0;
+                gam4(i,j,k) = gas->get_gamma_from_prim(Q) - 1.0;
 
                 src4(i,j,k,+HydroDef::PrimIdx::Prs) /= gam4(i,j,k);
 
@@ -1684,8 +1297,8 @@ void HydroState::calc_reconstruction(const Box& box,
                         alphas_hi[n] = alpha_hi;
                     }
 
-                    gam_lo = get_gamma_from_prim(alphas_lo,0);
-                    gam_hi = get_gamma_from_prim(alphas_hi,0);
+                    gam_lo = gas->get_gamma_from_prim(alphas_lo,0);
+                    gam_hi = gas->get_gamma_from_prim(alphas_hi,0);
 
                     // epsilon -> pressure
                     lo4(i,j,k,+HydroDef::PrimIdx::Prs) = (eps - 0.5*phi_eps)*(gam_lo - 1.0);
@@ -1693,16 +1306,16 @@ void HydroState::calc_reconstruction(const Box& box,
 
 
                     // Temperature (calculate from pressure and density)
-                    lo4(i,j,k,+HydroDef::PrimIdx::Temp) = lo4(i,j,k,+HydroDef::PrimIdx::Prs)/(rho_lo/get_mass_from_prim(alphas_lo,0));
-                    hi4(i,j,k,+HydroDef::PrimIdx::Temp) = hi4(i,j,k,+HydroDef::PrimIdx::Prs)/(rho_hi/get_mass_from_prim(alphas_hi,0));
+                    lo4(i,j,k,+HydroDef::PrimIdx::Temp) = lo4(i,j,k,+HydroDef::PrimIdx::Prs)/(rho_lo/gas->get_mass_from_prim(alphas_lo,0));
+                    hi4(i,j,k,+HydroDef::PrimIdx::Temp) = hi4(i,j,k,+HydroDef::PrimIdx::Prs)/(rho_hi/gas->get_mass_from_prim(alphas_hi,0));
 
                     // gamma
                     lo4(i,j,k,+HydroDef::PrimIdx::Gamma) = gam_lo;
                     hi4(i,j,k,+HydroDef::PrimIdx::Gamma) = gam_hi;
 
                     // specific heat
-                    lo4(i,j,k,+HydroDef::PrimIdx::SpHeat) = get_cp_from_prim(alphas_lo,0);
-                    hi4(i,j,k,+HydroDef::PrimIdx::SpHeat) = get_cp_from_prim(alphas_hi,0);
+                    lo4(i,j,k,+HydroDef::PrimIdx::SpHeat) = gas->get_cp_from_prim(alphas_lo,0);
+                    hi4(i,j,k,+HydroDef::PrimIdx::SpHeat) = gas->get_cp_from_prim(alphas_hi,0);
 
 
 
@@ -1776,7 +1389,7 @@ void HydroState::calc_time_averaged_faces(const Box& box,
                     Q[n] = p4(i,j,k,n);
                 }
 
-                const RealArray local_c = get_speed_from_prim(Q);
+                const RealArray local_c = gas->get_speed_from_prim(Q);
 
 
                 for (int d=0; d<AMREX_SPACEDIM; ++d) {
@@ -2214,8 +1827,8 @@ void HydroState::correct_face_prim(const Box& box,
                         }
 
                         // convert to conserved
-                        prim2cons(L_prim, L_cons);
-                        prim2cons(R_prim, R_cons);
+                        gas->prim2cons(L_prim, L_cons);
+                        gas->prim2cons(R_prim, R_cons);
 
                         /* example for x-direction in 2D
                                    * L & R = reconstructed x- face values
@@ -2253,8 +1866,8 @@ void HydroState::correct_face_prim(const Box& box,
                         }
 
                         // convert to primitive
-                        cons2prim(L_cons, L_prim);
-                        cons2prim(R_cons, R_prim);
+                        gas->cons2prim(L_cons, L_prim);
+                        gas->cons2prim(R_cons, R_prim);
 
                         // update reconstruction
                         for (int n=0; n<n_prim(); ++n ) {
@@ -2871,8 +2484,8 @@ void HydroState::calc_current_and_charge(const Box& box,
 #endif
 
                 // calculate the mass and charge
-                const Real m = get_mass_from_cons(U);
-                const Real q = get_charge_from_cons(U);
+                const Real m = gas->get_mass_from_cons(U);
+                const Real q = gas->get_charge_from_cons(U);
 
                 // calculate the charge density and current
                 if (get_charge) {
@@ -2901,9 +2514,7 @@ void HydroState::write_info(nlohmann::json &js) const
     js["type"] = tag;
     js["type_idx"] = +get_type();
 
-    js["mass"] = mass;
-    js["charge"] = charge;
-    js["gamma"] = gamma;
+    gas->write_info(js["gas"]);
 
     if (viscous) {
 

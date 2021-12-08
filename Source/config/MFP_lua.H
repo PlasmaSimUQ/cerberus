@@ -5,14 +5,15 @@
 
 template <typename T>
 void set_values(const sol::object &in, std::vector<T> &out) {
-    if (in.get_type() == sol::type::number) {
-        out.push_back(in.as<T>());
-    } else if (in.get_type() == sol::type::table) {
+    if (!in.valid()) return;
+    if (in.get_type() == sol::type::table) {
         const sol::table m = in.as<sol::table>();
         out.resize(m.size());
         for (int i=0; i<m.size(); ++i) {
             out[i] = m[i+1];
         }
+    } else {
+        out.push_back(in.as<T>());
     }
 }
 

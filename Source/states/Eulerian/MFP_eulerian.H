@@ -21,6 +21,7 @@ public:
 
     int num_grow;
     bool reflux;
+    Real effective_zero;
 
 #ifdef AMREX_USE_EB
     Real merge_threshold;

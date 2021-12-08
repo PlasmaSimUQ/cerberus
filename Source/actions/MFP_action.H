@@ -48,6 +48,7 @@ public:
         Current,
         UserDefined,
         DampDivergenceMHD,
+        Collisions
     };
 
     int action_idx;

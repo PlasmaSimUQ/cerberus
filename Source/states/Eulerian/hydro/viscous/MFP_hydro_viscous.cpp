@@ -141,8 +141,8 @@ void Sutherland::get_coeffs(const Vector<Real> &Q, Real &T, Real &mu, Real &kapp
     BL_PROFILE("Sutherland::get_neutral_coeffs");
     const HydroState& istate = HydroState::get_state_global(idx);
 
-    T = istate.get_temperature_from_prim(Q);
-    Real cp = istate.get_cp_from_prim(Q);
+    T = istate.gas->get_temperature_from_prim(Q);
+    Real cp = istate.gas->get_cp_from_prim(Q);
 
     Real T_ = T/T0;
     mu = mu_0*T_*sqrt(T_)*(T0+S)/(T+S);
@@ -156,8 +156,8 @@ Real Sutherland::calc_stability_condition(Vector<Real>& U) const
     const HydroState& istate = HydroState::get_state_global(idx);
 
     const Real rho = U[+HydroDef::ConsIdx::Density];
-    const Real T = istate.get_temperature_from_cons(U);
-    const Real gamma = istate.get_gamma_from_cons(U);
+    const Real T = istate.gas->get_temperature_from_cons(U);
+    const Real gamma = istate.gas->get_gamma_from_cons(U);
 
 
     const Real T_ = T/T0;
@@ -206,8 +206,8 @@ void PowerLaw::get_coeffs(const Vector<Real>& Q, Real &T, Real &mu, Real &kappa)
     BL_PROFILE("PowerLaw::get_neutral_coeffs");
     const HydroState& istate = HydroState::get_state_global(idx);
 
-    T = istate.get_temperature_from_prim(Q);
-    Real cp = istate.get_cp_from_prim(Q);
+    T = istate.gas->get_temperature_from_prim(Q);
+    Real cp = istate.gas->get_cp_from_prim(Q);
 
 
     mu = mu_0*pow(T/T0,n);
@@ -222,8 +222,8 @@ Real PowerLaw::calc_stability_condition(Vector<Real>& U) const
     const HydroState& istate = HydroState::get_state_global(idx);
 
     const Real rho = U[+HydroDef::ConsIdx::Density];
-    const Real T = istate.get_temperature_from_cons(U);
-    const Real gamma = istate.get_gamma_from_cons(U);
+    const Real T = istate.gas->get_temperature_from_cons(U);
+    const Real gamma = istate.gas->get_gamma_from_cons(U);
 
     const Real mu = mu_0*pow(T/T0,n);
 
@@ -258,8 +258,8 @@ void UserDefinedViscosity::get_coeffs(const Vector<Real>& Q, Real &T, Real &mu, 
     BL_PROFILE("UserDefinedViscosity::get_neutral_coeffs");
     const HydroState& istate = HydroState::get_state_global(idx);
 
-    T = istate.get_temperature_from_prim(Q);
-    Real cp = istate.get_cp_from_prim(Q);
+    T = istate.gas->get_temperature_from_prim(Q);
+    Real cp = istate.gas->get_cp_from_prim(Q);
 
     mu = mu_0;
     kappa = mu*cp/Prandtl;
@@ -273,7 +273,7 @@ Real UserDefinedViscosity::calc_stability_condition(Vector<Real>& U) const
     const HydroState& istate = HydroState::get_state_global(idx);
 
     const Real rho = U[+HydroDef::ConsIdx::Density];
-    const Real gamma = istate.get_gamma_from_cons(U);
+    const Real gamma = istate.gas->get_gamma_from_cons(U);
     const Real mu = mu_0;
 
     return (4*mu*gamma/(Prandtl*rho));

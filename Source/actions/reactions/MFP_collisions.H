@@ -15,14 +15,23 @@ public:
 
     virtual void calc_time_derivative(MFP* mfp, Vector<UpdateData>& update,  const Real time, const Real dt) override;
 
-    virtual std::string get_tag() const override {return tag;}
-    virtual ActionType get_type() const override {return ActionType::Lorentz;}
+    struct SpeciesInfo {
+        std::string name;
+        int idx;
+        int state_idx;
+        int alpha_idx;
+        Real rho, m, q, T, q2, n;
+        Array<Real,3> vel;
+        Array<Real,+HydroDef::ConsIdx::NUM> delta;
+    };
 
-    Vector<HydroState*> species;
-    Vector<Vector<Real> > ccs;
+    void init_species_info(const sol::table &def);
 
-    static bool registered;
-    static std::string tag;
+    virtual void calc_update(){}
+
+    Vector<HydroState*> states;
+    Vector<SpeciesInfo> species_info;
+
 };
 
 #endif // LORENTZ_H

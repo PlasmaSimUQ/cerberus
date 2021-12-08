@@ -200,9 +200,12 @@ states = {
 
     ion = {
         type='hydro',
-        mass=mass_ion,
-        charge=1,
-        gamma=5/3,
+        gas={
+            type='thermally_perfect',
+            mass=mass_ion,
+            charge=1,
+            gamma=5/3,
+        },
         reconstruction = 'minmod',
         refinement={name='hydro_gradient', rho=0.1},
         flux = 'HLLC',
@@ -216,9 +219,12 @@ states = {
 
     electron = {
         type='hydro',
-        mass=mass_electron,
-        charge=-1.0,
-        gamma=5/3,
+        gas={
+            type='thermally_perfect',
+            mass=mass_electron,
+            charge=-1.0,
+            gamma=5/3,
+        },
         reconstruction = 'minmod',
         refinement={name='hydro_gradient', rho=0.1},
         flux = 'HLLC',
