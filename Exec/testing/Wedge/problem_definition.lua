@@ -33,9 +33,12 @@ states = {
 
     fluid = {
         type='hydro',
-        mass=1.0,  
-        charge= 0.0, 
-        gamma=1.4, 
+        gas={
+          type='thermally_perfect',
+          mass=1.0,
+          charge=0.0,
+          gamma=1.4,
+        },
         reconstruction='MC', 
         flux='HLLE/HLLC',
         shock_detector={name='pressure_jump_detector', threshold=0.1},
