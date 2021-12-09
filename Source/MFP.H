@@ -214,7 +214,7 @@ public:
     static std::map<std::string,Array<int,AMREX_SPACEDIM+1>> plot_variables;
     static Vector<std::pair<std::string,Optional3D1VFunction>> plot_functions;
 
-    static Real x_ref, n_ref, m_ref, rho_ref, T_ref, u_ref, n0;
+    static Real x_ref, n_ref, m_ref, rho_ref, T_ref, u_ref, n0, prs_ref, t_ref;
     static Real lightspeed, beta, skin_depth, Larmor, Debye;
     static bool plasma_params_set;
 

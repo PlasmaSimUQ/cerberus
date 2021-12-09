@@ -1,0 +1,5 @@
+CEXE_headers += MFP_wrap_gas.H
+CEXE_sources += MFP_wrap_gas.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/extern/Eilmer
+VPATH_LOCATIONS   += $(TOP)/Source/extern/Eilmer

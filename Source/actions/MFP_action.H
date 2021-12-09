@@ -48,7 +48,8 @@ public:
         Current,
         UserDefined,
         DampDivergenceMHD,
-        Collisions
+        Collisions,
+        GasKinetics
     };
 
     int action_idx;
