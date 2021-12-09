@@ -8,6 +8,19 @@ USE_OMP ?= FALSE
 DEBUG ?= FALSE
 WARN_ALL ?= FALSE
 
+#=== EILMER GAS ===
+
+EILMER_GAS ?= FALSE
+
+ifeq ($(EILMER_GAS), TRUE)
+LIBRARY_LOCATIONS += $(DLANG_LIB) ${EILMER_LIB}
+LIBRARIES         += -lphobos2 -lgas
+USERSuffix := $(USERSuffix).EILMER
+DEFINES += -DEILMER_GAS
+LIBRARIES += -Wl,-rpath=${EILMER_LIB}
+endif
+
+
 #=== PPROF ===
 
 PPROF ?= FALSE

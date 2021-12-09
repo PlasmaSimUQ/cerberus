@@ -603,6 +603,11 @@ class ReadBoxLib:
                         self.data["hydro_charge"].append(gas["charge"])
                         self.data["hydro_gamma"].append(gas["gamma"])
                         self.data["hydro_comp_names"].append(gas["comp_names"])
+                    if gas["type"] == "eilmer":
+                        self.data["hydro_names"].append(istate["name"])
+                        self.data["hydro_mass"].append(gas["mass"])
+                        self.data["hydro_charge"].append(gas["charge"])
+                        self.data["hydro_comp_names"].append(gas["comp_names"])
 
         self.flat_data = {}
         self.retrieval_sites = []

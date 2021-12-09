@@ -22,6 +22,9 @@ CEXE_sources += MFP_CTU_Braginskii.cpp
 CEXE_headers += MFP_elliptic.H
 CEXE_sources += MFP_elliptic.cpp
 
+CEXE_headers += MFP_gas_kinetics.H
+CEXE_sources += MFP_gas_kinetics.cpp
+
 CEXE_headers += MFP_current.H
 CEXE_sources += MFP_current.cpp
 

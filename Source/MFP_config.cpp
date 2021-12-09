@@ -193,7 +193,7 @@ void MFP::read_config()
     // miscellaneous
     //
 
-    zero_dimensional = lua["zero_dimensional"];
+    zero_dimensional = lua.get_or("zero_dimensional", false);
 
     for (int i = 0; i < AMREX_SPACEDIM; i++) {
         tile_size[i] = lua["tile_size"][i + 1];
@@ -422,6 +422,9 @@ void MFP::update_ref()
     } else {
         Abort("Either ref_temp or lightspeed need to be set, only set one");
     }
+
+    prs_ref = n_ref*m_ref*u_ref*u_ref;
+    t_ref = x_ref/u_ref;
 
     // need Larmor and Debye, can set these explicitly or via dS and beta
     int set = 0;

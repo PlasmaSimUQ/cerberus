@@ -65,6 +65,24 @@ T min_vec(const std::vector<T> &in) {
     return v;
 }
 
+template <typename T>
+T sum_vec(const std::vector<T> &in) {
+    T v = 0;
+    for (size_t i = 0; i < in.size(); ++i) {
+        v += in[i];
+    }
+    return v;
+}
+
+template <typename T, size_t N>
+T sum_arr(const std::array<T, N> &in) {
+    T v = 0;
+    for (size_t i = 0; i < N; ++i) {
+        v += in[i];
+    }
+    return v;
+}
+
 // === VECTOR TO STRING ===
 
 template <typename T>

@@ -29,6 +29,10 @@ PPROF = FALSE
 PPROF_INCLUDE = /usr/include/gperftools
 PPROF_LIB = /usr/lib/x86_64-linux-gnu
 
+EILMER_GAS = FALSE
+DLANG_LIB=${HOME}/ldc/ldc2-1.24.0-linux-x86_64/lib
+EILMER_LIB=${HOME}/dgdinst/lib
+
 include ../Make.MFP
 
 FFLAGS   += -fcheck=array-temps -fbacktrace -fbounds-check -cpp

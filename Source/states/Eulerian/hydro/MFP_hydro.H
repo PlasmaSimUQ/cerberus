@@ -34,7 +34,6 @@ public:
     static std::map<std::string, int> bc_names;
     static Vector<set_bc> bc_set;
 
-    int n_species;
     int n_tracers;
     static std::string multicomp_prim_name;
     static std::string multicomp_cons_name;
