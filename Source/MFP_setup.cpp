@@ -89,11 +89,11 @@ void MFP::build_eb() {
 
         const auto& flags_orig = eb.ebfactory->getMultiEBCellFlagFab();
         eb.flags.define(grids, dmap, 1, flags_orig.n_grow);
-        eb.flags.copy(flags_orig,0,0,1,flags_orig.n_grow,flags_orig.n_grow,geom.periodicity());
+        eb.flags.ParallelCopy(flags_orig,0,0,1,flags_orig.n_grow,flags_orig.n_grow,geom.periodicity());
 
         const auto& vfrac_original = eb.ebfactory->getVolFrac();
         eb.volfrac.define(grids, dmap, 1, vfrac_original.n_grow);
-        eb.volfrac.copy(vfrac_original,0,0,1,vfrac_original.n_grow,vfrac_original.n_grow,geom.periodicity());
+        eb.volfrac.ParallelCopy(vfrac_original,0,0,1,vfrac_original.n_grow,vfrac_original.n_grow,geom.periodicity());
 
         eb.bndrycent = &(eb.ebfactory->getBndryCent());
         eb.bndrynorm = &(eb.ebfactory->getBndryNormal());
