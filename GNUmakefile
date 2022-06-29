@@ -2,7 +2,7 @@
 $(info "Initializing/updating the amrex submodule")
 $(shell git submodule update --init --recursive)
 
-TOP := $(realpath ../..)
+TOP := $(realpath .)
 
 AMREX_HOME := $(TOP)/amrex
 COMP := GNU
@@ -16,6 +16,25 @@ VERBOSE = TRUE
 
 DEFINES += -DLUA_USE_LINUX
 LIBRARIES += -ldl -lreadline
+
+USE_EB = FALSE
+AMREX_PARTICLES = FALSE
+
+PYTHON_PLOT = FALSE
+PYTHON_INCLUDE = /usr/include/python3.8
+PYTHON_LIB = /usr/lib/python3.8/config-3.8-x86_64-linux-gnu
+
+PPROF = FALSE
+PPROF_INCLUDE = /usr/include/gperftools
+PPROF_LIB = /usr/lib/x86_64-linux-gnu
+
+EILMER_GAS = TRUE
+DLANG_LIB := /usr/lib
+
+EILMER_HOME = $(TOP)/gdtkinst
+
+# this url will be sent to the "eilmer" make rule in cerberus.rules
+EILMER_URL = https://github.com/gdtk-uq/gdtk
 
 include $(TOP)/cerberus.rules
 
