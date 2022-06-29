@@ -2,8 +2,6 @@
 #include "MFP.H"
 #include "MFP_state.H"
 #include "sol.hpp"
-#include "Eigen"
-#include "Dense"
 
 std::string Lorentz::tag = "Lorentz";
 bool Lorentz::registered = GetActionFactory().Register(Lorentz::tag, ActionBuilder<Lorentz>);
@@ -24,7 +22,6 @@ Lorentz::Lorentz(const int idx, const sol::table &def)
 
         switch (istate.get_type()) {
         case State::StateType::Field: {
-            if (field != nullptr) Abort("Only one field state can be set for the Plasma5 source "+name);
             field = static_cast<FieldState*>(&istate);
             state_indexes.push_back(istate.global_idx);
             field->associated_actions.push_back(action_idx);
@@ -38,7 +35,7 @@ Lorentz::Lorentz(const int idx, const sol::table &def)
             break;
         }
         default:
-            Abort("An invalid state has been defined for the Plasma5 source "+name);
+            Abort("An invalid state has been defined for the Lorentz source "+name);
         }
     }
 

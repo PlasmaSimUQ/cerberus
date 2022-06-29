@@ -15,12 +15,11 @@ CollisionsRambo::CollisionsRambo(const int idx, const sol::table &def) : Collisi
     // grab any collision cross sections
     sol::table cross_sections = def["cross_sections"].get_or(sol::table());
 
-    if (cross_sections.empty()) {
-
+    if (!cross_sections) {
         // only need ccs with a neutral species
         for (const SpeciesInfo& info : species_info) {
-            if (states[info.state_idx]->gas->charge[info.alpha_idx] != 0.0) {
-                Abort("Error: collision cross section for neutral species '"+info.name+"' is required by action '"+name+"'");
+            if (states[info.state_idx]->gas->charge[info.alpha_idx] == 0.0) {
+                Abort("Error: coss sections for collisions involving neutral species '"+info.name+"' are required by action '"+name+"'");
             }
         }
     }
@@ -33,18 +32,20 @@ CollisionsRambo::CollisionsRambo(const int idx, const sol::table &def) : Collisi
         ccs[a].resize(n_species,0);
     }
 
-    // load the hydro cross sections
+    // load the neutral hydro cross sections
     std::pair<bool, int> index_a, index_b;
     Real sigma;
-    for (const auto& a : cross_sections) {
-        index_a = findInVector(species_names, a.first.as<std::string>());
-        if (!index_a.first) {continue;}
-        for (const auto& b : a.second.as<sol::table>()) {
-            index_b = findInVector(species_names, b.first.as<std::string>());
-            if (!index_b.first) {continue;}
-            sigma = b.second.as<Real>()/(MFP::x_ref*MFP::x_ref); // non-dimensionalise
-            ccs[index_a.second][index_b.second] = sigma;
-            ccs[index_b.second][index_a.second] = sigma; // cross load as sigma_ab = sigma_ba
+    if (cross_sections) {
+        for (const auto& a : cross_sections) {
+            index_a = findInVector(species_names, a.first.as<std::string>());
+            if (!index_a.first) {continue;}
+            for (const auto& b : a.second.as<sol::table>()) {
+                index_b = findInVector(species_names, b.first.as<std::string>());
+                if (!index_b.first) {continue;}
+                sigma = b.second.as<Real>()/(MFP::x_ref*MFP::x_ref); // non-dimensionalise
+                ccs[index_a.second][index_b.second] = sigma;
+                ccs[index_b.second][index_a.second] = sigma; // cross load as sigma_ab = sigma_ba
+            }
         }
     }
 
