@@ -11,19 +11,26 @@ WARN_ALL ?= FALSE
 #=== EILMER GAS ===
 
 EILMER_GAS ?= FALSE
+EILMER_HOME ?= $(TOP)/gdtkinst
+EILMER_LIB = $(TOP)/gdtkinst/lib
+EILMER_URL ?= https://github.com/gdtk-uq/gdtk
+DLANG_LIB ?= /usr/lib
 
 ifeq ($(EILMER_GAS), TRUE)
-LIBRARY_LOCATIONS += $(DLANG_LIB) ${EILMER_LIB}
-LIBRARIES         += -lphobos2 -lgas
+LIBRARY_LOCATIONS += $(DLANG_LIB) $(EILMER_LIB)
+LIBRARIES         += -lgas
 USERSuffix := $(USERSuffix).EILMER
 DEFINES += -DEILMER_GAS
-LIBRARIES += -Wl,-rpath=${EILMER_LIB}
+LIBRARIES += -Wl,-rpath=$(EILMER_LIB)
+
 endif
 
 
 #=== PPROF ===
 
 PPROF ?= FALSE
+PPROF_INCLUDE ?= /usr/include/gperftools
+PPROF_LIB ?= /usr/lib/x86_64-linux-gnu
 
 ifeq ($(PPROF), TRUE)
 INCLUDE_LOCATIONS += $(PPROF_INCLUDE)
@@ -49,6 +56,8 @@ endif
 #=== PYTHON ===
 
 PYTHON_PLOT ?= FALSE
+PYTHON_INCLUDE ?= /usr/include/python3.8
+PYTHON_LIB ?= /usr/lib/python3.8/config-3.8-x86_64-linux-gnu
 
 ifeq ($(PYTHON_PLOT), TRUE)
 INCLUDE_LOCATIONS += $(PYTHON_INCLUDE)
@@ -84,21 +93,9 @@ DEFINES += -DINTERPOLATION_PWL -DWRANGE=1 -DSYMPLECTIC
 USERSuffix := $(USERSuffix).SYMPLECTIC_PWL
 endif
 
-
-#=== HDF5 ===
-
-USE_HDF5 ?= FALSE
-
-ifeq ($(USE_HDF5), TRUE)
-DEFINES += -DAMREX_USE_HDF5
-INCLUDE_LOCATIONS += $(HDF5_HOME)/include
-LIBRARIES         += -lhdf5 -L$(HDF5_HOME)/lib
-USERSuffix := $(USERSuffix).HDF5
-endif
-
 CERBERUS_GIT_NAME := $(shell git branch | grep \* | sed 's/[(*) ]/_/g')
 CERBERUS_GIT_VERSION := $(shell git describe --abbrev=12 --dirty --always --tags)
-DEFINES += -DCERBERUS_GIT_VERSION=\"$(CERBERUS_GIT_VERSION)\" 
+DEFINES += -DCERBERUS_GIT_VERSION=\"$(CERBERUS_GIT_VERSION)\"
 DEFINES += -DCERBERUS_GIT_NAME=\"$(CERBERUS_GIT_NAME)\"
 
 DEFINES += -DAMREX_CRSEGRNDOMP
@@ -120,11 +117,33 @@ ifeq ($(AMREX_PARTICLES), TRUE)
 include $(AMREX_HOME)/Src/Particle/Make.package
 endif
 
-ifeq ($(USE_CVODE_LIBS), TRUE)
-DEFINES += -DUSE_CVODE
-USERSuffix := $(USERSuffix).CVODE
-INCLUDE_LOCATIONS += $(CVODE_LIB_DIR)/include
-LIBRARIES += -L$(CVODE_LIB_DIR)/lib -Wl,-rpath,${CVODE_LIB_DIR}/lib -lsundials_cvode -lsundials_nvecserial -lsundials_sunmatrixdense
-endif
-
 include $(AMREX_HOME)/Tools/GNUMake/Make.rules
+
+
+define ENVVARS
+	export DGD=$(EILMER_HOME)
+	export DGD_REPO=$(TOP)/.gdtk_git
+	export PATH=$$PATH:$$DGD/bin
+	export DGD_LUA_PATH=$$DGD/lib/?.lua
+	export DGD_LUA_CPATH=$$DGD/lib/?.so
+endef
+
+export ENVVARS
+
+env:
+	rm -f env && \
+	echo "$$ENVVARS" > env
+
+eilmer: env
+	TOP='$(TOP)' EILMER_HOME='$(EILMER_HOME)' EILMER_URL='$(EILMER_URL)' MF='$(MAKEFLAGS)' ./build_eilmer.sh
+
+uninstall_eilmer:
+	rm -rf $(TOP)/gdtkinst
+
+clean_eilmer:
+	$(MAKE) -C $(TOP)/.gdtk_git/src/gas clean
+	$(MAKE) -C $(TOP)/.gdtk_git/src/eilmer clean
+	$(MAKE) -C $(TOP)/.gdtk_git/extern/lua-5.4.3 clean
+
+
+clean_all: | uninstall_eilmer clean_eilmer clean
