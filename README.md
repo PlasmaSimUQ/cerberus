@@ -87,7 +87,7 @@ Visualisation can be carried out using  [VisIt](https://wci.llnl.gov/simulation/
 
 ### UQ Gas Dynamics Toolkit
 
-To expand the capabilities of the code it is possible to use the gas models implemented in the [UQ Gas Dynamics Toolkit](https://github.com/gdtk-uq/gdtk) (formally Eilmer). This requires the download, compilation, and installation of the Eilmer gas library (found at `src/gas` in the Eilmer source) as well as the D-language compiler and runtime (see instructions [here](https://gdtk.uqcloud.net/)).
+To expand the capabilities of the code it is possible to use the gas models implemented in the [UQ Gas Dynamics Toolkit](https://github.com/gdtk-uq/gdtk) (formerly Eilmer). This requires the download, compilation, and installation of the Eilmer gas library (found at `src/gas` in the Eilmer source) as well as the D-language compiler and runtime (see instructions [here](https://gdtk.uqcloud.net/)).
 
 If you have the gdtk installed already, simply point to the relevant location by adding `EILMER_HOME = YOUR_INSTALL_LOCATION` to the makefile. You may also need to change the location of `DLANG_LIB` if the code can't find the D standard library.
 
