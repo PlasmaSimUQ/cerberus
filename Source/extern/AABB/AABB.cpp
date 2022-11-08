@@ -34,6 +34,7 @@
 #include <math.h>
 
 #include <AMReX_BLProfiler.H>
+#include <array>
 
 namespace aabb {
 
