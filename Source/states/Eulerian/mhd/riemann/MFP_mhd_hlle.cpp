@@ -15,10 +15,10 @@ MHDHLLE::MHDHLLE(const sol::table &def)
     div_transport = def["div_transport"];
 }
 
-void MHDHLLE::solve(Array<Real,+MHDDef::PrimIdx::NUM> &L,
-                                Array<Real,+MHDDef::PrimIdx::NUM> &R,
-                                Array<Real,+MHDDef::ConsIdx::NUM> &F,
-                                Real* shk)
+void MHDHLLE::solve(Vector<Real> &L,
+                    Vector<Real> &R,
+                    Vector<Real> &F,
+                    Real* shk)
 {
     BL_PROFILE("MHDHLLE::solve");
 

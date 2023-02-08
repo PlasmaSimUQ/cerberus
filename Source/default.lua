@@ -27,7 +27,7 @@ linear_solver_verbosity = 0
 cfl = 0.0
 
 -- refine around cutcells
-refine_cutcells = 0
+refine_cutcells = false
 
 time_integration_scheme = 'strang'
 

@@ -4,8 +4,6 @@ HydroShockDetector::HydroShockDetector(){}
 
 HydroShockDetector::~HydroShockDetector(){}
 
-Real HydroShockDetector::solve(Vector<Real> &L,Vector<Real> &R) const {return 0.0;}
-
 ClassFactory<HydroShockDetector>& GetHydroShockDetectorFactory()
 {
     static ClassFactory<HydroShockDetector> F;

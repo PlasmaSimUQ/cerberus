@@ -17,6 +17,8 @@ void MFP::variableSetUp()
         state->variable_setup(periodic);
     }
 
+    update_config_post_data_instantiation();
+
     //===================
     // cost state
 

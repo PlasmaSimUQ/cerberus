@@ -18,7 +18,7 @@ FieldGradientRefinement::FieldGradientRefinement(const int global_idx, const sol
     idx = global_idx;
 
     max_level = def.get_or("max_level", -1);
-    min_value = def.get_or("min_value", -1);
+    min_value = def.get_or("min_value", 0);
 
     // conserved variables
     for (int i = 0; i<FieldState::cons_names.size(); ++i) {

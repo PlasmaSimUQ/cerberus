@@ -8,25 +8,18 @@
 #include "json.hpp"
 #include "MFP_factory.H"
 #include "MFP_mhd_defs.H"
+#include "MFP_eulerian_riemann.H"
 
 using namespace amrex;
 
 class State;
 
 
-class MHDShockDetector
+class MHDShockDetector : public ShockDetector
 {
 public:
     MHDShockDetector();
     ~MHDShockDetector();
-    virtual Real solve(Array<Real,+MHDDef::PrimIdx::NUM> &L,
-                       Array<Real,+MHDDef::PrimIdx::NUM> &R) const;
-
-    int idx;
-    State* istate;
-
-    virtual std::string get_tag() const {return "";}
-    virtual void write_info(nlohmann::json& js) const {return;}
 };
 
 template <typename D>
@@ -51,11 +44,11 @@ public:
     PressureJumpShockDetectorMHD();
     PressureJumpShockDetectorMHD(const sol::table &def);
 
-    virtual Real solve(Array<Real,+MHDDef::PrimIdx::NUM> &L,
-                       Array<Real,+MHDDef::PrimIdx::NUM> &R) const override;
+    virtual Real solve(Vector<Real> &L,
+                       Vector<Real> &R) const override;
 
 
-    virtual std::string get_tag() const override {return tag;}
+    virtual const std::string get_tag() const override {return tag;}
     virtual void write_info(nlohmann::json& js) const override;
 
     static std::string tag;

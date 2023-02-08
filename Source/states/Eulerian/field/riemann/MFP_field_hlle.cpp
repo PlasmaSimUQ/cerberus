@@ -22,9 +22,10 @@ FieldHLLE::FieldHLLE(const int i)
     cc = ch2/c2;
 }
 
-void FieldHLLE::solve(Array<Real,+FieldDef::ConsIdx::NUM> &L,
-                      Array<Real,+FieldDef::ConsIdx::NUM> &R,
-                      Array<Real,+FieldDef::ConsIdx::NUM> &F) const
+void FieldHLLE::solve(Vector<Real> &L,
+                      Vector<Real> &R,
+                      Vector<Real> &F,
+                      Real *shk)
 {
     BL_PROFILE("FieldHLLE::solve");
 

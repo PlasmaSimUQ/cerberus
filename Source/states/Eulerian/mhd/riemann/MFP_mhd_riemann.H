@@ -8,28 +8,17 @@
 #include "MFP_factory.H"
 #include "MFP_mhd_defs.H"
 #include "MFP_utility.H"
+#include "MFP_eulerian_riemann.H"
 
 using namespace amrex;
 
 //================================================================================
 
-class MHDRiemannSolver
+class MHDRiemannSolver : public RiemannSolver
 {
 public:
     MHDRiemannSolver();
     virtual ~MHDRiemannSolver();
-
-    virtual void solve(Array<Real,+MHDDef::PrimIdx::NUM> &L,
-                       Array<Real,+MHDDef::PrimIdx::NUM> &R,
-                       Array<Real,+MHDDef::ConsIdx::NUM> &F,
-                       Real* shk) {}
-
-    virtual std::string get_tag() const {return "";}
-    virtual bool requires_shock_detector() const {return false;}
-
-    void update_max_speed(const Real s) {max_speed = s;}
-
-    Real max_speed;
 };
 
 template <typename D>

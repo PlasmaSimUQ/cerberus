@@ -19,7 +19,7 @@ time_integration_scheme = 'strang'
 
 -- === GEOMETRY ===
 
-refine_cutcells = 1
+refine_cutcells = true
 
 merge_fraction = 0.5
 

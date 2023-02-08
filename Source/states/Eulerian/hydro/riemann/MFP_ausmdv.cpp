@@ -15,6 +15,8 @@ HydroAUSMDV::HydroAUSMDV(const sol::table &def)
 
     trL.resize(n_tracer);
     trR.resize(n_tracer);
+
+    n_flux = +HydroDef::ConsIdx::NUM + n_tracer;
 }
 
 void HydroAUSMDV::solve(Vector<Real> &L,

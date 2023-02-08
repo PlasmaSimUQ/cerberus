@@ -23,8 +23,12 @@ public:
 
     virtual bool requires_shock_detector() const {return true;}
 
-    virtual std::string get_tag() const override {return tag;}
+    virtual const std::string get_tag() const override {return tag;}
     static std::string tag;
+
+    virtual int get_n_flux() const override {return n_flux;}
+    int n_flux;
+
     static bool registered;
 
     Vector<Real> F_hlle, F_hllc;

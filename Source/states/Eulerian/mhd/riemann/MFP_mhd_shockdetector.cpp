@@ -4,9 +4,6 @@ MHDShockDetector::MHDShockDetector(){}
 
 MHDShockDetector::~MHDShockDetector(){}
 
-Real MHDShockDetector::solve(Array<Real,+MHDDef::PrimIdx::NUM> &L,
-                             Array<Real,+MHDDef::PrimIdx::NUM> &R) const {return 0.0;}
-
 ClassFactory<MHDShockDetector>& GetMHDShockDetectorFactory()
 {
     static ClassFactory<MHDShockDetector> F;
@@ -33,8 +30,8 @@ PressureJumpShockDetectorMHD::PressureJumpShockDetectorMHD(const sol::table& def
 
 }
 
-Real PressureJumpShockDetectorMHD::solve(Array<Real,+MHDDef::PrimIdx::NUM> &L,
-                                      Array<Real,+MHDDef::PrimIdx::NUM> &R) const
+Real PressureJumpShockDetectorMHD::solve(Vector<Real> &L,
+                                      Vector<Real> &R) const
 {
     BL_PROFILE("PressureJumpShockDetector::solve");
 

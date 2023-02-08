@@ -22,9 +22,10 @@ FieldRH::FieldRH(const int i)
     ch2 = ch*ch;
 }
 
-void FieldRH::solve(Array<Real,+FieldDef::ConsIdx::NUM> &L,
-                    Array<Real,+FieldDef::ConsIdx::NUM> &R,
-                    Array<Real,+FieldDef::ConsIdx::NUM> &F) const
+void FieldRH::solve(Vector<Real> &L,
+                    Vector<Real> &R,
+                    Vector<Real> &F,
+                    Real *shk)
 {
     BL_PROFILE("FieldRH::solve");
     std::fill(F.begin(), F.end(), 0);

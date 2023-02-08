@@ -1,6 +1,12 @@
 CEXE_headers += MFP_eulerian.H
 CEXE_sources += MFP_eulerian.cpp
 
+CEXE_headers += MFP_eulerian_bc.H
+CEXE_sources += MFP_eulerian_bc.cpp
+
+CEXE_headers += MFP_eulerian_riemann.H
+CEXE_sources += MFP_eulerian_riemann.cpp
+
 CEXE_headers += MFP_reconstruction.H
 CEXE_sources += MFP_reconstruction.cpp
 

@@ -12,15 +12,15 @@ void FieldState::set_eb_bc(const sol::table &bc_def)
     std::string bc_type = bc_def.get_or<std::string>("type", CollectionWall::tag);
 
     if (bc_type == ConductingWall::tag) {
-        eb_bcs.push_back(std::unique_ptr<FieldBoundaryEB>(new ConductingWall(flux_solver.get(), bc_def)));
+        eb_bcs.push_back(std::unique_ptr<FieldBoundaryEB>(new ConductingWall(global_idx, flux_solver.get(), bc_def)));
     } else if (bc_type == ScalarPotentialWall::tag) {
-        eb_bcs.push_back(std::unique_ptr<FieldBoundaryEB>(new ScalarPotentialWall(bc_def)));
+        eb_bcs.push_back(std::unique_ptr<FieldBoundaryEB>(new ScalarPotentialWall(global_idx, bc_def)));
     } else if (bc_type == SurfaceChargeWall::tag) {
-        eb_bcs.push_back(std::unique_ptr<FieldBoundaryEB>(new SurfaceChargeWall(bc_def)));
+        eb_bcs.push_back(std::unique_ptr<FieldBoundaryEB>(new SurfaceChargeWall(global_idx, bc_def)));
     } else if (bc_type == CollectionWall::tag) {
-        eb_bcs.push_back(std::unique_ptr<FieldBoundaryEB>(new CollectionWall(bc_def)));
+        eb_bcs.push_back(std::unique_ptr<FieldBoundaryEB>(new CollectionWall(global_idx, bc_def)));
     } else if (bc_type == DefinedWall::tag) {
-        eb_bcs.push_back(std::unique_ptr<FieldBoundaryEB>(new DefinedWall(flux_solver.get(), bc_def)));
+        eb_bcs.push_back(std::unique_ptr<FieldBoundaryEB>(new DefinedWall(global_idx, flux_solver.get(), bc_def)));
     } else {
         Abort("Requested EB bc of type '" + bc_type + "' which is not compatible with state '" + name + "'");
     }
@@ -38,9 +38,9 @@ std::string DefinedWall::tag = "defined";
 DefinedWall::DefinedWall(){}
 DefinedWall::~DefinedWall(){}
 
-DefinedWall::DefinedWall(FieldRiemannSolver *flux, const sol::table &bc_def)
+DefinedWall::DefinedWall(int idx, RiemannSolver *flux, const sol::table &bc_def)
 {
-
+    state_idx = idx;
     flux_solver = flux;
 
     // grab the wall state from the lua definition
@@ -55,26 +55,37 @@ DefinedWall::DefinedWall(FieldRiemannSolver *flux, const sol::table &bc_def)
         ++i;
     }
 
+    cell_state.resize(+FieldDef::ConsIdx::NUM);
+    wall_state.resize(+FieldDef::ConsIdx::NUM);
+    normal_flux.resize(+FieldDef::ConsIdx::NUM);
 
 }
 
 void DefinedWall::solve(Array<Array<Real,3>,3> &wall_coord,
-                        Array<Real,+FieldDef::ConsIdx::NUM> &state,
-                        Array<Array<Real,+FieldDef::ConsIdx::NUM>,AMREX_SPACEDIM> &F,
-                        const Real* dx) const
+                        Array<Real,AMREX_SPACEDIM> wall_centre,
+                        const Vector<Array4<const Real>>& all_prim,
+                        const int i, const int j, const int k, const Real *dx,
+                        Array<Vector<Real>,AMREX_SPACEDIM> &F)
 {
 
-    transform_global2local(state, wall_coord,  FieldState::vector_idx);
+    const Array4<const Real>& p4 = all_prim[state_idx];
 
-    // fabricate a state for inside the wall based on the provided state
-    Array<Real, +FieldDef::ConsIdx::NUM> W = state;
-
-    for (const auto& pair : wall_value) {
-        W[pair.first] = pair.second;
+    // grab the values we need
+    for (size_t n=0; n<+FieldDef::ConsIdx::NUM; ++n) {
+        cell_state[n] = p4(i,j,k,n);
     }
 
-    Array<Real,+FieldDef::ConsIdx::NUM> normal_flux;
-    flux_solver->solve(state, W, normal_flux);
+    transform_global2local(cell_state, wall_coord,  FieldState::vector_idx);
+
+    // fabricate a state for inside the wall based on the provided state
+    std::copy(cell_state.begin(), cell_state.end(), wall_state.begin());
+
+    for (const auto& pair : wall_value) {
+        wall_state[pair.first] = pair.second;
+    }
+
+    Real shock = 0;
+    flux_solver->solve(cell_state, wall_state, normal_flux, &shock);
 
     // convert back to global coordinate system
     transform_local2global(normal_flux, wall_coord, FieldState::vector_idx);
@@ -98,9 +109,9 @@ std::string ConductingWall::tag = "conductor";
 ConductingWall::ConductingWall(){}
 ConductingWall::~ConductingWall(){}
 
-ConductingWall::ConductingWall(FieldRiemannSolver* flux, const sol::table &bc_def)
+ConductingWall::ConductingWall(int idx, RiemannSolver* flux, const sol::table &bc_def)
 {
-
+    state_idx = idx;
     flux_solver = flux;
 
     // grab any specified normal and tangential fields
@@ -130,48 +141,60 @@ ConductingWall::ConductingWall(FieldRiemannSolver* flux, const sol::table &bc_de
     } else {
         wall_D = 0.0;
     }
+
+    cell_state.resize(+FieldDef::ConsIdx::NUM);
+    wall_state.resize(+FieldDef::ConsIdx::NUM);
+    normal_flux.resize(+FieldDef::ConsIdx::NUM);
 }
 
 void ConductingWall::solve(Array<Array<Real,3>,3> &wall_coord,
-                           Array<Real,+FieldDef::ConsIdx::NUM> &state,
-                           Array<Array<Real,+FieldDef::ConsIdx::NUM>,AMREX_SPACEDIM> &F,
-                           const Real* dx) const
+                           Array<Real,AMREX_SPACEDIM> wall_centre,
+                           const Vector<Array4<const Real>>& all_prim,
+                           const int i, const int j, const int k, const Real *dx,
+                           Array<Vector<Real>,AMREX_SPACEDIM> &F)
 {
 
     //
     // get the inviscid flux
     //
 
-    transform_global2local(state, wall_coord,  FieldState::vector_idx);
+    const Array4<const Real>& p4 = all_prim[state_idx];
+
+    // grab the values we need
+    for (size_t n=0; n<+FieldDef::ConsIdx::NUM; ++n) {
+        cell_state[n] = p4(i,j,k,n);
+    }
+
+    transform_global2local(cell_state, wall_coord,  FieldState::vector_idx);
 
     // fabricate a state for inside the wall based on the provided state
-    Array<Real, +FieldDef::ConsIdx::NUM> W = state;
+    std::copy(cell_state.begin(), cell_state.end(), wall_state.begin());
 
     // https://en.wikipedia.org/wiki/Interface_conditions_for_electromagnetic_fields
 
     //(B2 - B1).n12 = 0, where B2 & B1 are the B vectors and n12 is the normal from 1->2
     // but B2=0 so B1.n12=0 thus BxR=-BxL
-    W[+FieldDef::ConsIdx::Bx] *= -1;
-    W[+FieldDef::ConsIdx::psi] = 0;
+    wall_state[+FieldDef::ConsIdx::Bx] *= -1;
+    wall_state[+FieldDef::ConsIdx::psi] = 0;
 
     if (B1_defined)
-        W[+FieldDef::ConsIdx::By] = wall_B1;
+        wall_state[+FieldDef::ConsIdx::By] = wall_B1;
     if (B2_defined)
-        W[+FieldDef::ConsIdx::Bz] = wall_B2;
+        wall_state[+FieldDef::ConsIdx::Bz] = wall_B2;
 
     // need to implement surface charge effects
     //(D2 - D1).n12 = sc, where D2 & D1 are the D vectors and n12 is the normal from 1->2
     // but D2=0 so D1.n12=-sc thus DxR=-DxL+sc
     // we assume here that we have a surface charge sufficient to allow for DxR=DxL
-    W[+FieldDef::ConsIdx::Dy] *= -1;
-    W[+FieldDef::ConsIdx::Dz] *= -1;
-    W[+FieldDef::ConsIdx::phi] = 0;
+    wall_state[+FieldDef::ConsIdx::Dy] *= -1;
+    wall_state[+FieldDef::ConsIdx::Dz] *= -1;
+    wall_state[+FieldDef::ConsIdx::phi] = 0;
 
     if (D_defined)
-        W[+FieldDef::ConsIdx::Dx] = wall_D;
+        wall_state[+FieldDef::ConsIdx::Dx] = wall_D;
 
-    Array<Real, +FieldDef::ConsIdx::NUM> normal_flux;
-    flux_solver->solve(state, W, normal_flux);
+    Real shock = 0;
+    flux_solver->solve(cell_state, wall_state, normal_flux, &shock);
 
     // convert back to global coordinate system
     transform_local2global(normal_flux, wall_coord, FieldState::vector_idx);
@@ -194,8 +217,9 @@ std::string ScalarPotentialWall::tag = "scalar_potential";
 ScalarPotentialWall::ScalarPotentialWall(){}
 ScalarPotentialWall::~ScalarPotentialWall(){}
 
-ScalarPotentialWall::ScalarPotentialWall(const sol::table &bc_def)
+ScalarPotentialWall::ScalarPotentialWall(int idx, const sol::table &bc_def)
 {
+    state_idx = idx;
     get_udf(bc_def["phi"], phi, 0.0);
 }
 
@@ -217,8 +241,9 @@ std::string SurfaceChargeWall::tag = "surface_charge";
 SurfaceChargeWall::SurfaceChargeWall(){}
 SurfaceChargeWall::~SurfaceChargeWall(){}
 
-SurfaceChargeWall::SurfaceChargeWall(const sol::table &bc_def)
+SurfaceChargeWall::SurfaceChargeWall(int idx, const sol::table &bc_def)
 {
+    state_idx = idx;
     get_udf(bc_def["charge"], charge_density, 0.0);
 }
 
@@ -239,8 +264,9 @@ std::string SurfaceCurrentWall::tag = "surface_current";
 SurfaceCurrentWall::SurfaceCurrentWall(){}
 SurfaceCurrentWall::~SurfaceCurrentWall(){}
 
-SurfaceCurrentWall::SurfaceCurrentWall(const sol::table &bc_def)
+SurfaceCurrentWall::SurfaceCurrentWall(int idx, const sol::table &bc_def)
 {
+    state_idx = idx;
     get_udf(bc_def["j1"], current_1, 0.0);
     get_udf(bc_def["j2"], current_2, 0.0);
 }
@@ -269,8 +295,9 @@ std::string VectorPotentialWall::tag = "vector_potential";
 VectorPotentialWall::VectorPotentialWall(){}
 VectorPotentialWall::~VectorPotentialWall(){}
 
-VectorPotentialWall::VectorPotentialWall(const sol::table &bc_def)
+VectorPotentialWall::VectorPotentialWall(int idx, const sol::table &bc_def)
 {
+    state_idx = idx;
     align_with_boundary = bc_def.get_or("align_with_boundary", false);
     get_udf(bc_def["A0"], A_0, 0.0);
     get_udf(bc_def["A1"], A_1, 0.0);
@@ -325,21 +352,22 @@ std::string CollectionWall::tag = "collection";
 CollectionWall::CollectionWall(){}
 CollectionWall::~CollectionWall(){}
 
-CollectionWall::CollectionWall(const sol::table &bc_def)
+CollectionWall::CollectionWall(int idx, const sol::table &bc_def)
 {
+    state_idx = idx;
     sol::table types = bc_def["types"];
 
     for (const auto& type : types) {
         std::string bc_type = type.second.as<std::string>();
 
         if (bc_type == ScalarPotentialWall::tag) {
-            bcs.push_back(std::unique_ptr<FieldBoundaryEB>(new ScalarPotentialWall(bc_def)));
+            bcs.push_back(std::unique_ptr<FieldBoundaryEB>(new ScalarPotentialWall(idx, bc_def)));
         } else if (bc_type == VectorPotentialWall::tag) {
-            bcs.push_back(std::unique_ptr<FieldBoundaryEB>(new VectorPotentialWall(bc_def)));
+            bcs.push_back(std::unique_ptr<FieldBoundaryEB>(new VectorPotentialWall(idx, bc_def)));
         } else if (bc_type == SurfaceChargeWall::tag) {
-            bcs.push_back(std::unique_ptr<FieldBoundaryEB>(new SurfaceChargeWall(bc_def)));
+            bcs.push_back(std::unique_ptr<FieldBoundaryEB>(new SurfaceChargeWall(idx, bc_def)));
         } else if (bc_type == SurfaceCurrentWall::tag) {
-            bcs.push_back(std::unique_ptr<FieldBoundaryEB>(new SurfaceCurrentWall(bc_def)));
+            bcs.push_back(std::unique_ptr<FieldBoundaryEB>(new SurfaceCurrentWall(idx, bc_def)));
         } else {
             Abort("Requested EB bc of type '" + bc_type + "' which is not compatible with 'collection'");
         }

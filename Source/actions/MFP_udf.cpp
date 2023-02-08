@@ -23,7 +23,7 @@ UserDefined::UserDefined(const int idx, const sol::table &def)
     }
 
     // get all of our user defined functions
-    terms.resize(state->get_num_cons());
+    terms.resize(state->n_cons());
     const Vector<std::string>& cons_names = state->get_cons_names();
     for (int j = 0; j<cons_names.size(); ++j) {
         get_udf(def["value"][cons_names[j]], terms[j], 0.0);

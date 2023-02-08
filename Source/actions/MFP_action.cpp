@@ -30,7 +30,7 @@ void Action::get_data(MFP* mfp, Vector<Array<int,2>>& options, Vector<UpdateData
         UpdateData::Status U_status = update[data_idx].U_status;
         UpdateData::Status dU_status = update[data_idx].dU_status;
 
-        int ns = state.get_num_cons();
+        int ns = state.n_cons();
 
         ////////////
         /// U

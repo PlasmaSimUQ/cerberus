@@ -20,6 +20,8 @@ HydroHLLC::HydroHLLC(const sol::table &def)
     trL.resize(n_tracer);
     trR.resize(n_tracer);
 
+    n_flux = +HydroDef::ConsIdx::NUM + n_tracer;
+
 }
 
 void HydroHLLC::solve(Vector<Real> &L,

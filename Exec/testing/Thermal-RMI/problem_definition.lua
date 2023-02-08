@@ -54,6 +54,29 @@ local function log1p (x) -- not very precise, but works well
   if u == 1 then return x end -- x < eps?
   return math.log(u) * x / (u - 1)
 end
+  
+  
+function tanh (x)
+if x == 0 then return 0.0 end
+local neg = false
+if x < 0 then x = -x; neg = true end
+if x < 0.54930614433405 then
+    local y = x * x
+    x = x + x * y *
+        ((-0.96437492777225469787e0  * y +
+        -0.99225929672236083313e2) * y +
+        -0.16134119023996228053e4) /
+        (((0.10000000000000000000e1  * y +
+            0.11274474380534949335e3) * y +
+            0.22337720718962312926e4) * y +
+            0.48402357071988688686e4)
+else
+    x = math.exp(x)
+    x = 1.0 - 2.0 / (x * x + 1.0)
+end
+if neg then x = -x end
+return x
+end
 
 function atanh (x)
   y = math.abs(x)
@@ -98,7 +121,7 @@ function RMI_interface_B(x, y, L, R)
     end
 
     slope = (2.0/interface_transition)*atanh(at)
-    out = -((math.tanh(-slope*(rr - centre))-1.0)/2.0)*(L-R)+R
+    out = -((tanh(-slope*(rr - centre))-1.0)/2.0)*(L-R)+R
 
     return out
 end

@@ -7,12 +7,13 @@
 #include "sol.hpp"
 #include "MFP_factory.H"
 #include "MFP_field_defs.H"
+#include "MFP_eulerian_riemann.H"
 
 using namespace amrex;
 
 //================================================================================
 
-class FieldRiemannSolver
+class FieldRiemannSolver : public RiemannSolver
 {
 public:
     FieldRiemannSolver();
@@ -20,11 +21,6 @@ public:
 
     int idx;
 
-    virtual void solve(Array<Real,+FieldDef::ConsIdx::NUM> &L,
-                       Array<Real,+FieldDef::ConsIdx::NUM> &R,
-                       Array<Real,+FieldDef::ConsIdx::NUM> &F) const = 0;
-
-    virtual const std::string& get_tag() const = 0;
 };
 
 template <typename D>

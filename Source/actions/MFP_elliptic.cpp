@@ -358,7 +358,7 @@ void Elliptic::solve_static_fields(MFP* mfp, const Real time)
             }
         }
 
-//        plot_FAB_2d(defined_phi[ilev],0,0, "phi", false, false);
+//        plot_FAB_2d(defined_phi[ilev],0,0, "phi", false, true);
 //        plot_FAB_2d(defined_A[ilev],0,0, "Ax", false, false);
 //        plot_FAB_2d(defined_A[ilev],1,0, "Ay", false, false);
 //        plot_FAB_2d(defined_A[ilev],2,0, "Az", false, true);
@@ -469,8 +469,8 @@ void Elliptic::solve_static_fields(MFP* mfp, const Real time)
 
         }
 
-        //        plot_FAB_2d(defined_phi[nlevels-1],0,1, "phi", false, false);
-        //        plot_FAB_2d(defined_charge[nlevels-1],0,1, "cd", false, true);
+//        plot_FAB_2d(defined_phi[nlevels-1],0,1, "phi", false, false);
+//        plot_FAB_2d(defined_charge[nlevels-1],0,1, "cd", false, true);
 
 
         // Solve linear system
@@ -483,7 +483,7 @@ void Elliptic::solve_static_fields(MFP* mfp, const Real time)
 
             MultiFab::Copy(ifield, defined_phi[ilev], 0, +FieldDef::ConsIdx::phi, 1, 0);
 
-            //            plot_FAB_2d(ifield,+FieldDef::ConsIdx::phi,ifield.nGrow(), "phi", false, true);
+//            plot_FAB_2d(ifield,+FieldDef::ConsIdx::phi,ifield.nGrow(), "phi", false, true);
         }
 
         // Get fluxes from solver

@@ -643,9 +643,11 @@ def make_all(Q):
 
     print("normalizing...")
     normalize(Q)
+    print("normalizing...done")
 
     print("getting particle trajectories...")
     get_streaklines(Q)
+    print("getting particle trajectories...done")
 
     for q in Q:
         print(q["files_dir"])

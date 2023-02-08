@@ -22,6 +22,8 @@ HydroHLLE::HydroHLLE(const sol::table &def)
     trL.resize(n_tracer);
     trR.resize(n_tracer);
 
+    n_flux = n_cons + n_tracer;
+
 }
 
 void HydroHLLE::solve(Vector<Real> &L,

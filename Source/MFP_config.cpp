@@ -208,7 +208,7 @@ void MFP::read_config()
     //
 
 #ifdef AMREX_USE_EB
-    refine_cutcells = lua["refine_cutcells"];
+    refine_cutcells = lua.get<bool>("refine_cutcells");
 
     // get a sorted list of keys so that we have consistent tagging of boundaries
     sol::table eb_keys = lua.script("return get_sorted_keys(embedded_boundaries)");
@@ -258,8 +258,6 @@ void MFP::read_config()
             if (state_name != "func") {
                 State &istate = get_state(state_name);
                 eb_dat.states.push_back({istate.global_idx,istate.get_eb_bc_size()});
-
-                // define bc
                 istate.set_eb_bc(bc_def);
             }
             ++j;
@@ -354,7 +352,6 @@ void MFP::read_config()
         plot_variables["cost"][0] = 0;
 
         for (const auto& state : states) {
-            int idx = state->data_idx;
             for (auto& name : state->get_plot_output_names()) {
                 plot_variables[name+"-"+state->name][0] = 0;
             }
@@ -381,6 +378,27 @@ void MFP::read_config()
         const std::string name = key_value_pair.second.as<std::string>();
         plot_functions.push_back(std::make_pair(name, get_udf(plot_funcs[name])));
     }
+}
+
+void MFP::update_config_post_data_instantiation()
+{
+    BL_PROFILE("MFP::read_config_2");
+
+#ifdef AMREX_USE_EB
+
+    // iterate over states and update the data index of all embedded boundaries
+
+    Vector<size_t> glob2dat(states.size(),-1);
+    for (size_t i=0; i<eulerian_states.size(); ++i) {
+        glob2dat[eulerian_states[i]] = i;
+    }
+
+    for (auto& istate : states) {
+        istate->update_eb_bc(glob2dat);
+    }
+
+#endif
+
 }
 
 void MFP::update_ref()

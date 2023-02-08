@@ -10,12 +10,14 @@ public:
     FieldRH();
     FieldRH( const int i);
 
-    virtual void solve(Array<Real,+FieldDef::ConsIdx::NUM> &L,
-                       Array<Real,+FieldDef::ConsIdx::NUM> &R,
-                       Array<Real,+FieldDef::ConsIdx::NUM> &F) const override;
+    virtual void solve(Vector<Real> &L,
+                       Vector<Real> &R,
+                       Vector<Real> &F,
+                       Real* shk) override;
 
     static bool valid_state(const int idx);
-    virtual const std::string& get_tag() const override {return tag;}
+    virtual const std::string get_tag() const override {return tag;}
+    virtual int get_n_flux() const override {return +FieldDef::ConsIdx::NUM;}
     static std::string tag;
     static bool registered;
 

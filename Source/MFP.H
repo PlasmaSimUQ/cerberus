@@ -168,6 +168,7 @@ public:
     static void set_lua_script(const std::string &script);
     static void save_lua_script();
     static void read_config();
+    static void update_config_post_data_instantiation();
     static void update_ref();
 
     void write_info(nlohmann::json &js) const;

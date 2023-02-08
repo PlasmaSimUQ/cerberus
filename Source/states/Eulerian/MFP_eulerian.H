@@ -4,6 +4,8 @@
 #include "MFP.H"
 #include "MFP_state.H"
 #include "MFP_reconstruction.H"
+#include "MFP_eulerian_bc.H"
+#include "MFP_eulerian_riemann.H"
 
 enum LevelMask {
     Inside = 0, // valid cells
@@ -23,9 +25,25 @@ public:
     bool reflux;
     Real effective_zero;
 
+    virtual size_t n_cons() const = 0;
+    virtual size_t n_prim() const = 0;
+
+    virtual const Vector<int> get_cons_vector_idx() const = 0;
+    virtual const Vector<int> get_prim_vector_idx() const  = 0;
+
+    virtual const Vector<std::string>& get_cons_names() const = 0;
+    virtual const Vector<std::string>& get_prim_names() const = 0;
+
 #ifdef AMREX_USE_EB
     Real merge_threshold;
+    Vector<std::unique_ptr<EulerianBoundaryEB>> eb_bcs;
+    virtual void set_eb_bc(const sol::table &bc_def) = 0;
+    virtual size_t get_eb_bc_size() const override {return eb_bcs.size();}
+    virtual void update_eb_bc(Vector<size_t>& glob2dat) override {for (auto& bc : eb_bcs) {bc->update_data_idx(glob2dat);}}
 #endif
+
+    std::unique_ptr<RiemannSolver> flux_solver;
+    std::unique_ptr<ShockDetector> shock_detector;
 
     std::map<std::string,Optional3D1VFunction> other_functions;
     Vector<Optional3D1VFunction> functions;
@@ -33,8 +51,7 @@ public:
     std::unique_ptr<Reconstruction> reconstructor;
 
     virtual StateClassification get_classification() const override {return StateClassification::Eulerian;}
-    virtual int get_num_cons() const {return 0;}
-    virtual const Vector<std::string>& get_cons_names() const = 0;
+
 
     virtual void get_plot_output(const Box& box,
                                  const FArrayBox& src,
@@ -43,7 +60,7 @@ public:
                              #ifdef AMREX_USE_EB
                                  ,const FArrayBox& vfrac
                              #endif
-                                 ) const {return;}
+                                 ) const;
 
     virtual void set_reflux();
     virtual void set_reconstruction();
@@ -51,10 +68,21 @@ public:
     virtual void set_num_grow(int n) = 0;
 
 
+    virtual void init_data(MFP* mfp, const Real time) override;
     virtual void init_from_lua() override;
+
+    Vector<std::string> get_plot_output_names() const;
 
     virtual bool is_transported() const {return true;}
     virtual bool is_viscous() const {return false;}
+
+    virtual bool cons2prim(Vector<Real>& U, Vector<Real> &Q) const = 0;
+    virtual void prim2cons(Vector<Real> &Q, Vector<Real> &U) const = 0;
+
+    virtual RealArray get_speed_from_cons(const Vector<Real> &U) const {return {AMREX_D_DECL(0,0,0)};}
+    virtual RealArray get_speed_from_prim(const Vector<Real> &Q) const {return {AMREX_D_DECL(0,0,0)};}
+
+    Real get_allowed_time_step(MFP* mfp) const;
 
     virtual void calc_primitives(const Box& box,
                                  FArrayBox& cons,
@@ -65,7 +93,7 @@ public:
                              #ifdef AMREX_USE_EB
                                  ,const FArrayBox& vfrac
                              #endif
-                                 ) const {}
+                                 ) const;
 
     virtual void update_boundary_cells(const Box& box,
                                        const Geometry &geom,
@@ -73,7 +101,7 @@ public:
                                    #ifdef AMREX_USE_EB
                                        const FArrayBox& vfrac,
                                    #endif
-                                       const Real time) const {}
+                                       const Real time) const;
 
     virtual void calc_reconstruction(const Box& box,
                                      FArrayBox &prim,
@@ -83,7 +111,7 @@ public:
                                      ,const EBCellFlagFab &flag
                                      ,const FArrayBox &vfrac
                                  #endif
-                                     ) const {}
+                                     ) const;
 
     virtual void calc_time_averaged_faces(const Box& box,
                                           const FArrayBox &prim,
@@ -93,7 +121,7 @@ public:
                                           const EBCellFlagFab& flag,
                                       #endif
                                           const Real* dx,
-                                          Real dt) const {}
+                                          Real dt) const;
 
     virtual void face_bc(const int dir,
                          Box const& box,
@@ -104,7 +132,7 @@ public:
                          const EBCellFlagFab& flag,
                      #endif
                          const Real time,
-                         const bool do_all) const {}
+                         const bool do_all) const;
 
     virtual void update_face_prim(const Box& box, const Geometry& geom,
                                   Array<FArrayBox, AMREX_SPACEDIM> &r_lo,
@@ -123,7 +151,7 @@ public:
                              const EBCellFlagFab& flag,
                          #endif
                              const Real *dx,
-                             const Real dt) const {}
+                             const Real dt) const;
 
     virtual void correct_face_prim(const Box& box,
                                    Array<FArrayBox, AMREX_SPACEDIM> &r_lo,
@@ -133,7 +161,7 @@ public:
                                    const EBCellFlagFab &flag,
                                #endif
                                    const Real *dx,
-                                   const Real dt) const {}
+                                   const Real dt) const;
 
     virtual void calc_viscous_fluxes(const Box& box,
                                      Array<FArrayBox, AMREX_SPACEDIM> &fluxes,
@@ -420,7 +448,7 @@ public:
     }
 
     virtual void calc_wall_fluxes(const Box& box,
-                                  const FArrayBox &prim,
+                                  const Vector<FArrayBox*> &all_prim,
                                   Array<FArrayBox, AMREX_SPACEDIM> &fluxes,
                                   const EBCellFlagFab& flag,
                                   const CutFab &bc_idx,
@@ -428,7 +456,7 @@ public:
                                   const FArrayBox &bnorm,
                                   const Array<const FArrayBox*, AMREX_SPACEDIM> &afrac,
                                   const Real *dx,
-                                  const Real dt) const {}
+                                  const Real dt) const;
 
     void calc_eb_divergence(const Box& box,
                             const FArrayBox &cons,

@@ -365,7 +365,12 @@ def parse_particle_header(name, data, state_name):
 
     version = fid.readline().rstrip()
 
-    if "Version_Two_Dot_Zero_double" not in version:
+    convert_ids = False
+    if "Version_Two_Dot_One_double" in version:
+        convert_ids = True
+    elif "Version_Two_Dot_Zero_double" in version:
+        pass
+    else:
         raise RuntimeError("particle header not supported")
 
 
@@ -376,6 +381,7 @@ def parse_particle_header(name, data, state_name):
     dim = dat["dim"]
     dat["n_real_extra"] = int(fid.readline().rstrip())
     dat["n_real"] = dat["n_real_extra"] + dim
+    dat["convert_ids"] = convert_ids
 
     dat["real_names"] = []
     for i in range(dim):
@@ -1039,10 +1045,33 @@ class ReadBoxLib:
                 # get the actual data
                 f.seek(off)
                 buf = f.read(n_int*npart*n_int*npart*n_int_bytes + n_real*npart*n_real_bytes)
-                idata = np.frombuffer(buf, "int32", n_int*npart)
+                idata = np.frombuffer(buf, "int32", n_int*npart).copy()
                 idata = idata.reshape((npart, n_int), order="C")
                 rdata = np.frombuffer(buf, "float64", n_real*npart, n_int*npart*n_int_bytes)
                 rdata = rdata.reshape((npart, n_real), order="C")
+
+                # the following is taken from AMReX_Particle.H : struct ConstParticleIDWrapper
+                if self.data["particles"]["convert_ids"]:
+
+                    xi = idata[:,0].astype(np.uint32)
+                    yi = idata[:,1].astype(np.uint32)
+
+                    # combine into 64 bit integer
+                    m_idata = xi << 32 | yi
+
+                    sign = m_idata >> 63;  # extract leftmost sign bit
+                    val  = ((m_idata >> 24) & 0x7FFFFFFFFF)  # extract next 39 id bits
+
+                    idx = val.astype(np.int64)  # bc we take -
+                    np.where(sign,-idx,idx)
+
+                    cpu = m_idata & 0x00FFFFFF
+                    
+                    # print("s = ",sign," id = ",idx," cpu = ",cpu)
+
+                    idata[:,0] = idx[:]
+                    idata[:,1] = cpu[:]
+
 
                 part_data[i]["data"] = (idata, rdata)
 

@@ -78,6 +78,7 @@ public:
 #ifdef AMREX_USE_EB
 
     virtual void set_eb_bc(const sol::table &bc_def) {}
+    virtual void update_eb_bc(Vector<size_t>& glob2dat) {}
     virtual size_t get_eb_bc_size() const {return 0;}
 
     void update_eb_vfrac(const Geometry &geom,

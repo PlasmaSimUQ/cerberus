@@ -21,8 +21,8 @@ USE_EB = FALSE
 AMREX_PARTICLES = FALSE
 
 PYTHON_PLOT = FALSE
-PYTHON_INCLUDE = /usr/include/python3.8
-PYTHON_LIB = /usr/lib/python3.8/config-3.8-x86_64-linux-gnu
+PYTHON_INCLUDE = /usr/include/python3.10/
+PYTHON_LIB = /usr/lib/python3.10/config-3.10-x86_64-linux-gnu
 
 PPROF = FALSE
 PPROF_INCLUDE = /usr/include/gperftools

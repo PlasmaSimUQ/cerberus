@@ -15,8 +15,12 @@ public:
                        Real* shk) override;
 
     static bool valid_state(const int idx);
-    virtual std::string get_tag() const override {return tag;}
+    virtual const std::string get_tag() const override {return tag;}
     static std::string tag;
+
+    virtual int get_n_flux() const override {return n_flux;}
+    int n_flux;
+
     static bool registered;
 
     Vector<Real> svLs, fvL, svL;

@@ -152,7 +152,7 @@ actions = {
 
 -- === GEOMETRY ===
 
-refine_cutcells = 1
+refine_cutcells = true
 
 
 function make_circles(x,y,collection)

@@ -62,7 +62,7 @@ void DampDivergenceMHD::calc_time_derivative(MFP* mfp, Vector<UpdateData>& updat
     // mark dU components that have been touched
     update[mhd->data_idx].dU_status = UpdateData::Status::Changed;
 
-    Array<Real,+MHDDef::ConsIdx::NUM> U;
+    Vector<Real> U(+MHDDef::ConsIdx::NUM);
 
     for (MFIter mfi(cost); mfi.isValid(); ++mfi) {
 

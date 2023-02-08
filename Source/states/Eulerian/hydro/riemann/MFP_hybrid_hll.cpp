@@ -15,9 +15,12 @@ HydroHybridHLL::HydroHybridHLL(const sol::table &def)
     hlle = HydroHLLE(def);
 
     const int n_cons = def["n_cons"];
+    const int n_tracer = def["n_tracer"];
 
-    F_hlle.resize(n_cons);
-    F_hllc.resize(n_cons);
+    F_hlle.resize(n_cons+n_tracer);
+    F_hllc.resize(n_cons+n_tracer);
+
+    n_flux = n_cons + n_tracer;
 }
 
 void HydroHybridHLL::solve(Vector<Real> &L,

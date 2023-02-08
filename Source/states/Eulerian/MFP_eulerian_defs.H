@@ -3,6 +3,4 @@
 
 #include "MFP_utility.H"
 
-struct
-
 #endif // MFP_EULERIAN_DEFS_H
