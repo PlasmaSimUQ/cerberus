@@ -136,7 +136,7 @@ public:
                           amrex::Real time, int n_error_buf = 0,
                           int ngrow = 0) override;
 
-    virtual int WorkEstType() override { return 0; }
+    virtual int WorkEstType() override { return Cost_Idx; }
 
     static void read_params();
 

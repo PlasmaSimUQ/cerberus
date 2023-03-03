@@ -48,6 +48,34 @@ public:
     static std::string tag;
 };
 
+class FieldValueRefinement : public Refinement
+{
+public:
+    FieldValueRefinement();
+    FieldValueRefinement(const int global_idx, const sol::table &def);
+
+    virtual void get_tags(MFP* mfp, TagBoxArray& tags) const override;
+
+    Real refine_criteria(Real S, Real low_val=1e-12) const;
+
+    void tag_refinement(const Box& box,
+                        const FArrayBox& src,
+                    #ifdef AMREX_USE_EB
+                        const EBCellFlagFab& flags,
+                    #endif
+                        TagBox& tags,
+                        const int n,
+                        const Real threshold) const;
+
+    // the index,threshold pairs variables
+    Vector<std::pair<int,Real>> cons;
+    int max_level;
+    Real min_value;
+
+    static bool registered;
+    static std::string tag;
+};
+
 template <typename D>
 std::unique_ptr<Refinement> FieldRefinementBuilder(const sol::table& def)
 {
