@@ -14,3 +14,10 @@ Particle_H
 run_log.txt
 FabArrayHeaders.txt
 *.tar
+tmp_build_dir/
+gdtkinst/
+env
+*.ex
+*.visit
+Make.local
+**/run_log*

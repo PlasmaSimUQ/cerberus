@@ -1,0 +1,16 @@
+{
+  "Lua.diagnostics.disable": [
+    "lowercase-global"
+  ],
+  "Lua.diagnostics.libraryFiles": "Opened",
+  "Lua.diagnostics.globals": [
+    "PolySpline"
+  ],
+  "C_Cpp.autocompleteAddParentheses": true,
+  "C_Cpp.clang_format_sortIncludes": true,
+  "C_Cpp.clang_format_style": ".clang-format",
+  "C_Cpp.codeAnalysis.clangTidy.checks.disabled": [
+    "google-build-using-namespace"
+  ],
+  "C_Cpp.default.compileCommands": "compile_commands.json"
+}

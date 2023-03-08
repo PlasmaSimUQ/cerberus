@@ -1,4 +1,0 @@
-F90EXE_sources += MFP_prob.F90
-
-INCLUDE_LOCATIONS += $(TOP)/Source/fortran
-VPATH_LOCATIONS   += $(TOP)/Source/fortran

@@ -1,3 +1,8 @@
 [submodule "amrex"]
 	path = amrex
 	url = https://github.com/AMReX-Codes/amrex.git
+  ignore = untracked
+[submodule "gdtk"]
+	path = gdtk
+	url = https://github.com/gdtk-uq/gdtk
+  ignore = untracked

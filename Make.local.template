@@ -1,0 +1,57 @@
+# === BUILD OPTIONS ===
+# Commented out values are the defaults.
+
+# Compile in debug mode.
+# enable for code development as it enables more checks, such as array out of bounds
+# DEBUG = FALSE
+
+# Dimensionality (1, 2 or 3)
+# DIM = 2
+
+# Enable Embedded Boundary support
+# USE_EB = TRUE
+
+# Enable Tracer particles / Lagrangian states
+# AMREX_PARTICLES = TRUE
+
+# Enable the UQ GDTk gas models (see the advanced section for more config)
+# EILMER_GAS = FALSE
+
+# A simple timing table at the end of a simulation run
+# TINY_PROFILE = FALSE
+
+# Compilation verbosity (output make command for each file)
+# VERBOSE = FALSE
+
+# ccache will be used by default to speed up re-compilation if available.
+# USE_CCACHE = TRUE
+
+#=== ADVANCED OPTIONS ===
+# Most users don't need to change these
+
+# base lib directory for D
+# DLANG_LIB := /usr/lib
+
+# compiler package to use
+# see the amrex/Tools/GNUMake/README.md
+# COMP = GNU
+
+# Use MPI for parallelism
+# USE_MPI = TRUE
+
+# Enable Python Debugging
+# PYTHON_PLOT = FALSE
+
+# If using PYTHON_PLOT, set PYTHON_INCLUDE to the location of python include directory
+# and PYTHON_LIB to the location of your python lib directory
+# PYTHON_INCLUDE = /usr/include/python3.8
+# PYTHON_LIB = /usr/lib/python3.8/config-3.8-x86_64-linux-gnu
+
+# Enable Amrex "Full" profiling
+# See here: https://amrex-codes.github.io/amrex/docs_html/AMReX_Profiling_Tools_Chapter.html
+# PROFILE = FALSE
+
+# Use gperftools profiling
+# PPROF = FALSE
+# PPROF_INCLUDE = /usr/include/gperftools
+# PPROF_LIB = /usr/lib/x86_64-linux-gnu

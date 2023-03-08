@@ -1,0 +1,2 @@
+FormatStyle: file
+Checks: 'google*' '-google-build-using-namespace' 'clang-diagnostic-*' 'clang-analyzer-*'

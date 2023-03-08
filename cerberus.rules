@@ -1,36 +1,23 @@
+# colours
+GREEN := $(shell echo -e "\033[0;32m")
+YELLOW := $(shell echo -e "\033[0;33m")
+RED := $(shell echo -e "\033[0;31m")
+END := $(shell echo -e "\033[0m")
+
 EBASE := MFP.
-
-DIM ?= 2
-
-LAZY ?= TRUE
-USE_MPI ?= TRUE
-USE_OMP ?= FALSE
-DEBUG ?= FALSE
-WARN_ALL ?= FALSE
 
 #=== EILMER GAS ===
 
-EILMER_GAS ?= FALSE
-EILMER_HOME ?= $(TOP)/gdtkinst
-EILMER_LIB = $(TOP)/gdtkinst/lib
-EILMER_URL ?= https://github.com/gdtk-uq/gdtk
-DLANG_LIB ?= /usr/lib
-
+EILMER_SRC = $(TOP)/gdtk
 ifeq ($(EILMER_GAS), TRUE)
 LIBRARY_LOCATIONS += $(DLANG_LIB) $(EILMER_LIB)
 LIBRARIES         += -lgas
 USERSuffix := $(USERSuffix).EILMER
 DEFINES += -DEILMER_GAS
 LIBRARIES += -Wl,-rpath=$(EILMER_LIB)
-
 endif
 
-
 #=== PPROF ===
-
-PPROF ?= FALSE
-PPROF_INCLUDE ?= /usr/include/gperftools
-PPROF_LIB ?= /usr/lib/x86_64-linux-gnu
 
 ifeq ($(PPROF), TRUE)
 INCLUDE_LOCATIONS += $(PPROF_INCLUDE)
@@ -40,10 +27,7 @@ USERSuffix := $(USERSuffix).PPROF
 DEFINES += -DPPROF
 endif
 
-
 #=== EB ===
-
-USE_EB ?= FALSE
 
 ifeq ($(DIM), 1)
 USE_EB := FALSE
@@ -55,10 +39,6 @@ endif
 
 #=== PYTHON ===
 
-PYTHON_PLOT ?= FALSE
-PYTHON_INCLUDE ?= /usr/include/python3.10
-PYTHON_LIB ?= /usr/lib/python3.10/config-3.10-x86_64-linux-gnu
-
 ifeq ($(PYTHON_PLOT), TRUE)
 INCLUDE_LOCATIONS += $(PYTHON_INCLUDE)
 LIBRARY_LOCATIONS += $(PYTHON_LIB)
@@ -68,8 +48,6 @@ DEFINES += -DPYTHON
 endif
 
 #=== PARTICLES ===
-
-AMREX_PARTICLES ?= FALSE
 
 ifeq ($(DIM), 1)
 AMREX_PARTICLES := FALSE
@@ -81,8 +59,6 @@ USERSuffix := $(USERSuffix).PARTICLES
 endif
 
 #=== SYMPLECTIC INTERPOLANT ===
-SYMPLECTIC ?= FALSE
-
 ifeq ($(SYMPLECTIC),P8R2)
 DEFINES += -DINTERPOLATION_P8R2 -DWRANGE=2 -DSYMPLECTIC
 USERSuffix := $(USERSuffix).SYMPLECTIC_P8R2
@@ -117,8 +93,14 @@ ifeq ($(AMREX_PARTICLES), TRUE)
 include $(AMREX_HOME)/Src/Particle/Make.package
 endif
 
-include $(AMREX_HOME)/Tools/GNUMake/Make.rules
+ifeq ($(USE_CCACHE), TRUE)
+  ifeq (, $(shell command -v ccache))
+    override USE_CCACHE=FALSE
+	  @echo "${YELLOW}USE_CCACHE=TRUE, but 'ccache' command can't be found, install it for faster re-compiles. Forcing USE_CCACHE=FALSE${END}."
+  endif
+endif
 
+include $(AMREX_HOME)/Tools/GNUMake/Make.rules
 
 define ENVVARS
 	export DGD=$(EILMER_HOME)
@@ -130,20 +112,52 @@ endef
 
 export ENVVARS
 
+# store the executable name
+EXEC_PATH:=$(.DEFAULT_GOAL)
+ifneq ($(BUILD_ACTUAL), TRUE)
+    .DEFAULT_GOAL = cerberus
+endif
+
+ifeq ($(BUILD_ACTUAL), TRUE)
+    $(info ${GREEN}Building $(.DEFAULT_GOAL)${END})
+endif
+
+.PHONY: cerberus
+cerberus: env
+	@echo "${GREEN}Building cerberus${END}"
+ifeq ($(EILMER_GAS), TRUE)
+	@echo "${GREEN}(Re-)Building UQ GDTk${END}"
+	EILMER_SRC='$(EILMER_SRC)' EILMER_HOME='$(EILMER_HOME)' MF='$(MAKEFLAGS)' ./build_eilmer.sh
+endif
+	@$(MAKE) BUILD_ACTUAL=TRUE
+	@echo "${GREEN}${EXEC_PATH} has been generated${END}"
+
 env:
 	rm -f env && \
 	echo "$$ENVVARS" > env
 
-eilmer: env
-	TOP='$(TOP)' EILMER_HOME='$(EILMER_HOME)' EILMER_URL='$(EILMER_URL)' MF='$(MAKEFLAGS)' ./build_eilmer.sh
-
+.PHONY: uninstall_eilmer
 uninstall_eilmer:
-	rm -rf $(TOP)/gdtkinst
+	rm -rf $(EILMER_HOME)
 
+.PHONY: eilmer
+eilmer:
+	@echo "${GREEN}(Re-)Building UQ GDTk${END}"
+	EILMER_SRC='$(EILMER_SRC)' EILMER_HOME='$(EILMER_HOME)' MF='$(MAKEFLAGS)' ./build_eilmer.sh
+
+.PHONY: clean_eilmer
 clean_eilmer:
-	$(MAKE) -C $(TOP)/.gdtk_git/src/gas clean
-	$(MAKE) -C $(TOP)/.gdtk_git/src/eilmer clean
-	$(MAKE) -C $(TOP)/.gdtk_git/extern/lua-5.4.3 clean
+	$(MAKE) -C $(EILMER_SRC)/src/gas clean
+	$(MAKE) -C $(EILMER_SRC)/src/eilmer clean
+	$(MAKE) -C $(EILMER_SRC)/extern/lua-5.4.3 clean
 
-
+.PHONY: clean_all
 clean_all: | uninstall_eilmer clean_eilmer clean
+
+.PHONY: develop
+develop:
+	@echo "${GREEN}Beginning development build of cerberus${END}";\
+    rm -rf tmp_build_dir;\
+    bear -- ${MAKE} DEBUG=TRUE;\
+    echo "${GREEN}compile_commands.json generated${END}";\
+    echo "${GREEN}The development binary ${EXEC_PATH} has been generated${END}";\

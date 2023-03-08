@@ -9,6 +9,7 @@ CEXE_sources += MFP_config.cpp
 CEXE_sources += MFP_advance.cpp
 CEXE_sources += MFP_timestep.cpp
 CEXE_sources += MFP_refinement.cpp
+CEXE_sources += MFP_prob.cpp
 
 CEXE_headers += MFP_utility.H
 
@@ -18,7 +19,6 @@ CEXE_sources += MFPBld.cpp
 include $(TOP)/Source/extern/Make.package
 include $(TOP)/Source/config/Make.package
 include $(TOP)/Source/diagnostics/Make.package
-include $(TOP)/Source/fortran/Make.package
 include $(TOP)/Source/states/Make.package
 include $(TOP)/Source/modules/Make.package
 include $(TOP)/Source/actions/Make.package
