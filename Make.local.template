@@ -17,6 +17,14 @@
 # Enable the UQ GDTk gas models (see the advanced section for more config)
 # EILMER_GAS = FALSE
 
+# Set EILMER_INSTALL_LIB = TRUE if you want to build and install GDTk in the EILMER_HOME directory
+# Otherwise, set EILMER_HOME to the location of the eilmer bin/, and lib/ folders
+# EILMER_INSTALL_LIB = FALSE
+# EILMER_HOME = $(TOP)/gdtkinst
+
+# Set the location of the D-lang libraries
+# DLANG_LIB = /usr/lib
+
 # A simple timing table at the end of a simulation run
 # TINY_PROFILE = FALSE
 
@@ -28,9 +36,6 @@
 
 #=== ADVANCED OPTIONS ===
 # Most users don't need to change these
-
-# base lib directory for D
-# DLANG_LIB := /usr/lib
 
 # compiler package to use
 # see the amrex/Tools/GNUMake/README.md
@@ -55,3 +60,7 @@
 # PPROF = FALSE
 # PPROF_INCLUDE = /usr/include/gperftools
 # PPROF_LIB = /usr/lib/x86_64-linux-gnu
+
+# GDTk source files directory and URL
+# EILMER_SRC = $(TOP)/gdtk_git
+# EILMER_URL = https://github.com/gdtk-uq/gdtk

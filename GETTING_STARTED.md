@@ -77,10 +77,32 @@ Once the build process has completed, you can run the executable `MFP.2d.STUFF.e
 To expand the capabilities of the code it is possible to use the *Eilmer* gas models implemented in the
 [UQ Gas Dynamics Toolkit](https://github.com/gdtk-uq/gdtk).
 This requires the download, compilation, and installation of the Eilmer gas library (found at `src/gas` in the Eilmer source) as well as the D-language compiler and runtime (see instructions [here](https://gdtk.uqcloud.net/)).
-GDTk will be installed automatically when calling the make command with `EILMER_GAS=TRUE`. Alternatively, call `make eilmer` to just build GDTk.
-This will automatically update the `gdtk` submodule to the required version and then compile libraries and executables.
+GDTk will be installed to `EILMER_HOME` automatically when calling the make command with `EILMER_GAS=TRUE` if `EILMER_INSTALL_LIB=TRUE`. Alternatively, just set `EILMER_HOME` if you already have GDTk installed on your system.
 
-**NOTE:** if building with Eilmer gas dynamics, then you will need to keep the executable in the original location, as it looks for the gas library with a relative path.
+When building with the GDTk modules enabled, ensure that the `*.so` files from the `$(EILMER_HOME)/lib/` are in one of the following locations:
+
+1. (Default) In `$(EILMER_HOME)/lib` where `$(EILMER_HOME)` is defined in the Makefile, by default it is `cerberus/gdtkinst`.
+```
+cerberus/
+├─ MFP.STUFF.ex
+├─ gdtkinst/
+│  ├─ *.so
+```
+
+2. The same directory as the MFP executable:
+```
+cerberus/
+├─ MFP.STUFF.ex
+├─ *.so
+```
+
+3. In a directory called lib within the same directory as the MFP executable:
+```
+cerberus/
+├─ MFP.STUFF.ex
+├─ lib/
+│  ├─ *.so
+```
 
 ## Running simulations
 Once the build process has completed, if you're using the GDTk gas models, then run:

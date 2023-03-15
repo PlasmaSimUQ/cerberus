@@ -16,8 +16,10 @@ FabArrayHeaders.txt
 *.tar
 tmp_build_dir/
 gdtkinst/
+gdtk_git/
 env
 *.ex
 *.visit
 Make.local
 **/run_log*
+compile_commands.json

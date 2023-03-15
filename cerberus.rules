@@ -1,116 +1,10 @@
-# colours
-GREEN := $(shell echo -e "\033[0;32m")
-YELLOW := $(shell echo -e "\033[0;33m")
-RED := $(shell echo -e "\033[0;31m")
-END := $(shell echo -e "\033[0m")
-
-EBASE := MFP.
-
-#=== EILMER GAS ===
-
-EILMER_SRC = $(TOP)/gdtk
-ifeq ($(EILMER_GAS), TRUE)
-LIBRARY_LOCATIONS += $(DLANG_LIB) $(EILMER_LIB)
-LIBRARIES         += -lgas
-USERSuffix := $(USERSuffix).EILMER
-DEFINES += -DEILMER_GAS
-LIBRARIES += -Wl,-rpath=$(EILMER_LIB)
-endif
-
-#=== PPROF ===
-
-ifeq ($(PPROF), TRUE)
-INCLUDE_LOCATIONS += $(PPROF_INCLUDE)
-LIBRARY_LOCATIONS += $(PPROF_LIB)
-LIBRARIES         += -lprofiler
-USERSuffix := $(USERSuffix).PPROF
-DEFINES += -DPPROF
-endif
-
-#=== EB ===
-
-ifeq ($(DIM), 1)
-USE_EB := FALSE
-endif
-
-ifeq ($(USE_EB), TRUE)
-USERSuffix := $(USERSuffix).EB
-endif
-
-#=== PYTHON ===
-
-ifeq ($(PYTHON_PLOT), TRUE)
-INCLUDE_LOCATIONS += $(PYTHON_INCLUDE)
-LIBRARY_LOCATIONS += $(PYTHON_LIB)
-LIBRARIES         += -l$(notdir $(PYTHON_INCLUDE))
-USERSuffix := $(USERSuffix).PYTHON
-DEFINES += -DPYTHON
-endif
-
-#=== PARTICLES ===
-
-ifeq ($(DIM), 1)
-AMREX_PARTICLES := FALSE
-endif
-
-ifeq ($(AMREX_PARTICLES), TRUE)
-DEFINES += -DAMREX_PARTICLES
-USERSuffix := $(USERSuffix).PARTICLES
-endif
-
-#=== SYMPLECTIC INTERPOLANT ===
-ifeq ($(SYMPLECTIC),P8R2)
-DEFINES += -DINTERPOLATION_P8R2 -DWRANGE=2 -DSYMPLECTIC
-USERSuffix := $(USERSuffix).SYMPLECTIC_P8R2
-endif
-
-ifeq ($(SYMPLECTIC),PWL)
-DEFINES += -DINTERPOLATION_PWL -DWRANGE=1 -DSYMPLECTIC
-USERSuffix := $(USERSuffix).SYMPLECTIC_PWL
-endif
-
-CERBERUS_GIT_NAME := $(shell git branch | grep \* | sed 's/[(*) ]/_/g')
-CERBERUS_GIT_VERSION := $(shell git describe --abbrev=12 --dirty --always --tags)
-DEFINES += -DCERBERUS_GIT_VERSION=\"$(CERBERUS_GIT_VERSION)\"
-DEFINES += -DCERBERUS_GIT_NAME=\"$(CERBERUS_GIT_NAME)\"
-
-DEFINES += -DAMREX_CRSEGRNDOMP
-
-include $(AMREX_HOME)/Tools/GNUMake/Make.defs
-
-include $(TOP)/Source/Make.package
-include $(AMREX_HOME)/Src/Base/Make.package
-include $(AMREX_HOME)/Src/Boundary/Make.package
-include $(AMREX_HOME)/Src/AmrCore/Make.package
-include $(AMREX_HOME)/Src/Amr/Make.package
-include $(AMREX_HOME)/Src/LinearSolvers/MLMG/Make.package
-
-ifeq ($(USE_EB), TRUE)
-include $(AMREX_HOME)/Src/EB/Make.package
-endif
-
-ifeq ($(AMREX_PARTICLES), TRUE)
-include $(AMREX_HOME)/Src/Particle/Make.package
-endif
-
-ifeq ($(USE_CCACHE), TRUE)
-  ifeq (, $(shell command -v ccache))
-    override USE_CCACHE=FALSE
-	  @echo "${YELLOW}USE_CCACHE=TRUE, but 'ccache' command can't be found, install it for faster re-compiles. Forcing USE_CCACHE=FALSE${END}."
-  endif
-endif
-
-include $(AMREX_HOME)/Tools/GNUMake/Make.rules
-
-define ENVVARS
-	export DGD=$(EILMER_HOME)
-	export DGD_REPO=$(TOP)/.gdtk_git
-	export PATH=$$PATH:$$DGD/bin
-	export DGD_LUA_PATH=$$DGD/lib/?.lua
-	export DGD_LUA_CPATH=$$DGD/lib/?.so
-endef
-
-export ENVVARS
+export RED YELLOW GREEN END
+export DEBUG USE_MPI TINY_PROFILE PYTHON_PLOT fc_CCACHE_EXEC_NOT_FOUND
+export fc_OMP_ENABLED
+export fc_EB_NO_USER_WRONG_DIM fc_EB_NO_USER fc_EB_WRONG_DIM
+export fc_PARTICLES_NO_USER fc_PARTICLES_WRONG_DIM
+export fc_EILMER_NO_USER EILMER_GAS
+export SYMPLECTIC
 
 # store the executable name
 EXEC_PATH:=$(.DEFAULT_GOAL)
@@ -123,41 +17,86 @@ ifeq ($(BUILD_ACTUAL), TRUE)
 endif
 
 .PHONY: cerberus
-cerberus: env
-	@echo "${GREEN}Building cerberus${END}"
-ifeq ($(EILMER_GAS), TRUE)
-	@echo "${GREEN}(Re-)Building UQ GDTk${END}"
-	EILMER_SRC='$(EILMER_SRC)' EILMER_HOME='$(EILMER_HOME)' MF='$(MAKEFLAGS)' ./build_eilmer.sh
+cerberus: build_flags_check
+ifeq ($(EILMER_INSTALL_LIB), TRUE)
+	@echo "${GREEN}Building UQ GDTk with flavour ${EILMER_COMPILE_FLAVOUR}${END}";\
+    EILMER_SRC='$(EILMER_SRC)' EILMER_HOME='$(EILMER_HOME)' EILMER_URL='$(EILMER_URL)' EILMER_FLAVOUR='$(EILMER_COMPILE_FLAVOUR)' MF='$(MAKEFLAGS)' $(TOP)/build_eilmer.sh
 endif
 	@$(MAKE) BUILD_ACTUAL=TRUE
-	@echo "${GREEN}${EXEC_PATH} has been generated${END}"
+	@echo "${GREEN}${EXEC_PATH} has been generated${END}";\
 
-env:
-	rm -f env && \
-	echo "$$ENVVARS" > env
-
-.PHONY: uninstall_eilmer
-uninstall_eilmer:
-	rm -rf $(EILMER_HOME)
-
-.PHONY: eilmer
-eilmer:
-	@echo "${GREEN}(Re-)Building UQ GDTk${END}"
-	EILMER_SRC='$(EILMER_SRC)' EILMER_HOME='$(EILMER_HOME)' MF='$(MAKEFLAGS)' ./build_eilmer.sh
-
-.PHONY: clean_eilmer
-clean_eilmer:
+.PHONY: clean_eilmer_git
+clean_eilmer_git:
 	$(MAKE) -C $(EILMER_SRC)/src/gas clean
 	$(MAKE) -C $(EILMER_SRC)/src/eilmer clean
 	$(MAKE) -C $(EILMER_SRC)/extern/lua-5.4.3 clean
 
 .PHONY: clean_all
-clean_all: | uninstall_eilmer clean_eilmer clean
+clean_all: clean_eilmer_git
+	rm -rf $(BUILDDIR)
 
 .PHONY: develop
 develop:
 	@echo "${GREEN}Beginning development build of cerberus${END}";\
-    rm -rf tmp_build_dir;\
-    bear -- ${MAKE} DEBUG=TRUE;\
+    bear -- $(MAKE) cerberus DEBUG=TRUE VERBOSE=TRUE USE_MPI=FALSE;\
     echo "${GREEN}compile_commands.json generated${END}";\
-    echo "${GREEN}The development binary ${EXEC_PATH} has been generated${END}";\
+
+.PHONY: develop_eilmer
+develop_eilmer:
+	@echo "${GREEN}Beginning development build of cerberus+eilmer${END}";\
+    bear -- $(MAKE) cerberus DEBUG=TRUE EILMER_GAS=TRUE VERBOSE=TRUE USE_MPI=FALSE;\
+    echo "${GREEN}compile_commands.json generated${END}";\
+
+.PHONY: build_flags_check
+build_flags_check:
+	@echo "${YELLOW}Checking build flags${END}"; \
+    if [ "$(DEBUG)" = TRUE ]; then \
+      echo "${RED}BUILDING IN DEBUG MODE${END}"; \
+    fi; \
+    if [ "$(fc_DIM_NO_USER)" = TRUE ]; then \
+      echo "${YELLOW}DIM not set by user. Defaulting to 2${END}"; \
+    fi; \
+    if [ "$(USE_MPI)" = FALSE ]; then \
+      echo "${RED}MPI is disabled${END}"; \
+    fi; \
+    if [ "$(fc_OMP_ENABLED)" = TRUE ]; then \
+      echo "${RED}USE_OMP flag is not supported. Forcing to FALSE${END}"; \
+    fi; \
+    if [ "$(fc_EB_NO_USER_WRONG_DIM)" = TRUE ]; then \
+      echo "${YELLOW}USE_EB not set by user. Defaulting to FALSE since DIM=1${END}"; \
+    fi; \
+    if [ "$(fc_EB_NO_USER)" = TRUE ]; then \
+      echo "${YELLOW}USE_EB not set by user. Defaulting to TRUE since DIM > 1${END}"; \
+    fi; \
+    if [ "$(fc_EB_WRONG_DIM)" = TRUE ]; then \
+      echo "${RED}Forcing USE_EB=FALSE as DIM=1${END}"; \
+    fi; \
+    if [ "$(fc_PARTICLES_NO_USER_WRONG_DIM)" = TRUE ]; then \
+      echo "${YELLOW}AMREX_PARTICLES not set by user. Defaulting to FALSE since DIM=1${END}"; \
+    fi; \
+    if [ "$(fc_PARTICLES_NO_USER)" = TRUE ]; then \
+      echo "${YELLOW}AMREX_PARTICLES not set by user. Defaulting to TRUE since DIM > 1${END}"; \
+    fi; \
+    if [ "$(fc_PARTICLES_WRONG_DIM)" = TRUE ]; then \
+      echo "${RED}Forcing AMREX_PARTICLES=FALSE as DIM=1${END}"; \
+    fi; \
+    if [ "$(fc_EILMER_NO_USER)" = TRUE ]; then \
+      echo "${YELLOW}EILMER_GAS not set by user. Defaulting to FALSE${END}"; \
+    fi; \
+    if [ "$(TINY_PROFILE)" = TRUE ]; then \
+      echo "${YELLOW}TINY_PROFILE=TRUE. A timing table will be output at the end of each simulation${END}"; \
+    fi; \
+    if [ "$PYTHON_PLOT)" = TRUE ]; then \
+      echo "${YELLOW}(experimental) PYTHON_PLOT=TRUE. Building with python diagnostic support${END}"; \
+    fi; \
+    if [ "$(SYMPLECTIC)" = P8R2 ]; then \
+      echo "${YELLOW}(experimental) SYMPLECTIC=P8R2. Building with SYMPLECTIC support${END}"; \
+    elif [ "$(SYMPLECTIC)" = WL ]; then \
+      echo "${YELLOW}(experimental) SYMPLECTIC=PWL. Building with SYMPLECTIC support${END}"; \
+    fi; \
+    if [ "$(fc_CCACHE_EXEC_NOT_FOUND)" = TRUE ]; then \
+      echo "${YELLOW}USE_CCACHE=TRUE, but 'ccache' command can't be found. Forcing USE_CCACHE=FALSE${END}"; \
+    fi; \
+    if [ "$(USE_CCACHE)" = TRUE ]; then \
+      echo "${GREEN}Using ccache to speed up re-compilation${END}"; \
+    fi
