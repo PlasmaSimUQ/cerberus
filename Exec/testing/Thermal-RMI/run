@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-(cd ../../local && make -j8 DIM=2 USE_EB=FALSE AMREX_PARTICLES=TRUE)
+#(cd ../../local && make -j8 DIM=2 USE_EB=FALSE AMREX_PARTICLES=TRUE)
 
-EXE=../../local/MFP.2d.gnu.MPI.PARTICLES.ex
+EXE=../../../MFP.2d.gnu.TPROF.MPI.PARTICLES.ex #local/MFP.2d.gnu.MPI.PARTICLES.ex
 
 INPUTS=TRMI.inputs
 

@@ -22,10 +22,11 @@ BraginskiiCTU::~BraginskiiCTU(){}
 BraginskiiCTU::BraginskiiCTU(const int idx, const sol::table &def)
 {
 
-    Abort("You have selected an action of type 'BraginskiiCTU' which is currently incomplete, comment out this Abort() only if you know what you are doing.");
+    //Warning("You have selected an action of type 'BraginskiiCTU' which is currently incomplete, continue at your own risk and (currently) without support.\n");
 
     action_idx = idx;
     name = def["name"];
+    Print() << "Name: " << name << "\n" ; 
 
     do_CTU = def.get_or("corner_transport", true);
 
@@ -56,7 +57,7 @@ BraginskiiCTU::BraginskiiCTU(const int idx, const sol::table &def)
     time_refinement_factor = def.get_or("time_refinement_factor",10);
     max_time_refinement = def.get_or("max_time_refinement_levels",10);
 
-
+    Print() << "Return \n";
     return;
 }
 
@@ -65,7 +66,7 @@ void BraginskiiCTU::get_data(MFP* mfp, Vector<UpdateData>& update, const Real ti
     BL_PROFILE("BraginskiiCTU::get_data");
 
     Vector<Array<int,2>> options = {
-        {ion_state->global_idx, 1},{electron_state->global_idx, 1}, {field_state->global_idx, 1}
+        {ion_state->global_idx, 1}, {electron_state->global_idx, 1}, {field_state->global_idx, 1}
     };
 
     Action::get_data(mfp, options, update, time);
@@ -79,6 +80,7 @@ Real BraginskiiCTU::get_coulomb_logarithm(const Real& T_i, const Real& T_e, cons
     // Alternative is to use the formulation from
     // "Ionic transport in high-energy-density matter" Stanton 2016
     return 10.;
+    /*
     Real T_ref = MFP::T_ref;
     Real n_ref = MFP::n_ref;
 
@@ -91,8 +93,8 @@ Real BraginskiiCTU::get_coulomb_logarithm(const Real& T_i, const Real& T_e, cons
         return val;
         //return 25.3 - 1.15 * log10( nd_e*n_ref ) + 2.3*log10( T_e*T_ref/11600 );
     }
+    */
 }
-
 
 void BraginskiiCTU::get_ion_coeffs(const Vector<Real>& Q_i,
                                    const Vector<Real>& Q_e,
@@ -109,6 +111,7 @@ void BraginskiiCTU::get_ion_coeffs(const Vector<Real>& Q_i,
                                    int& truncatedTau)
 {
     BL_PROFILE("BraginskiiCTU::get_ion_coeffs");
+    /*
     truncatedTau = 0;
     Real mass_i,mass_e,charge_i,charge_e,T_e,nd_i,nd_e;
     HydroState &istate = *ion_state;
@@ -204,7 +207,7 @@ void BraginskiiCTU::get_ion_coeffs(const Vector<Real>& Q_i,
     if (kappa1 < kappa3) {
         kappa3 = kappa1;
     }
-
+    */
     return;
 }
 
@@ -215,6 +218,7 @@ Real BraginskiiCTU::get_max_speed_ions(const Vector<amrex::Real>& U_i,
 {
     BL_PROFILE("BraginskiiIon::get_max_speed");
 
+    /*
     HydroState &estate = *electron_state;
     HydroState &istate = *ion_state;
 
@@ -326,9 +330,8 @@ Real BraginskiiCTU::get_max_speed_ions(const Vector<amrex::Real>& U_i,
     } else if (nu_thermal <= nu_visc) {
         nu = nu_visc ;
     }
-
+    */
     return 1.0;
-
 }
 
 void BraginskiiCTU::get_electron_coeffs(
@@ -352,6 +355,7 @@ void BraginskiiCTU::get_electron_coeffs(
 {
     BL_PROFILE("BraginskiiEle::get_electron_coeffs");
 
+    /*
     HydroState &estate = *electron_state;
     HydroState &istate = *ion_state;
 
@@ -458,7 +462,7 @@ void BraginskiiCTU::get_electron_coeffs(
         beta2 = nd_e*(b_1_p*x_coef*x_coef+b_0_p)/delta_kappa*T_e;
         beta3 = nd_e*x_coef*(b_1_pp*x_coef*x_coef+b_0_pp)/delta_kappa*T_e;
     } else {beta2 = 0; beta3 = 0;}
-
+    */
     return;
 }
 
@@ -469,6 +473,7 @@ Real BraginskiiCTU::get_max_speed_electrons(const Vector<Real>& U_e,
 {
     BL_PROFILE("BraginskiiEle::get_max_speed");
 
+    /*
     HydroState &estate = *electron_state;
     HydroState &istate = *ion_state;
 
@@ -588,12 +593,10 @@ Real BraginskiiCTU::get_max_speed_electrons(const Vector<Real>& U_e,
         nu = nu_visc ;
     }
 
-
+    //return 2*nu;
+    */
     return 1.0;
-
-    return 2*nu;
 }
-
 
 // ====================================================================================
 void BraginskiiCTU::calc_ion_diffusion_terms(const Box& box,
@@ -601,9 +604,10 @@ void BraginskiiCTU::calc_ion_diffusion_terms(const Box& box,
                                              Array4<const Real> const& prim_e4,
                                              Array4<const Real> const& prim_f4,
                                              FArrayBox& diff
-                                             ) {
+                                             ) 
+{
     BL_PROFILE("BraginskiiCTU::calc_ion_diffusion_terms");
-
+    /*
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
@@ -651,6 +655,7 @@ void BraginskiiCTU::calc_ion_diffusion_terms(const Box& box,
             }
         }
     }
+    */
     return;
 }
 
@@ -660,11 +665,12 @@ void BraginskiiCTU::calc_ion_viscous_fluxes(const Box& box,
                                             Array4<const Real> const& prim_i4,
                                             Array4<const Real> const& prim_e4,
                                             Array4<const Real> const& prim_f4,
-                                            const Real* dx) {
+                                            const Real* dx) 
+{
     BL_PROFILE("BraginskiiCTU::calc_ion_viscous_fluxes");
+    /*
     //data strucutre for the diffusion coefficients.
     FArrayBox diff_ion(pbox, +IonDiffusionCoeffs::NUM_ION_DIFF_COEFFS);
-
 
     //--- diffusion coefficients for each cell to be used
 
@@ -677,6 +683,7 @@ void BraginskiiCTU::calc_ion_viscous_fluxes(const Box& box,
     calc_charged_viscous_fluxes(FluxSpecies::IonFlux, box, fluxes,
                                 prim_i4, prim_i4, prim_e4, prim_f4,
                                 dx, diff_ion);
+    */
     return;
 }
 
@@ -687,7 +694,9 @@ void BraginskiiCTU::calc_electron_diffusion_terms(const Box& box,
                                                   Array4<const Real> const& prim_e4,
                                                   Array4<const Real> const& prim_f4,
                                                   FArrayBox& diff
-                                                  ) {
+                                                  ) 
+{
+    /*
     BL_PROFILE("HydroState::calc_electron_diffusion_terms");
 
     const Dim3 lo = amrex::lbound(box);
@@ -738,7 +747,7 @@ void BraginskiiCTU::calc_electron_diffusion_terms(const Box& box,
             }
         }
     }
-
+    */
     return;
 }
 
@@ -748,8 +757,10 @@ void BraginskiiCTU::calc_electron_viscous_fluxes(const Box& box,
                                                  Array4<const Real> const& prim_i4,
                                                  Array4<const Real> const& prim_e4,
                                                  Array4<const Real> const& prim_f4,
-                                                 const Real* dx) {
+                                                 const Real* dx) 
+{
     BL_PROFILE("HydroState::calc_electron_viscous_fluxes");
+    /*
     FArrayBox diff_ele(pbox, +ElectronDiffusionCoeffs::NUM_ELE_DIFF_COEFFS);
 
 
@@ -769,6 +780,7 @@ void BraginskiiCTU::calc_electron_viscous_fluxes(const Box& box,
                                 prim_e4,
                                 prim_f4,
                                 dx, diff_ele);
+    */
     return;
 }
 
@@ -784,7 +796,7 @@ void BraginskiiCTU::calc_charged_viscous_fluxes(FluxSpecies flux_type,
                                                 const Real* dx, FArrayBox& diff)
 {
     BL_PROFILE("HydroState::calc_charged_viscous_fluxes");
-
+    /*
     //create a box for the viscous sress tensor where we only store the 6 unique
     // elements in order of 0:tauxx, 1:tauyy, 2:tauzz, 3:tauxy, 4:tauxz, 5:tauyz
     Array<Real,6> ViscTens;
@@ -1111,7 +1123,7 @@ void BraginskiiCTU::calc_charged_viscous_fluxes(FluxSpecies flux_type,
     }
 
 #endif
-
+    */
     return;
 }
 
@@ -1127,7 +1139,9 @@ void BraginskiiCTU::BraginskiiViscousTensorHeatFlux(FluxSpecies flux_type,
                                                     Real dwdx, Real dwdy, Real dwdz,
                                                     Array<Real,+ElectronDiffusionCoeffs::NUM_ELE_DIFF_COEFFS> faceCoefficients,
                                                     Array<Real, 6> &ViscTens,
-                                                    Array<Real, 3> &q_flux) {
+                                                    Array<Real, 3> &q_flux) 
+{
+    /*
     BL_PROFILE("HydroState::BraginskiiViscousTensorHeatFlux");
     //Print() << "braginskii anisotropic function\n";
     //Note all the properties used in here need to be for the interface, not just the cell i!!!
@@ -1239,15 +1253,15 @@ void BraginskiiCTU::BraginskiiViscousTensorHeatFlux(FluxSpecies flux_type,
     TG_chev[2]= B_unit[0]*dTdy-B_unit[1]*dTdx;
 
     int rowFirst=3,columnFirst=3,columnSecond=3;
-    /* Matrix representations of viscous stree tensor and associated
-    quantities are defined as:
-    Trans       - the transformation matrix Q
-    Strain      - Strain rate matrix mate W
-    StrainTrans - Strain rate matrix transformed into the B aligned frame
-    ViscStress  - Viscous stress tensor in lab frame, PI
-    ViscStressTrans - Viscous stress tensor in B aligned frame, PI'
-    TransT      - Transpose of the transformation matrix, Q'
-    */
+    //    / Matrix representations of viscous stree tensor and associated
+    //    quantities are defined as:
+    //    Trans       - the transformation matrix Q
+    //    Strain      - Strain rate matrix mate W
+    //    StrainTrans - Strain rate matrix transformed into the B aligned frame
+    //    ViscStress  - Viscous stress tensor in lab frame, PI
+    //    ViscStressTrans - Viscous stress tensor in B aligned frame, PI'
+    //    TransT      - Transpose of the transformation matrix, Q'
+    //    /
     Array<Array<Real,3>,3> Trans, Strain, StrainTrans, ViscStress, ViscStressTrans, TransT, WorkingMatrix;
 
     //if (global_idx == electron_idx)
@@ -1451,7 +1465,7 @@ void BraginskiiCTU::BraginskiiViscousTensorHeatFlux(FluxSpecies flux_type,
     ViscTens[3] = ViscStress[0][1];
     ViscTens[4] = ViscStress[1][2];
     ViscTens[5] = ViscStress[0][2];
-
+    */
     return ;
 }
 
@@ -1467,7 +1481,9 @@ void BraginskiiCTU::IsotropicBraginskiiViscousTensorHeatFlux(FluxSpecies flux_ty
                                                              Real dwdx, Real dwdy, Real dwdz,
                                                              Array<Real,+ElectronDiffusionCoeffs::NUM_ELE_DIFF_COEFFS> faceCoefficients,
                                                              Array<Real, 6> &ViscTens,
-                                                             Array<Real, 3> &q_flux) {
+                                                             Array<Real, 3> &q_flux) 
+{
+    /*
     BL_PROFILE("BraginskiiCTU::IsotropicBraginskiiViscousTensorHeatFlux");
     //Note all the properties used in here need to be for the interface, not just the cell i!!!
 
@@ -1510,11 +1526,11 @@ void BraginskiiCTU::IsotropicBraginskiiViscousTensorHeatFlux(FluxSpecies flux_ty
     }
 
 
-    /* Matrix representations of viscous stree tensor and associated
-    quantities are defined as:
-    Strain      - Strain rate matrix mate W
-    ViscStress  - Viscous stress tensor in lab frame, PI
-    */
+    /// Matrix representations of viscous stree tensor and associated
+    //quantities are defined as:
+    //Strain      - Strain rate matrix mate W
+    //ViscStress  - Viscous stress tensor in lab frame, PI
+    ///
     Array<Array<Real,3>,3> Strain;
     Array<Array<Real,3>,3> ViscStress;
 
@@ -1572,10 +1588,13 @@ void BraginskiiCTU::IsotropicBraginskiiViscousTensorHeatFlux(FluxSpecies flux_ty
     ViscTens[4] = ViscStress[1][2];
     ViscTens[5] = ViscStress[0][2];
 
+    */
     return ;
 }
 
-
+// =================================================================================================================== //
+//=========================================Daryl refactor additions ================================================== //
+// =================================================================================================================== //
 
 void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update, const Real time, const Real dt, const Real flux_register_scale)
 {
@@ -1664,6 +1683,7 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
         for (int idx=0; idx<n_states; ++idx) {
             EulerianState &istate = *data_states[idx];
 
+            Print() << "\nname:\t" << istate.name << "\n" ; 
             // get a pointer to the conserved quantities
             conserved[idx] = &(*local_old[idx])[mfi];
 
@@ -1675,9 +1695,11 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
 
             // ===============================================
             // 1.1 Calculate primitive values within each cell
-
+            Print() << "Calc prims\n" ;
             FArrayBox& cons = (*local_old[idx])[mfi];
+            Print() << "Calc prims\n" ;
             FArrayBox& prim = primitives[idx];
+            Print() << "Calc prims\n" ;
 
             istate.calc_primitives(pbox,
                                    cons,
@@ -1689,6 +1711,7 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
             //            plot_FAB_2d(prim, 0, "prim[0] - "+istate.name, false, true);
 
 
+            Print() << "update Boundary \n" ;//TODO delete
             // fill in any cells that need special boundary values
             istate.update_boundary_cells(pbox,
                                          geom,
@@ -1702,6 +1725,7 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
 
             // each cell has a hi and lo side in each direction
 
+            Print() << "Reeconstruct values\n" ;//TODO delete
             // calculate the reconstructed face values
             istate.calc_reconstruction(rbox,
                                        prim,
@@ -1715,6 +1739,8 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
             // TODO: this step currently assumes a single speed for all components and
             // should be updated to calculate the correct characteristic speeds
             // for each component individually
+
+            Print() << "1/2 dt update for faces\n" ;//TODO delete
             if (do_CTU) {
                 istate.calc_time_averaged_faces(rbox,
                                                 prim,
@@ -1754,6 +1780,7 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
         // ==========================================================================
         // 3.2 Calculate fluxes
 
+        Print() << "Calc fluxes \n" ;//TODO delete
         //---
         for (int idx=0; idx<n_states; ++idx) {
             EulerianState &istate = *data_states[idx];
@@ -1762,6 +1789,7 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
                 continue;
             }
 
+            Print() << "Face primitives update \n" ;//TODO delete
             istate.update_face_prim(box,
                                     geom,
                                     R_lo[idx],
@@ -1785,6 +1813,7 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
 
 #if AMREX_SPACEDIM > 1
             if (do_CTU) {
+                Print() << "CTU flux correction \n" ;//TODO delete
                 // now that we have done the fluxes, do we need to correct them???
                 // correction is done according to the following steps:
                 // 1. calculate the fluxes (above)
@@ -1941,7 +1970,7 @@ void BraginskiiCTU::get_alpha_beta_coefficients(Real mass_e, Real T_e, Real char
                                                 Real& beta_0, Real& beta_1, Real& beta_2, Real& t_c_e, Real p_lambda,
                                                 Real Bx, Real By, Real Bz)
 {
-
+    /*
     //collision time nondimensional
     Real Debye = MFP::Debye, Larmor = MFP::Larmor, n0_ref=MFP::n0;
 
@@ -1987,14 +2016,14 @@ void BraginskiiCTU::get_alpha_beta_coefficients(Real mass_e, Real T_e, Real char
         beta_1 = 0;
         beta_2 = 0;
     }
-
+    */
     return;
 }
 
 int BraginskiiCTU::rhs(Real t, Array<Real,+VectorIdx::NUM> y, Array<Real,+VectorIdx::NUM> &dydt, Array<Real,+DataIdx::NUM>& data)
 {
     BL_PROFILE("BraginskiiSource::rhs");
-
+    /*
     //TODO find away around the variable declaration in the case of isotropic - may just need to bite the bullet and hav a spearate function
     Array<Real,3> B_unit; //Magnetic field unit vector
     Array<Real,3> u_para; //Velocity parallel to B_unit
@@ -2180,8 +2209,8 @@ int BraginskiiCTU::rhs(Real t, Array<Real,+VectorIdx::NUM> y, Array<Real,+Vector
     }
 
 
+  */
     return 0;
-
 }
 
 bool BraginskiiCTU::check_invalid(Array<Real,+VectorIdx::NUM> &y, Array<Real,+DataIdx::NUM>& data)
