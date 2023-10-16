@@ -195,7 +195,7 @@ public:
                      Reconstruction& reco,
                      const Real *dx) const;
 
-    static void get_alpha_beta_coefficients(Real mass_e, Real T_e, Real charge_e,
+    static void get_alpha_beta_coefficients(const Real& Z_i, Real mass_e, Real T_e, Real charge_e,
                                      Real charge_i, Real nd_e, Real nd_i, Real& alpha_0, Real& alpha_1,
                                      Real& alpha_2,
                                      Real& beta_0, Real& beta_1, Real& beta_2, Real& t_c_e, Real p_lambda,

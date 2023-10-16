@@ -1635,7 +1635,6 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
         num_grow = std::max(num_grow, istate.num_grow); //this seems to be used later in viscous fluxes but 
                                                         // causes a cons vect to crash when used in grow()
                                                         // instead if istate.num_grow
-        //Print() << "\nstate: " << istate.name << " num_grow " << num_grow ; 
     }
 
     for (int idx=0; idx<n_states; ++idx) {
@@ -1978,13 +1977,10 @@ void BraginskiiCTU::calc_slopes(const Box& box,
     return;
 }
 
-void BraginskiiCTU::get_alpha_beta_coefficients(Real mass_e, Real T_e, Real charge_e,
-                                                Real charge_i, Real nd_e, Real nd_i, Real& alpha_0, Real& alpha_1,
-                                                Real& alpha_2,
-                                                Real& beta_0, Real& beta_1, Real& beta_2, Real& t_c_e, Real p_lambda,
-                                                Real Bx, Real By, Real Bz)
+void BraginskiiCTU::get_alpha_beta_coefficients(const Real& Z_i, Real mass_e, Real T_e, Real charge_e, 
+      Real charge_i, Real nd_e, Real nd_i, Real& alpha_0, Real& alpha_1, Real& alpha_2, 
+      Real& beta_0, Real& beta_1, Real& beta_2, Real& t_c_e, Real p_lambda, Real Bx, Real By, Real Bz)
 {
-    /*
     //collision time nondimensional
     Real Debye = MFP::Debye, Larmor = MFP::Larmor, n0_ref=MFP::n0;
 
@@ -1994,22 +1990,104 @@ void BraginskiiCTU::get_alpha_beta_coefficients(Real mass_e, Real T_e, Real char
             *(6*std::sqrt(2*mass_e)*std::pow(pi_num*T_e, 3./2.)) /
             (p_lambda*std::pow((charge_i/-charge_e),2)*nd_i);
 
-
     if (not std::isfinite(t_c_e)) Abort();
 
-
     Real omega_ce = -charge_e * std::sqrt( Bx*Bx + By*By + Bz*Bz ) / mass_e / Larmor;
+
+    /*
+    if (1/t_c_e < GD::effective_zero) t_c_e = 1/GD::effective_zero;
+  
+    if (GD::srin_switch && (1/t_c_e < omega_ce/10/2/pi_num) && (1/t_c_e < omega_p/10/2/pi_num)) {
+        if  (GD::verbose > 2) {
+        Print() << "1/tau_e = " << 1/t_c_e << "\tomega_ce = " << omega_ce 
+              << "\tomega_p = " << omega_p << "\n";
+        }
+        t_c_e = 1/std::min(omega_ce/2/pi_num, omega_p/2/pi_num) ;
+        //t_c_e = 1/( 1/t_c_e + GD::effective_zero);
+  
+        if  (GD::verbose > 2) Print() << "1/tau_e correction: " << 1/t_c_e;
+    }
+    if (false && GD::verbose > 1) Print() << "\t" << t_c_e << "\n";
+    */
 
     //TODO create a table lookup for the coefficients based off the plasma constituents
     Real delta_coef, x_coef ;// coefficients used exclusively in the braginskii
     // transport terms
     x_coef = omega_ce*t_c_e;
-    Real delta_0 =3.7703, delta_1 = 14.79;
+
+    Real delta_0, delta_1, a_0, a_0_p, a_1_p, a_0_pp, a_1_pp, b_0, b_0_pp, b_0_p, b_1_p, b_1_pp;
+    // check Z_i and round 
+    if (Z_i < 0) Abort("\nNegative atomic number (Z number)\n");
+    Real Z_i_rounded = std::roundf(Z_i);
+    // assign based on charge 
+    if (Z_i_rounded == 1) {
+      a_0 = 0.5129;
+      b_0 = 0.7110;
+      delta_0 = 3.7703;
+      delta_1 = 14.79;
+      b_1_p = 5.101;
+      b_0_p = 2.681;
+      b_1_pp = 3./2.;
+      b_0_pp = 3.053;
+      a_1_p = 6.416;
+      a_0_p = 1.837;
+      a_1_pp = 1.704;
+      a_0_pp = 0.7796;
+    } else if (Z_i_rounded == 2) {
+      a_0 = 0.4408;
+      b_0 = 0.9052;
+      delta_0 = 1.0465;
+      delta_1 = 10.80;
+      b_1_p = 4.450;
+      b_0_p = 0.9473;
+      b_1_pp = 3./2.;
+      b_0_pp = 1.784;
+      a_1_p = 5.523;
+      a_0_p = 0.5956;
+      a_1_pp = 1.704;
+      a_0_pp = 0.3439;
+    } else if (Z_i_rounded == 3) {
+      a_0 = 0.3965;
+      b_0 = 1.016;
+      delta_0 = 0.5814;
+      delta_1 = 9.618;
+      b_1_p = 4.233;
+      b_0_p = 0.5905;
+      b_1_pp = 3./2.;
+      b_0_pp = 1.442;
+      a_1_p = 5.226;
+      a_0_p = 0.3515;
+      a_1_pp = 1.704;
+      a_0_pp = 0.2400;
+    } else if (Z_i_rounded == 4) {
+      a_0 = 0.3752;
+      b_0 = 1.090;
+      delta_0 = 0.4106;
+      delta_1 = 9.055;
+      b_1_p = 4.124;
+      b_0_p = 0.4478;
+      b_1_pp = 3./2.;
+      b_0_pp = 1.285;
+      a_1_p = 5.077;
+      a_0_p = 0.2566;
+      a_1_pp = 1.704;
+      a_0_pp = 0.1957;
+    } else { 
+      a_0 = 0.2949;
+      b_0 = 1.521;
+      delta_0 = 0.0961;
+      delta_1 = 7.482;
+      b_1_p = 3.798;
+      b_0_p = 0.1461;
+      b_1_pp = 3./2.;
+      b_0_pp = 0.877;
+      a_1_p = 4.63;
+      a_0_p = 0.0678;
+      a_1_pp = 1.704;
+      a_0_pp = 0.0940;
+    }
+  
     delta_coef = x_coef*x_coef*x_coef*x_coef+delta_1*x_coef*x_coef + delta_0;// TODO delta0 tables
-
-
-    Real a_0 = 0.5129, a_0_p =1.837, a_1_p =6.416, a_0_pp =0.7796, a_1_pp =1.704;
-
     alpha_0 = mass_e*nd_e/t_c_e*a_0;
 
     if (braginskii_anisotropic) {
@@ -2019,9 +2097,6 @@ void BraginskiiCTU::get_alpha_beta_coefficients(Real mass_e, Real T_e, Real char
         alpha_1 = 0; alpha_2 = 0;
     }
 
-
-    Real b_0 = 0.711, b_0_pp = 3.053, b_0_p=2.681, b_1_p=5.101, b_1_pp=3./2.;
-
     beta_0 = nd_e*b_0;
     if (braginskii_anisotropic) {
         beta_1 = nd_e*(b_1_p*x_coef*x_coef+b_0_p)/delta_coef;
@@ -2030,14 +2105,16 @@ void BraginskiiCTU::get_alpha_beta_coefficients(Real mass_e, Real T_e, Real char
         beta_1 = 0;
         beta_2 = 0;
     }
-    */
     return;
 }
 
 int BraginskiiCTU::rhs(Real t, Array<Real,+VectorIdx::NUM> y, Array<Real,+VectorIdx::NUM> &dydt, Array<Real,+DataIdx::NUM>& data)
 {
     BL_PROFILE("BraginskiiSource::rhs");
-    /*
+
+
+    Real Debye = MFP::Debye, Larmor = MFP::Larmor;
+
     //TODO find away around the variable declaration in the case of isotropic - may just need to bite the bullet and hav a spearate function
     Array<Real,3> B_unit; //Magnetic field unit vector
     Array<Real,3> u_para; //Velocity parallel to B_unit
@@ -2049,7 +2126,6 @@ int BraginskiiCTU::rhs(Real t, Array<Real,+VectorIdx::NUM> y, Array<Real,+Vector
 
     Real B_p=0.,B_pp=0.,bx_pp=0.,by_pp=0.,bz_pp=0.,bx_p=0.,by_p=0., xB=0, yB=0, zB=0; //initialised and set to zero to allow get_alpha_beta_coeffs to be run without any changes for both iso and aniso cae
 
-
     // magnetic field
     xB = data[+DataIdx::Bx];
     yB = data[+DataIdx::By];
@@ -2057,6 +2133,7 @@ int BraginskiiCTU::rhs(Real t, Array<Real,+VectorIdx::NUM> y, Array<Real,+Vector
 
     Real B = xB*xB + yB*yB + zB*zB;
 
+    //TODO only needed if anisotropic switched on 
     if (B < effective_zero) {
         B_pp = 0.;
         B_p  = 0.;
@@ -2127,12 +2204,15 @@ int BraginskiiCTU::rhs(Real t, Array<Real,+VectorIdx::NUM> y, Array<Real,+Vector
     const Real w_i = y[+VectorIdx::IonZmom]*inv_rho_i;
     const Real p_i = (gam_i - 1.0)*(y[+VectorIdx::IonEden] - 0.5*rho_i*(u_i*u_i + v_i*v_i + w_i*w_i));
     const Real T_i = p_i*m_i*inv_rho_i;
+    
+    const Real Z_i = -q_i/q_e ; // Get charge for braginskii table of constants (electron charge is negative)
+                                //TODO should be const and kept elsewhere
 
     const Real du = u_e - u_i;
     const Real dv = v_e - v_i;
     const Real dw = w_e - w_i;
 
-    //Braginskii directionality stuff.
+    //Braginskii directionality formulation i.e. relative to magnetic field and relevant plasma properties.
     if (braginskii_anisotropic) {
         Real dot_B_unit_TG, dot_B_unit_U ;//temp variables
 
@@ -2165,12 +2245,11 @@ int BraginskiiCTU::rhs(Real t, Array<Real,+VectorIdx::NUM> y, Array<Real,+Vector
     }
 
     //---------------Braginskii Momentum source
-    Real alpha_0, alpha_1, alpha_2, beta_0, beta_1, beta_2, t_c_a;
+    Real alpha_0, alpha_1, alpha_2, beta_0, beta_1, beta_2, t_c_a; //TODO t_c_e change to t_c_e with others 
     Real p_lambda = get_coulomb_logarithm(T_i,T_e,n_e);
 
-    get_alpha_beta_coefficients(m_e, T_e, q_e, q_i, n_e, n_i, alpha_0, alpha_1, alpha_2,
+    get_alpha_beta_coefficients(Z_i, m_e, T_e, q_e, q_i, n_e, n_i, alpha_0, alpha_1, alpha_2,
                                 beta_0, beta_1, beta_2, t_c_a, p_lambda, xB, yB, zB);
-
 
     Array<Real,3> R_u, R_T;
     if (braginskii_anisotropic) {
@@ -2195,14 +2274,13 @@ int BraginskiiCTU::rhs(Real t, Array<Real,+VectorIdx::NUM> y, Array<Real,+Vector
     }
     //Thermal equilibration
     Real Q_delta = 3*m_e/m_i*n_e/t_c_a*(T_e-T_i);
-    Real Q_fric  = (R_u[0]+R_T[0])*du + (R_u[1]+R_T[1])*dv + (R_u[2]+R_T[2])*dw;
+    Real Q_fric  = (R_u[0]+R_T[0])*u_i + (R_u[1]+R_T[1])*v_i + (R_u[2]+R_T[2])*w_i;
 
     const Real d_mx = R_u[0]+R_T[0];
     const Real d_my = R_u[1]+R_T[1];
     const Real d_mz = R_u[2]+R_T[2];
     const Real d_ed = -Q_delta + Q_fric;
 
-    /*
     dydt[+VectorIdx::ElectronXmom] = d_mx;
     dydt[+VectorIdx::ElectronYmom] = d_my;
     dydt[+VectorIdx::ElectronZmom] = d_mz;
@@ -2213,18 +2291,16 @@ int BraginskiiCTU::rhs(Real t, Array<Real,+VectorIdx::NUM> y, Array<Real,+Vector
     dydt[+VectorIdx::IonZmom] = -d_mz;
     dydt[+VectorIdx::IonEden] = -d_ed;
 
-
-
     int idx=0;
     for (const auto& val : dydt) {
         if (not std::isfinite(val)) {
+            Print() << "\nHow many times is this eval?\n"; 
             return 1;
         }
         idx++;
     }
 
 
-  */
     return 0;
 }
 
