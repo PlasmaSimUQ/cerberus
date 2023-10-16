@@ -26,7 +26,7 @@ BraginskiiCTU::BraginskiiCTU(const int idx, const sol::table &def)
 
     action_idx = idx;
     name = def["name"];
-    Print() << "Name: " << name << "\n" ; 
+    //Print() << "Name: " << name << "\n" ; 
 
     do_CTU = def.get_or("corner_transport", true);
 
@@ -57,7 +57,7 @@ BraginskiiCTU::BraginskiiCTU(const int idx, const sol::table &def)
     time_refinement_factor = def.get_or("time_refinement_factor",10);
     max_time_refinement = def.get_or("max_time_refinement_levels",10);
 
-    Print() << "Return \n";
+    //Print() << "Return \n";
     return;
 }
 
@@ -1632,7 +1632,10 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
     int num_grow = 0;
     for (int idx=0; idx<n_states; ++idx) {
         EulerianState &istate = *data_states[idx];
-        num_grow = std::max(num_grow, istate.num_grow);
+        num_grow = std::max(num_grow, istate.num_grow); //this seems to be used later in viscous fluxes but 
+                                                        // causes a cons vect to crash when used in grow()
+                                                        // instead if istate.num_grow
+        //Print() << "\nstate: " << istate.name << " num_grow " << num_grow ; 
     }
 
     for (int idx=0; idx<n_states; ++idx) {
@@ -1683,7 +1686,7 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
         for (int idx=0; idx<n_states; ++idx) {
             EulerianState &istate = *data_states[idx];
 
-            Print() << "\nname:\t" << istate.name << "\n" ; 
+            //Print() << "\nname:\t" << istate.name << " num_grow: " << num_grow << "\n" ;  //TODO delete me 
             // get a pointer to the conserved quantities
             conserved[idx] = &(*local_old[idx])[mfi];
 
@@ -1691,15 +1694,17 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
 
 
             // region over which to get cell centered primitives for reconstruction
-            const Box pbox = amrex::grow(box, num_grow);
+            //const Box pbox = amrex::grow(box, num_grow);
+            const Box pbox = amrex::grow(box, istate.num_grow ); //TODO verify change 
+            
 
             // ===============================================
             // 1.1 Calculate primitive values within each cell
-            Print() << "Calc prims\n" ;
+            //Print() << "Calc prims - access cons \n" ;//TODO delete me 
             FArrayBox& cons = (*local_old[idx])[mfi];
-            Print() << "Calc prims\n" ;
+            //Print() << "Calc prims - access old prim?\n" ;//TODO delete me 
             FArrayBox& prim = primitives[idx];
-            Print() << "Calc prims\n" ;
+            //Print() << "Calc prims\n" ;//TODO delete me 
 
             istate.calc_primitives(pbox,
                                    cons,
@@ -1711,7 +1716,7 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
             //            plot_FAB_2d(prim, 0, "prim[0] - "+istate.name, false, true);
 
 
-            Print() << "update Boundary \n" ;//TODO delete
+            //Print() << "update Boundary \n" ;//TODO delete
             // fill in any cells that need special boundary values
             istate.update_boundary_cells(pbox,
                                          geom,
@@ -1725,7 +1730,7 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
 
             // each cell has a hi and lo side in each direction
 
-            Print() << "Reeconstruct values\n" ;//TODO delete
+            //Print() << "Reeconstruct values\n" ;//TODO delete
             // calculate the reconstructed face values
             istate.calc_reconstruction(rbox,
                                        prim,
@@ -1740,7 +1745,7 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
             // should be updated to calculate the correct characteristic speeds
             // for each component individually
 
-            Print() << "1/2 dt update for faces\n" ;//TODO delete
+            //Print() << "1/2 dt update for faces\n" ;//TODO delete
             if (do_CTU) {
                 istate.calc_time_averaged_faces(rbox,
                                                 prim,
@@ -1780,7 +1785,7 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
         // ==========================================================================
         // 3.2 Calculate fluxes
 
-        Print() << "Calc fluxes \n" ;//TODO delete
+        //Print() << "Calc fluxes \n" ;//TODO delete
         //---
         for (int idx=0; idx<n_states; ++idx) {
             EulerianState &istate = *data_states[idx];
@@ -1789,7 +1794,7 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
                 continue;
             }
 
-            Print() << "Face primitives update \n" ;//TODO delete
+            //Print() << "Face primitives update \n" ;//TODO delete
             istate.update_face_prim(box,
                                     geom,
                                     R_lo[idx],
@@ -1813,7 +1818,7 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
 
 #if AMREX_SPACEDIM > 1
             if (do_CTU) {
-                Print() << "CTU flux correction \n" ;//TODO delete
+                //Print() << "CTU flux correction \n" ;//TODO delete
                 // now that we have done the fluxes, do we need to correct them???
                 // correction is done according to the following steps:
                 // 1. calculate the fluxes (above)
@@ -1858,7 +1863,14 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
 
         // now calculate any viscous fluxes
 
-        const Box pbox = grow(box, num_grow);
+        //=========================
+        //TODO I think this entry was more of a place holder or where Daryl started and 
+        //stopped the viscous step 
+
+        //Print() << "\nname:\t" << istate.name << " num_grow: " << num_grow << "istate.numrow: " 
+        //<< istate.num_grow_<< "\n" ; 
+        //const Box pbox = grow(box, istate.num_grow); //TODO is the idea here to grow the overall structure 
+        //according to the largest num_grow??? which would correspond to the field state num_grwo 
 
         //        plot_FAB_2d(primitives[+BraginskiiStateIdx::Ion], 0, "ions[0]", false, false);
         //        plot_FAB_2d(primitives[+BraginskiiStateIdx::Electron], 0, "electrons[0]", false, true);
@@ -1878,6 +1890,8 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
         //                primitives[+BraginskiiStateIdx::Electron].const_array(),
         //                primitives[+BraginskiiStateIdx::Field].const_array(),
         //                dx);
+
+        //=========================
 
         //---
         for (int idx=0; idx<n_states; ++idx) {
@@ -2188,6 +2202,7 @@ int BraginskiiCTU::rhs(Real t, Array<Real,+VectorIdx::NUM> y, Array<Real,+Vector
     const Real d_mz = R_u[2]+R_T[2];
     const Real d_ed = -Q_delta + Q_fric;
 
+    /*
     dydt[+VectorIdx::ElectronXmom] = d_mx;
     dydt[+VectorIdx::ElectronYmom] = d_my;
     dydt[+VectorIdx::ElectronZmom] = d_mz;
@@ -2263,7 +2278,7 @@ bool BraginskiiCTU::check_invalid(Array<Real,+VectorIdx::NUM> &y, Array<Real,+Da
 
 void BraginskiiCTU::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, const Real time, const Real dt)
 {
-    BL_PROFILE("Plasma5::explicit_solve");
+    BL_PROFILE("BraginskiiCTU::calc_time_derivative::rhs");
 
     const int nc_i = ion_state->n_cons();
     const int nc_e = electron_state->n_cons();
@@ -2293,8 +2308,6 @@ void BraginskiiCTU::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, c
         const Box& box = mfi.tilebox();
         const Dim3 lo = amrex::lbound(box);
         const Dim3 hi = amrex::ubound(box);
-
-
 
         Array4<const Real> const& field4 = field_data.array(mfi);
 
@@ -2358,7 +2371,8 @@ void BraginskiiCTU::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, c
                     int depth = 0;
                     rk4_adaptive(t, y, data, BraginskiiCTU::rhs, BraginskiiCTU::check_invalid, h, time_refinement_factor, depth, max_time_refinement);
 
-                    ion_dU4(i,j,k,+HydroDef::ConsIdx::Xmom) = y[+VectorIdx::IonXmom] - U_i[+HydroDef::ConsIdx::Xmom];
+                    ion_dU4(i,j,k,+HydroDef::ConsIdx::Xmom) = 
+                      y[+VectorIdx::IonXmom] - U_i[+HydroDef::ConsIdx::Xmom];
                     ion_dU4(i,j,k,+HydroDef::ConsIdx::Ymom) = y[+VectorIdx::IonYmom] - U_i[+HydroDef::ConsIdx::Ymom];
                     ion_dU4(i,j,k,+HydroDef::ConsIdx::Zmom) = y[+VectorIdx::IonZmom] - U_i[+HydroDef::ConsIdx::Zmom];
                     ion_dU4(i,j,k,+HydroDef::ConsIdx::Eden) = y[+VectorIdx::IonEden] - U_i[+HydroDef::ConsIdx::Eden];

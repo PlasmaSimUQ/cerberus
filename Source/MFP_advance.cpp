@@ -36,7 +36,6 @@ Real MFP::advance(Real time, Real dt, int iteration, int ncycle)
         }
     }
 
-    Print() << "Select time integration method\n" ; 
     switch (time_integration_scheme) {
     case TimeIntegrator::RungeKutta:
         advance_RK(time, dt, iteration, ncycle);
@@ -157,15 +156,11 @@ void MFP::advance_strang(Real time, Real dt, int iteration, int ncycle)
     /// SOURCE TERMS
 
     for (const auto& act : actions) {
-        //Print() << "actions for strang: " << act->tag<< "\n";
         // calculate any contributions to dU (dU += f(old))
-        Print() <<  "Get data\n";//TODO delete 
         act->get_data(this, RK_step, time);
-        Print() <<  "Time derivative\n";//TODO delete 
         act->calc_time_derivative(this, RK_step, time, 0.5*dt);
     }
 
-    Print() << "add action contributions\n" ; //TODO delete 
     // add dU to new data (new = old + dU)
     for (int data_idx = 0; data_idx < eulerian_states.size(); ++data_idx) {
 
@@ -184,7 +179,6 @@ void MFP::advance_strang(Real time, Real dt, int iteration, int ncycle)
         }
     }
 
-    Print() << "1/2 step sources \n" ; //TODO delete 
     if (time_integration_nsteps >= 2) {
 
         // Euler update (RK1) finished, now do RK2
@@ -227,13 +221,12 @@ void MFP::advance_strang(Real time, Real dt, int iteration, int ncycle)
     ///////////////////////////////////////////////////////////////////////////
     /// FLUXES
 
-    Print() << "1/2 step sources \n" ; //TODO delete 
-
     for (const auto& act : actions) {
 
         act->get_data(this, RK_step, time+dt);
 
         // calculate any contributions to dU (dU += f(new*))
+
         act->calc_spatial_derivative(this, RK_step, time+dt, dt, dt);
 
         // update new data with any one-shot updates based on new* data (new** = f(new*))

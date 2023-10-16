@@ -183,7 +183,7 @@ bool ThermallyPerfectGas::cons2prim(Vector<Real>& U, Vector<Real>& Q) const
     Real mz = U[+HydroDef::ConsIdx::Zmom];
     Real ed = U[+HydroDef::ConsIdx::Eden];
   
-    //Print() << "\n" << rho << "\t" << mx <<  "\t" << my << "\t" << mz << ed << "\t" ;  //TODO delete 
+    //Print() << "\n" << rho << "\t" << mx <<  "\t" << my << "\t" << mz << "\t" << ed << "\n" ;  //TODO delete 
 
     Real rhoinv = 1/rho;
     Real u = mx*rhoinv;

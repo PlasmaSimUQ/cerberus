@@ -5,7 +5,7 @@ fpe_trap_overflow=0
 amr.v = 0
 
 # ======== TIME ==========
-max_step  = 1000000
+max_step  = 1 # 1000000000
 stop_time = 0.3
 
 # ======== DOMAIN ==========
@@ -22,7 +22,7 @@ amr.loadbalance_with_workestimates = 1
 amr.loadbalance_level0_int = 10
 
 # ======== GRID ==========
-amr.max_level       = 0   # maximum level number allowed
+amr.max_level       = 3   # maximum level number allowed
 amr.ref_ratio       = 2 2 2 2 2 2 2 # refinement ratio
 amr.regrid_int      = 2 2 2 2 2 2 2 # how often to regrid
 amr.blocking_factor = 8

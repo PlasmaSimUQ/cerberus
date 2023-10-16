@@ -416,8 +416,10 @@ void EulerianState::calc_primitives(const Box& box,
                 } else {
 #endif
                     // grab the conserved variables
+                    //Print() << "\ncons indx 0...:\t" ; //TODO delete me 
                     for (int n=0; n<n_cons(); ++n) {
                         U[n] = s4(i,j,k,n);
+                        //Print() << U[n] << " " ; //TODO delete me 
                     }
 #ifdef AMREX_USE_EB
                 }

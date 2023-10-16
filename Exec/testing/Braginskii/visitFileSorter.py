@@ -10,15 +10,15 @@ import pdb, math
 import copy 
 import re
 
-visulaisation_code_folder     ="/home/kyriakos/Documents/Code/000_cerberus_dev/cerberus/vis"
-derived_functions_code_folder ="/home/kyriakos/Documents/000_Species_RMI_Scenario_Results/000_R18_Scenario_Results"
+visulaisation_code_folder     ="/home/kyriakos/Documents_ubuntu/cerberus/vis"
+derived_functions_code_folder ="/home/kyriakos/Documents_ubuntu/cerberus/vis"
 
 if visulaisation_code_folder not in sys.path:
   sys.path.insert(0, visulaisation_code_folder)
 if derived_functions_code_folder not in sys.path:
   sys.path.insert(0, derived_functions_code_folder)
 
-import PHM_MFP_Solver_Post_functions_v2 as phmmfp # running version 2 
+import PHM_MFP_Solver_Post_functions_v6 as phmmfp # running version 2 
 from get_boxlib import ReadBoxLib, get_files, parse_header
 
 def atoi(text):

@@ -213,9 +213,12 @@ time_integration_scheme = 'strang'
 
 force_dt = 0
 
-skin_depth = 1.0
+ref_mass = 1.6726219000e-27
+ref_density = 1.6726219000e+04
+ref_length = 1e-8
+skin_depth =  7.2008467405e+00 
 beta = 1.0
-lightspeed = 50.0
+lightspeed = 2.0000000000e+03
 
 -- debug delete 
 --[[
