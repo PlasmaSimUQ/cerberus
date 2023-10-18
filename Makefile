@@ -169,9 +169,11 @@ endif
 
 #=== PYTHON ===
 
-PYTHON_PLOT ?= FALSE
-PYTHON_INCLUDE ?= /usr/include/python3.8
-PYTHON_LIB ?= /usr/lib/python3.8/config-3.8-x86_64-linux-gnu
+PYTHON_PLOT ?= TRUE
+PYTHON_INCLUDE ?= /usr/include/python3.10 #/usr/include/python3.8
+PYTHON_LIB ?= /usr/lib/python3.10/config-3.10-x86_64-linux-gnu
+
+#/usr/lib/python3.8/config-3.8-x86_64-linux-gnu
 
 ifeq ($(PYTHON_PLOT), TRUE)
   INCLUDE_LOCATIONS += $(PYTHON_INCLUDE)

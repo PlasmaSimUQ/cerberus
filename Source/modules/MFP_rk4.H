@@ -89,6 +89,7 @@ void rk4_adaptive (Real& t, Array<Real,N>& y, Array<Real,M>& data,
     if (rk4_fixed (t, y, data, rhs_eval, check, h)) {
         // step failed, reduce time step and try again
 
+        //Print() << "rk4_fixed failed \n";
         h /= S;
 
         // Abort if step-length falls below h_min

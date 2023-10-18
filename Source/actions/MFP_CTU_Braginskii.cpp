@@ -1685,7 +1685,6 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
         for (int idx=0; idx<n_states; ++idx) {
             EulerianState &istate = *data_states[idx];
 
-            //Print() << "\nname:\t" << istate.name << " num_grow: " << num_grow << "\n" ;  //TODO delete me 
             // get a pointer to the conserved quantities
             conserved[idx] = &(*local_old[idx])[mfi];
 
@@ -1699,11 +1698,8 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
 
             // ===============================================
             // 1.1 Calculate primitive values within each cell
-            //Print() << "Calc prims - access cons \n" ;//TODO delete me 
             FArrayBox& cons = (*local_old[idx])[mfi];
-            //Print() << "Calc prims - access old prim?\n" ;//TODO delete me 
             FArrayBox& prim = primitives[idx];
-            //Print() << "Calc prims\n" ;//TODO delete me 
 
             istate.calc_primitives(pbox,
                                    cons,
@@ -1970,7 +1966,7 @@ void BraginskiiCTU::calc_slopes(const Box& box,
         }
     }
 
-    for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+    for (int d = 0; d < AMREX_SPACEDIM; ++d) { //TODO we don't always need every dimensions gradient 
         EulerianState::calc_slope(box, buffer, slopes, dx, 0, d, d, reco);
     }
 
@@ -2105,7 +2101,7 @@ void BraginskiiCTU::get_alpha_beta_coefficients(const Real& Z_i, Real mass_e, Re
         beta_1 = 0;
         beta_2 = 0;
     }
-    return;
+    //return;
 }
 
 int BraginskiiCTU::rhs(Real t, Array<Real,+VectorIdx::NUM> y, Array<Real,+VectorIdx::NUM> &dydt, Array<Real,+DataIdx::NUM>& data)
@@ -2171,16 +2167,16 @@ int BraginskiiCTU::rhs(Real t, Array<Real,+VectorIdx::NUM> y, Array<Real,+Vector
     const Real p_e = (gam_e - 1.0)*(y[+VectorIdx::ElectronEden] - 0.5*rho_e*(u_e*u_e + v_e*v_e + w_e*w_e));
     const Real T_e = p_e*m_e*inv_rho_e;
 
-    const Real dT_dx = y[+DataIdx::dTdx];
+    const Real dT_dx = data[+DataIdx::dTdx]; 
 
 #if AMREX_SPACEDIM >= 2
-    const Real dT_dy = y[+DataIdx::dTdy];
+    const Real dT_dy = data[+DataIdx::dTdy];
 #else
     const Real dT_dy=0;
 #endif
 
 #if AMREX_SPACEDIM == 3
-    const Real dT_dz = y[+DataIdx::dTdz];
+    const Real dT_dz = data[+DataIdx::dTdz];
 #else
     const Real dT_dz=0;
 #endif
@@ -2281,7 +2277,7 @@ int BraginskiiCTU::rhs(Real t, Array<Real,+VectorIdx::NUM> y, Array<Real,+Vector
     const Real d_mz = R_u[2]+R_T[2];
     const Real d_ed = -Q_delta + Q_fric;
 
-    dydt[+VectorIdx::ElectronXmom] = d_mx;
+    dydt[+VectorIdx::ElectronXmom] = d_mx; 
     dydt[+VectorIdx::ElectronYmom] = d_my;
     dydt[+VectorIdx::ElectronZmom] = d_mz;
     dydt[+VectorIdx::ElectronEden] = d_ed;
@@ -2294,12 +2290,10 @@ int BraginskiiCTU::rhs(Real t, Array<Real,+VectorIdx::NUM> y, Array<Real,+Vector
     int idx=0;
     for (const auto& val : dydt) {
         if (not std::isfinite(val)) {
-            Print() << "\nHow many times is this eval?\n"; 
             return 1;
         }
         idx++;
     }
-
 
     return 0;
 }
@@ -2388,9 +2382,9 @@ void BraginskiiCTU::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, c
         Array4<const Real> const& field4 = field_data.array(mfi);
 
         Array4<const Real> const& ion4 = ion_data.array(mfi);
-        Array4<Real> const& ion_dU4 = update[ion_state->data_idx].dU.array(mfi);
-
         Array4<const Real> const& electron4 = electron_data.array(mfi);
+
+        Array4<Real> const& ion_dU4 = update[ion_state->data_idx].dU.array(mfi);
         Array4<Real> const& electron_dU4 = update[electron_state->data_idx].dU.array(mfi);
 
         // get the electron temperature slopes
@@ -2445,10 +2439,14 @@ void BraginskiiCTU::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, c
                     Real t = time;
                     Real h = dt;
                     int depth = 0;
+
                     rk4_adaptive(t, y, data, BraginskiiCTU::rhs, BraginskiiCTU::check_invalid, h, time_refinement_factor, depth, max_time_refinement);
 
-                    ion_dU4(i,j,k,+HydroDef::ConsIdx::Xmom) = 
-                      y[+VectorIdx::IonXmom] - U_i[+HydroDef::ConsIdx::Xmom];
+
+                    // note that the linear system has solved for the updated cons values we want the delta value
+                    // hence we calculate delta = new - old
+                    //TODO should this not be +=?
+                    ion_dU4(i,j,k,+HydroDef::ConsIdx::Xmom) = y[+VectorIdx::IonXmom] - U_i[+HydroDef::ConsIdx::Xmom];
                     ion_dU4(i,j,k,+HydroDef::ConsIdx::Ymom) = y[+VectorIdx::IonYmom] - U_i[+HydroDef::ConsIdx::Ymom];
                     ion_dU4(i,j,k,+HydroDef::ConsIdx::Zmom) = y[+VectorIdx::IonZmom] - U_i[+HydroDef::ConsIdx::Zmom];
                     ion_dU4(i,j,k,+HydroDef::ConsIdx::Eden) = y[+VectorIdx::IonEden] - U_i[+HydroDef::ConsIdx::Eden];
@@ -2456,6 +2454,13 @@ void BraginskiiCTU::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, c
                     electron_dU4(i,j,k,+HydroDef::ConsIdx::Ymom) = y[+VectorIdx::ElectronYmom] - U_e[+HydroDef::ConsIdx::Ymom];
                     electron_dU4(i,j,k,+HydroDef::ConsIdx::Zmom) = y[+VectorIdx::ElectronZmom] - U_e[+HydroDef::ConsIdx::Zmom];
                     electron_dU4(i,j,k,+HydroDef::ConsIdx::Eden) = y[+VectorIdx::ElectronEden] - U_e[+HydroDef::ConsIdx::Eden];
+  
+                    /*
+                    Print() << "dU:\t" << ion_dU4(i,j,k,+HydroDef::ConsIdx::Xmom) << " " 
+                            << ion_dU4(i,j,k,+HydroDef::ConsIdx::Ymom) << " " 
+                            << ion_dU4(i,j,k,+HydroDef::ConsIdx::Zmom) << " " 
+                            << ion_dU4(i,j,k,+HydroDef::ConsIdx::Eden) << "\n"; 
+                    */
                 }
             }
         }

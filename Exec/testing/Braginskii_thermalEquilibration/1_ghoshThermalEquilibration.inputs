@@ -1,0 +1,245 @@
+#======== AMREX ==========
+amrex.fpe_trap_invalid=1
+amrex.fpe_trap_zero=1
+fpe_trap_overflow=1
+amr.v = 0
+
+# ======== TIME ==========
+max_step  = 1000000
+stop_time = 0.5 # 1.5  0.001550
+
+# ======== DOMAIN ==========
+geometry.is_periodic = 1 1 1
+geometry.coord_sys   = 0  # 0 => cart, 1 => RZ  2=>spherical
+
+# lo. res.
+geometry.prob_lo     =    0.0 0.0 0.0 
+geometry.prob_hi     =    1.0 1.0 1.0 
+amr.n_cell           =    8 8 8 
+
+#128  4   8 
+
+# ======== LOAD BALANCE ==========
+amr.loadbalance_with_workestimates = 1
+amr.loadbalance_level0_int = 10 #1000 in comparison
+
+# ======== GRID ==========
+amr.max_level       = 0   # maximum level number allowed
+amr.ref_ratio       = 4 4 2 2 2 2 2 # refinement ratio
+amr.regrid_int      = 2 2 2 2 2 2 2 # how often to regrid
+amr.blocking_factor = 4
+amr.max_grid_size   = 32
+amr.n_error_buf     = 4 4 4 4 4 4 0 # number of buffer cells in error est
+amr.grid_eff        = 0.75     # what constitutes an efficient grid
+amr.subcycling_mode = Auto # time sub-cycling (Auto, None, Manual, Optimal)
+
+# ======== GEOMETRY ==========
+eb2.geom_type = all_regular
+
+# ======== PARTICLES ==========
+particles.do_particles = 0
+particles.v = 0
+#particles.particle_init_file = particle_file
+#particles.timestamp_dir = TRMI.timestamp
+
+
+# ======== OUTPUT ==========
+
+# CHECKPOINT FILES
+amr.checkpoint_files_output = 1
+amr.check_file              = KyriThermalEquilibration.chk    # root name of checkpoint file
+amr.check_int               = -1    # number of timesteps between checkpoints
+amr.check_per               = 5e-2
+
+# PLOTFILES
+amr.plot_files_output = 1
+amr.plot_file         = KyriThermalEquilibration.plt     # root name of plotfile
+amr.plot_int          = -1      # number of timesteps between plotfiles
+amr.plot_per          = 1e-3
+
+
+# ======== PROBLEM DESCRIPTION ==========
+# Note that the problem description is defined as a lua script
+# Everything within the double quotes "..." must conform to lua standards
+# Note that any strings should therefore be defined by single quotes '...'
+
+mfp.lua = "
+-- === SETTINGS ===
+
+time_integration_scheme = 'strang'
+verbosity = 0
+effective_zero = 1e-14
+cfl = 0.5
+cfl_viscous = 1.
+
+srin_switch = 0;
+source_collision_frequency_constraint = 0;
+braginskii_anisotropic = 0;
+viewFluxSrcContributions = 0;
+
+force_dt = 0.0001
+
+--do_CTU = 1 --  corner transport upwind 
+--do_face_sources = 1
+zero_dimensional = 1
+
+--############### universal constants
+--reference values 
+mu_0_dim = 1.25663706e-6 
+ep_0_dim = 8.85418782e-12
+kB = 1.38064852e-23
+
+c_ref = 299792458.0; --m/s
+q_ref = 1.60217662e-19 -- Coulombs
+m_ref = 1.6726219000e-27 -- kg proton mass
+
+--############### problem reference values from Ghosh A multispecies, multifluid model for laser–induced counterstreaming Plasma Simulations 2019
+
+ref_length = 0.1/100 -- cm to [m]
+n_ref = 1e20*1e6 -- cm3 to [m3]
+ref_mass = m_ref -- -- [kg]
+ref_density = ref_mass*n_ref -- [kg/m^-3]
+T_ref = 11604525.00617 -- K
+
+x_ref = ref_length
+rho_ref = ref_density
+
+lightspeed = 968.634759289--25.0
+skin_depth = 10.
+beta = 1.0
+
+--############### check consistency of props (lost the original calcs)
+u_ref = math.sqrt(kB*T_ref/m_ref);
+print('lightspeed ', lightspeed)
+lightspeed = c_ref/u_ref;
+print('lightspeed ', lightspeed)
+
+B_ref = math.sqrt(2*mu_0_dim*n_ref*m_ref*u_ref*u_ref/beta)
+ref_omega_c = q_ref*B_ref/m_ref; 
+ref_omega_p = math.sqrt(n_ref*q_ref*q_ref/m_ref/ep_0_dim); 
+
+ref_larmor_dim = u_ref/ref_omega_c;
+ref_skin_dim = m_ref/(q_ref*math.sqrt(mu_0_dim*rho_ref)) 
+ref_skin_nd = ref_skin_dim/x_ref;
+ref_skin_dim_ele = (m_ref/100)/(q_ref*math.sqrt(mu_0_dim*(rho_ref/100))) 
+ref_skin_nd_ele = ref_skin_dim_ele/x_ref;
+
+Larmor = ref_larmor_dim/x_ref --======================================important 
+Debye = ref_skin_nd/lightspeed --=======================================important 
+--print('Larmor ', Larmor, 'Debye ', Debye)
+
+skin_depth = skin_depth_nd
+
+print('skin_depth set ', skin_depth, 'skin_depth derived', ref_skin_nd)
+print('Electron skin_depth set ', skin_depth, 'electron skin_depth derived', ref_skin_nd_ele)
+betaBoi = 2*(Larmor/ref_skin_nd)^2 -- magnetic interaction parameter
+print('beta set ', beta, 'beta derived', betaBoi)
+
+-- ======== PROBLEM ==========
+mass_ion1 = 1.0
+mass_ion2 = 1.0
+mass_ele = 0.01
+
+gam = 5/3
+
+-- define the problem with independent variables - problem 2_1
+n_ion1 = 1.0
+T_ion1 = 0.5
+p_ion1 = n_ion1*T_ion1
+rho_ion1 = n_ion1*mass_ion1
+
+n_ele1 = 1.0 
+T_ele1 = 0.25 
+p_ele1 = n_ele1*T_ele1
+rho_ele1=n_ele1*mass_ele
+
+-- === DEFINE STATES ===
+
+--[[
+ion_nu_nod = 10e-3
+ion_nu_dim = ion_nu_nod*(L_box*ref_length)*(c_1*299792458.0/lightspeed)
+print('\n================================Desired non dimensional ion_nu = ')
+print(ion_nu_nod)
+print('\n================================Desired dimensional ion_nu = ')
+print(ion_nu_dim)
+--]]
+
+states = {
+    ion = {
+        type='hydro',
+        gas = {
+          type='thermally_perfect',
+          mass=mass_ion1,
+          charge= 1.0,
+          gamma=5/3,
+        },
+        reconstruction='constant',
+        flux='HLLE',
+        refinement = {name='hydro_gradient', rho=0.1},
+        value = {
+            nd  = n_ion1,
+            p   = p_ion1,
+        },
+    },
+
+    electron = {
+        type='hydro',
+        gas = {
+          type='thermally_perfect',
+          mass=mass_ele,
+          charge=-1.0,
+          gamma=5/3,
+        },
+        reconstruction='constant',
+        flux='HLLE',
+        refinement = {name='hydro_gradient', rho=0.1},
+        value = {
+            nd =  n_ele1,
+            p =   p_ele1,
+        },
+    },
+
+    field = {
+        type='field',
+        reconstruction='O6',
+        flux='RankineHugoniot',
+        project_divergence = 0,
+    }
+}
+
+actions = {
+    braginskii = {
+        -- this handles inviscid and viscous fluxes as well as inter-species collisions
+        type = 'BraginskiiCTU',
+        corner_transport=true,
+        srin_switch = false,
+        anisotropic = false,
+        cfl=1.0,
+        --force_ion_viscosity = 1e-3,
+        --force_electron_viscosity = 1e-5,
+        time_refinement_factor = 10,
+        max_time_refinement_levels = 100,
+        states = {ion='ion', electron='electron', field='field'},
+    },
+
+    --[[
+    collisions={
+        type='collisions_rambo',
+        states = {'ion', 'electron'},
+        cross_sections={
+            A={B=1.0, C=1.0},
+        },
+    },
+    --]]
+
+    --[[
+    divergence_cleaning = {   
+      type='elliptic',
+      projection=1,
+      state = 'field',
+    },
+    --]]
+}
+
+"
+
