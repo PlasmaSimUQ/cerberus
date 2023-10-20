@@ -131,6 +131,21 @@ public:
             Real& beta3,
             int& truncatedTau);
 
+  virtual void get_transport_constants(
+            const Real& Z_i, 
+            Real& delta_0, 
+            Real& delta_1, 
+            Real& BT_gamma_0, 
+            Real& BT_gamma_0_p, 
+            Real& BT_gamma_1_p, 
+            Real& BT_gamma_1_pp, 
+            Real& BT_gamma_0_pp,    
+            Real& b_0, 
+            Real& b_0_pp, 
+            Real& b_0_p, 
+            Real& b_1_p, 
+            Real& b_1_pp);
+
     Real get_max_speed_electrons(const Vector<Real>& U_e,
                                  const Vector<Real>& U_i,
                                  const Vector<Real>& U_f);
@@ -247,6 +262,8 @@ public:
 
     static constexpr Real effective_zero = 1e-14;
     static bool srin_switch;
+    static bool do_inter_species;
+    static bool do_intra_species;
     static bool braginskii_anisotropic;
     Real cfl = 1.0;
 

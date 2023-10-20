@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+#(cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE)
+
+d=$(date +%b%d-%H%M)
+#mkdir "oldFiles_$d.txt"
+#mv {*chk*,*plt*,run_log*} "oldFiles_$d.txt"
+
+EXE=../../local/MFP.1d.gnu.MPI.ex
+
+INPUTS=inputsHartmannFlow.inputs
+
+ 
+#dirName="Case_1_vp_1en3_n0_1_Bx0_1_T0_0p5_FIXED_ETA_$d"
+#mkdir $dirName
+#cd $dirName
+
+#cp ../${INPUTS} ./
+#cp ../run ./
+mpirun -n 1 ${EXE} ${INPUTS} 2>&1 | tee "run_log$d.txt"
+#mv {*chk*,*plt*,run_log*} $dirName
+#cp *inputs $dirName
+#cd ../
+ 
+#rm -r *plt* *chk*
+#mpirun -n 1 ${EXE} ${INPUTS} 2>&1 | tee "run_log$d.txt"
+

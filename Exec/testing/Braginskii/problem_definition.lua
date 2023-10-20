@@ -238,7 +238,6 @@ end
 
 
 states = {
-
     ion = {
         type='hydro',
         gas={
@@ -311,11 +310,19 @@ actions = {
         srin_switch = false,
         anisotropic = true,
         cfl=1.0,
-        force_ion_viscosity = 1e-3,
-        force_electron_viscosity = 1e-5,
+        --force_ion_viscosity = 1e-3,
+        --force_electron_viscosity = 1e-5,
+        do_inter_species = false, 
+        do_intra_species = true, 
         time_refinement_factor = 10,
         max_time_refinement_levels = 100,
         states = {ion='ion', electron='electron', field='field'},
+    },
+
+    em_fluxes = {
+        type = 'CTU',
+        corner_transport=true,
+        states = {'field'},
     },
 
     plasma={

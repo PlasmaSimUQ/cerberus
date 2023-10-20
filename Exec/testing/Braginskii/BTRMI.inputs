@@ -5,7 +5,7 @@ fpe_trap_overflow=0
 amr.v = 0
 
 # ======== TIME ==========
-max_step  = 1
+max_step  = 2
 stop_time = 0.07 #0.3
 
 # ======== DOMAIN ==========

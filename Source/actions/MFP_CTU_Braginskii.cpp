@@ -15,6 +15,8 @@ bool BraginskiiCTU::registered = GetActionFactory().Register(BraginskiiCTU::tag,
 
 bool BraginskiiCTU::braginskii_anisotropic = true;
 bool BraginskiiCTU::srin_switch = false;
+bool BraginskiiCTU::do_inter_species = true;
+bool BraginskiiCTU::do_intra_species = true;
 
 BraginskiiCTU::BraginskiiCTU(){}
 BraginskiiCTU::~BraginskiiCTU(){}
@@ -57,7 +59,9 @@ BraginskiiCTU::BraginskiiCTU(const int idx, const sol::table &def)
     time_refinement_factor = def.get_or("time_refinement_factor",10);
     max_time_refinement = def.get_or("max_time_refinement_levels",10);
 
-    //Print() << "Return \n";
+    do_inter_species = def.get_or("do_inter_species",true);
+    do_intra_species = def.get_or("do_intra_species",true);
+
     return;
 }
 
@@ -111,7 +115,6 @@ void BraginskiiCTU::get_ion_coeffs(const Vector<Real>& Q_i,
                                    int& truncatedTau)
 {
     BL_PROFILE("BraginskiiCTU::get_ion_coeffs");
-    /*
     truncatedTau = 0;
     Real mass_i,mass_e,charge_i,charge_e,T_e,nd_i,nd_e;
     HydroState &istate = *ion_state;
@@ -207,7 +210,6 @@ void BraginskiiCTU::get_ion_coeffs(const Vector<Real>& Q_i,
     if (kappa1 < kappa3) {
         kappa3 = kappa1;
     }
-    */
     return;
 }
 
@@ -355,7 +357,6 @@ void BraginskiiCTU::get_electron_coeffs(
 {
     BL_PROFILE("BraginskiiEle::get_electron_coeffs");
 
-    /*
     HydroState &estate = *electron_state;
     HydroState &istate = *ion_state;
 
@@ -376,6 +377,7 @@ void BraginskiiCTU::get_electron_coeffs(
     //Magnetic field
     Real Bx=B_xyz[0], By=B_xyz[1], Bz=B_xyz[2];
 
+    const Real Z_i = -charge_i/charge_e ; // atomic number for braginskii constants (electron charge is negative)
     // See page 215 (document numbering) of Braginskii's original transport paper
     Real t_collision_ele, p_lambda, omega_ce, omega_p;
     p_lambda = get_coulomb_logarithm(T_i,T_e,nd_e);
@@ -399,8 +401,13 @@ void BraginskiiCTU::get_electron_coeffs(
 
     Real delta_kappa, delta_eta, delta_eta2, x_coef;// coefficients used exclusively in the braginskii
     x_coef = omega_ce*t_collision_ele;
-    // TODO fix up these table 2 page 251 BT
-    Real delta_0=3.7703, delta_1=14.79;
+
+    Real delta_0, delta_1, BT_gamma_0, BT_gamma_0_p, BT_gamma_1_p, BT_gamma_1_pp, 
+      BT_gamma_0_pp, b_0, b_0_pp, b_0_p, b_1_p, b_1_pp;
+
+    get_transport_constants(Z_i, delta_0, delta_1, BT_gamma_0, BT_gamma_0_p, // coefficients for this 
+      BT_gamma_1_p, BT_gamma_1_pp, BT_gamma_0_pp, b_0, b_0_pp, b_0_p, b_1_p, b_1_pp);//case of Z_i
+
     delta_kappa= x_coef*x_coef*x_coef*x_coef+delta_1*x_coef*x_coef + delta_0;
     delta_eta  = x_coef*x_coef*x_coef*x_coef+13.8*x_coef*x_coef + 11.6;
     delta_eta2 = 16*x_coef*x_coef*x_coef*x_coef+4*13.8*x_coef*x_coef + 11.6;
@@ -424,15 +431,6 @@ void BraginskiiCTU::get_electron_coeffs(
         eta4 = 0;
         eta3 = 0; }
 
-
-
-    //From Braginskii OG paper page 250 of paper in journal heading 4
-    // Kinetics of a simple plasma (Quantitative Analyis)
-    //TODO change coefficient values for different Z values
-    // Currently set for a hydrogen  plasma
-    Real BT_gamma_0=11.92/3.7703,BT_gamma_0_p=11.92,BT_gamma_1_p=4.664,BT_gamma_1_pp=5./2.;
-    Real BT_gamma_0_pp=21.67;
-
     kappa1=nd_e*T_e*t_collision_ele/mass_e*BT_gamma_0;
     if (braginskii_anisotropic) {
         kappa2=(BT_gamma_1_p*x_coef*x_coef+BT_gamma_0_p)/delta_kappa*nd_e*T_e*t_collision_ele/mass_e;
@@ -455,16 +453,103 @@ void BraginskiiCTU::get_electron_coeffs(
     }
 
     //--- beta terms for the thermal component of thermal heat flux of the electrons.
-
-    Real b_0 = 0.711, b_0_pp = 3.053, b_0_p=2.681, b_1_p=5.101, b_1_pp=3./2.;
     beta1 = nd_e*b_0*T_e;
     if (braginskii_anisotropic) {
         beta2 = nd_e*(b_1_p*x_coef*x_coef+b_0_p)/delta_kappa*T_e;
         beta3 = nd_e*x_coef*(b_1_pp*x_coef*x_coef+b_0_pp)/delta_kappa*T_e;
     } else {beta2 = 0; beta3 = 0;}
-    */
-    return;
+
 }
+
+void BraginskiiCTU::get_transport_constants(const Real& Z_i, Real& delta_0, 
+        Real& delta_1, 
+        Real& BT_gamma_0, Real& BT_gamma_0_p, Real& BT_gamma_1_p, Real& BT_gamma_1_pp, 
+        Real& BT_gamma_0_pp, Real& b_0, Real& b_0_pp, Real& b_0_p, Real& b_1_p, 
+        Real& b_1_pp) {
+    // check Z_i and round 
+    if (Z_i < 0) Abort("\nNegative Z number - get_transport_constants_electron\n");
+    Real Z_i_rounded = Z_i;
+    Z_i_rounded = std::roundf(Z_i_rounded);
+    // assign based on charge 
+    if (Z_i_rounded == 1) {
+      b_0 = 0.7110;
+      BT_gamma_0 = 3.1616;
+      delta_0 = 3.7703;
+      delta_1 = 14.79;
+      b_1_p = 5.101;
+      b_0_p = 2.681;
+      b_1_pp = 3./2.;
+      b_0_pp = 3.053;
+      BT_gamma_1_p = 4.664;
+      BT_gamma_0_p = 11.92;
+      BT_gamma_1_pp = 5./2.;
+      BT_gamma_0_pp = 21.67;
+    } else if (Z_i_rounded == 2) {
+      b_0 = 0.9052;
+      BT_gamma_0 = 4.890;
+      delta_0 = 1.0465;
+      delta_1 = 10.80;
+      b_1_p = 4.450;
+      b_0_p = 0.9473;
+      b_1_pp = 3./2.;
+      b_0_pp = 1.784;
+      BT_gamma_1_p = 3.957;
+      BT_gamma_0_p = 5.118;
+      BT_gamma_1_pp = 5./2.;
+      BT_gamma_0_pp = 15.37;
+    } else if (Z_i_rounded == 3) {
+      b_0 = 1.016;
+      BT_gamma_0 = 6.064;
+      delta_0 = 0.5814;
+      delta_1 = 9.618;
+      b_1_p = 4.233;
+      b_0_p = 0.5905;
+      b_1_pp = 3./2.;
+      b_0_pp = 1.442;
+      BT_gamma_1_p = 3.721;
+      BT_gamma_0_p = 3.525;
+      BT_gamma_1_pp = 5./2.;
+      BT_gamma_0_pp = 13.53;
+    } else if (Z_i_rounded == 4) {
+      b_0 = 1.090;
+      BT_gamma_0 = 6.920;
+      delta_0 = 0.4106;
+      delta_1 = 9.055;
+      b_1_p = 4.124;
+      b_0_p = 0.4478;
+      b_1_pp = 3./2.;
+      b_0_pp = 1.285;
+      BT_gamma_1_p = 3.604;
+      BT_gamma_0_p = 2.841;
+      BT_gamma_1_pp = 5./2.;
+      BT_gamma_0_pp = 12.65;
+    } else { 
+      b_0 = 1.521;
+      BT_gamma_0 = 12.471;
+      delta_0 = 0.0961;
+      delta_1 = 7.482;
+      b_1_p = 3.798;
+      b_0_p = 0.1461;
+      b_1_pp = 3./2.;
+      b_0_pp = 0.877;
+      BT_gamma_1_p = 3.25;
+      BT_gamma_0_p = 1.20;
+      BT_gamma_1_pp = 5./2.;
+      BT_gamma_0_pp = 10.23;
+    }
+    /*
+    if ( (Z_i > 2 ) and (Z_i < 3)) {
+      Print() << "\nZ_i\t" << Z_i << "\t" << Z_i_rounded;
+
+      Print() << "\n" << b_0 << "\t" << BT_gamma_0 << "\t" << delta_0 << "\t" 
+        << delta_1 << "\t" << b_1_p << "\t" << b_0_p << "\t" << b_1_pp << "\t" 
+        << b_0_pp << "\t" <<  BT_gamma_1_p << "\t" << BT_gamma_0_p << "\t" 
+        << BT_gamma_1_pp << "\t" << BT_gamma_0_pp ;
+    }
+    */
+    return ;
+    }
+
 
 Real BraginskiiCTU::get_max_speed_electrons(const Vector<Real>& U_e,
                                             const Vector<Real>& U_i,
@@ -473,7 +558,6 @@ Real BraginskiiCTU::get_max_speed_electrons(const Vector<Real>& U_e,
 {
     BL_PROFILE("BraginskiiEle::get_max_speed");
 
-    /*
     HydroState &estate = *electron_state;
     HydroState &istate = *ion_state;
 
@@ -499,6 +583,8 @@ Real BraginskiiCTU::get_max_speed_electrons(const Vector<Real>& U_e,
     T_i     = istate.gas->get_temperature_from_cons(U_i); //
     const Real rho_i = U_i[+HydroDef::ConsIdx::Density];
     nd_i    = rho_i/mass_i;
+
+    const Real Z_i = -charge_i/charge_e ; // Get charge for braginskii table of constants (electron charge is negative)
 
     //Magnetic field
     Real Bx = U_f[+FieldDef::ConsIdx::Bx];
@@ -528,8 +614,12 @@ Real BraginskiiCTU::get_max_speed_electrons(const Vector<Real>& U_e,
     Real delta_kappa, delta_eta, delta_eta2,x_coef;// coefficients used exclusively in the braginskii
     x_coef = omega_ce*t_collision_ele;
 
-    // TODO fix up these table 2 page 251 BT
-    Real delta_0=3.7703, delta_1=14.79;
+    Real delta_0, delta_1, BT_gamma_0, BT_gamma_0_p, BT_gamma_1_p, BT_gamma_1_pp, 
+      BT_gamma_0_pp, b_0, b_0_pp, b_0_p, b_1_p, b_1_pp;
+
+    get_transport_constants(Z_i, delta_0, delta_1, BT_gamma_0, BT_gamma_0_p, // coefficients for this 
+      BT_gamma_1_p, BT_gamma_1_pp, BT_gamma_0_pp, b_0, b_0_pp, b_0_p, b_1_p, b_1_pp);//case of Z_i
+
     delta_kappa= x_coef*x_coef*x_coef*x_coef+delta_1*x_coef*x_coef + delta_0;
     delta_eta  = x_coef*x_coef*x_coef*x_coef+13.8*x_coef*x_coef + 11.6;
     delta_eta2 = 16*x_coef*x_coef*x_coef*x_coef+4*13.8*x_coef*x_coef + 11.6;
@@ -553,13 +643,6 @@ Real BraginskiiCTU::get_max_speed_electrons(const Vector<Real>& U_e,
         electron_coeffs.eta4 = 0;
         electron_coeffs.eta3 = 0; }
 
-    //From Braginskii OG paper page 250 of paper in journal heading 4
-    // Kinetics of a simple plasma (Quantitative Analyis)
-    //TODO change coefficient values for different Z values
-    // Currently set for a hydrogen  plasma
-    Real BT_gamma_0=11.92/3.7703,BT_gamma_0_p=11.92,BT_gamma_1_p=4.664,BT_gamma_1_pp=5./2.;
-    Real BT_gamma_0_pp=21.67;
-
     electron_coeffs.kappa1=nd_e*T_e*t_collision_ele/mass_e*BT_gamma_0;
     if (braginskii_anisotropic) {
         electron_coeffs.kappa2=(BT_gamma_1_p*x_coef*x_coef+BT_gamma_0_p)/delta_kappa*nd_e*T_e*t_collision_ele/mass_e;
@@ -579,12 +662,9 @@ Real BraginskiiCTU::get_max_speed_electrons(const Vector<Real>& U_e,
         electron_coeffs.kappa3 = electron_coeffs.kappa1;
     }
 
-    // add in the kappa and beta, i have tio figure out how to take these into account,
-    // the viscous characteristic speed is not properly taken account of.
     Real cp_ele = estate.gas->get_cp_from_cons(U_e);
     Real nu_thermal = electron_coeffs.kappa1/rho_e/cp_ele/cfl; //thermal diffusivity
     Real nu_visc = (electron_coeffs.eta0/rho_e)/cfl;
-
 
     Real nu;
     if (nu_thermal> nu_visc) {
@@ -593,9 +673,7 @@ Real BraginskiiCTU::get_max_speed_electrons(const Vector<Real>& U_e,
         nu = nu_visc ;
     }
 
-    //return 2*nu;
-    */
-    return 1.0;
+    return 2*nu;
 }
 
 // ====================================================================================
@@ -607,7 +685,6 @@ void BraginskiiCTU::calc_ion_diffusion_terms(const Box& box,
                                              ) 
 {
     BL_PROFILE("BraginskiiCTU::calc_ion_diffusion_terms");
-    /*
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
@@ -655,7 +732,6 @@ void BraginskiiCTU::calc_ion_diffusion_terms(const Box& box,
             }
         }
     }
-    */
     return;
 }
 
@@ -668,7 +744,6 @@ void BraginskiiCTU::calc_ion_viscous_fluxes(const Box& box,
                                             const Real* dx) 
 {
     BL_PROFILE("BraginskiiCTU::calc_ion_viscous_fluxes");
-    /*
     //data strucutre for the diffusion coefficients.
     FArrayBox diff_ion(pbox, +IonDiffusionCoeffs::NUM_ION_DIFF_COEFFS);
 
@@ -683,7 +758,6 @@ void BraginskiiCTU::calc_ion_viscous_fluxes(const Box& box,
     calc_charged_viscous_fluxes(FluxSpecies::IonFlux, box, fluxes,
                                 prim_i4, prim_i4, prim_e4, prim_f4,
                                 dx, diff_ion);
-    */
     return;
 }
 
@@ -696,7 +770,6 @@ void BraginskiiCTU::calc_electron_diffusion_terms(const Box& box,
                                                   FArrayBox& diff
                                                   ) 
 {
-    /*
     BL_PROFILE("HydroState::calc_electron_diffusion_terms");
 
     const Dim3 lo = amrex::lbound(box);
@@ -720,6 +793,7 @@ void BraginskiiCTU::calc_electron_diffusion_terms(const Box& box,
                 for (int n=0; n<np_e; ++n) {
                     Q_e[n] = prim_e4(i,j,k,n);
                 }
+                
                 for (int n=0; n<np_i; ++n) {
                     Q_i[n] = prim_i4(i,j,k,n);
                 }
@@ -747,7 +821,6 @@ void BraginskiiCTU::calc_electron_diffusion_terms(const Box& box,
             }
         }
     }
-    */
     return;
 }
 
@@ -760,7 +833,6 @@ void BraginskiiCTU::calc_electron_viscous_fluxes(const Box& box,
                                                  const Real* dx) 
 {
     BL_PROFILE("HydroState::calc_electron_viscous_fluxes");
-    /*
     FArrayBox diff_ele(pbox, +ElectronDiffusionCoeffs::NUM_ELE_DIFF_COEFFS);
 
 
@@ -772,7 +844,6 @@ void BraginskiiCTU::calc_electron_viscous_fluxes(const Box& box,
                                   diff_ele
                                   );
     //handle all the generic flux calculations
-
     calc_charged_viscous_fluxes(FluxSpecies::ElectronFlux,
                                 box, fluxes,
                                 prim_e4,
@@ -780,7 +851,6 @@ void BraginskiiCTU::calc_electron_viscous_fluxes(const Box& box,
                                 prim_e4,
                                 prim_f4,
                                 dx, diff_ele);
-    */
     return;
 }
 
@@ -796,7 +866,6 @@ void BraginskiiCTU::calc_charged_viscous_fluxes(FluxSpecies flux_type,
                                                 const Real* dx, FArrayBox& diff)
 {
     BL_PROFILE("HydroState::calc_charged_viscous_fluxes");
-    /*
     //create a box for the viscous sress tensor where we only store the 6 unique
     // elements in order of 0:tauxx, 1:tauyy, 2:tauzz, 3:tauxy, 4:tauxz, 5:tauyz
     Array<Real,6> ViscTens;
@@ -856,9 +925,6 @@ void BraginskiiCTU::calc_charged_viscous_fluxes(FluxSpecies flux_type,
         iTemp = +ElectronDiffusionCoeffs::EleTemp;
         state = electron_state;
     }
-
-
-
 
     constexpr int Xvel = +HydroDef::PrimIdx::Xvel;
     constexpr int Yvel = +HydroDef::PrimIdx::Yvel;
@@ -937,12 +1003,7 @@ void BraginskiiCTU::calc_charged_viscous_fluxes(FluxSpecies flux_type,
 #endif
                 divu = dudx + dvdy + dwdz;
 
-                ///TODO hacks because of transform which needs to be turned into algebra...
-
                 //--- retrive the viscous stress tensor and heat flux vector on this face
-
-                //TODO Print() << "Check changes to BRaginskiiViscousTensor... and calculation of xB, .. on interfaces are correct.";
-                //Print() << "braginskii_anisotropic\t" << braginskii_anisotropic << "\n";
                 if (braginskii_anisotropic) {
                     BraginskiiViscousTensorHeatFlux(flux_type,
                                                     xB, yB, zB, u_rel, dTdx, dTdy, dTdz,
@@ -955,11 +1016,9 @@ void BraginskiiCTU::calc_charged_viscous_fluxes(FluxSpecies flux_type,
                                                              faceCoefficients, ViscTens, q_flux);
                 }
 
-
                 fluxX(i,j,k,Xmom) += ViscTens[0];
                 fluxX(i,j,k,Ymom) += ViscTens[3];
                 fluxX(i,j,k,Zmom) += ViscTens[5];
-                //assume typo in livescue formulation
                 fluxX(i,j,k,Eden) += 0.5*((p4(i,j,k,Xvel) + p4(i-1,j,k,Xvel))*ViscTens[0]+
                         (p4(i,j,k,Yvel) + p4(i-1,j,k,Yvel))*ViscTens[3]+
                         (p4(i,j,k,Zvel) + p4(i-1,j,k,Zvel))*ViscTens[5])
@@ -972,8 +1031,6 @@ void BraginskiiCTU::calc_charged_viscous_fluxes(FluxSpecies flux_type,
             }
         }
     }
-
-
 
 #if AMREX_SPACEDIM >= 2
 
@@ -1013,6 +1070,7 @@ void BraginskiiCTU::calc_charged_viscous_fluxes(FluxSpecies flux_type,
                 dvdy = (p4(i,j,k,Yvel)-p4(i,j-1,k,Yvel))*dxinv[1];
                 dwdy = (p4(i,j,k,Zvel)-p4(i,j-1,k,Zvel))*dxinv[1];
 
+                dTdx = (d4(i+1,j,k,iTemp)+d4(i+1,j-1,k,iTemp)-d4(i-1,j,k,iTemp)-d4(i-1,j-1,k,iTemp))*(0.25*dxinv[0]);
                 dudx = (p4(i+1,j,k,Xvel)+p4(i+1,j-1,k,Xvel)-p4(i-1,j,k,Xvel)-p4(i-1,j-1,k,Xvel))*(0.25*dxinv[0]);
                 dvdx = (p4(i+1,j,k,Yvel)+p4(i+1,j-1,k,Yvel)-p4(i-1,j,k,Yvel)-p4(i-1,j-1,k,Yvel))*(0.25*dxinv[0]);
                 //--- retrive the viscous stress tensor and heat flux vector on this face
@@ -1020,6 +1078,7 @@ void BraginskiiCTU::calc_charged_viscous_fluxes(FluxSpecies flux_type,
                 dwdx = (p4(i+1,j,k,Zvel)+p4(i+1,j-1,k,Zvel)-p4(i-1,j,k,Zvel)-p4(i-1,j-1,k,Zvel))*(0.25*dxinv[0]);
 
 #if AMREX_SPACEDIM == 3
+                dTdz = (d4(i,j,k+1,iTemp)+d4(i,j-1,k+1,iTemp)-d4(i,j,k-1,iTemp)-d4(i,j-1,k-1,iTemp))*(0.25*dxinv[2]);
                 dvdz = (p4(i,j,k+1,Yvel)+p4(i,j-1,k+1,Yvel)-p4(i,j,k-1,Yvel)-p4(i,j-1,k-1,Yvel))*(0.25*dxinv[2]);
                 dwdz = (p4(i,j,k+1,Zvel)+p4(i,j-1,k+1,Zvel)-p4(i,j,k-1,Zvel)-p4(i,j-1,k-1,Zvel))*(0.25*dxinv[2]);
 
@@ -1030,14 +1089,17 @@ void BraginskiiCTU::calc_charged_viscous_fluxes(FluxSpecies flux_type,
 #endif
                 divu = dudx + dvdy + dwdz;
 
-
-                BraginskiiViscousTensorHeatFlux(flux_type,
-                                                xB, yB, zB, u_rel, dTdx, dTdy, dTdz,
-                                                dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz,
-                                                faceCoefficients, ViscTens, q_flux);
-
-
-
+                if (braginskii_anisotropic) {
+                    BraginskiiViscousTensorHeatFlux(flux_type,
+                                                    xB, yB, zB, u_rel, dTdx, dTdy, dTdz,
+                                                    dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz,
+                                                    faceCoefficients, ViscTens, q_flux);
+                } else {
+                    IsotropicBraginskiiViscousTensorHeatFlux(flux_type,
+                                                             u_rel, dTdx, dTdy, dTdz,
+                                                             dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz,
+                                                             faceCoefficients, ViscTens, q_flux);
+                }
 
                 fluxY(i,j,k,Xmom) += ViscTens[3];//tauxy;
                 fluxY(i,j,k,Ymom) += ViscTens[1];//tauyy;
@@ -1090,6 +1152,7 @@ void BraginskiiCTU::calc_charged_viscous_fluxes(FluxSpecies flux_type,
                 dvdz = (p4(i,j,k,Yvel)-p4(i,j,k-1,Yvel))*dxinv[2];
                 dwdz = (p4(i,j,k,Zvel)-p4(i,j,k-1,Zvel))*dxinv[2];
 
+                dTdx = (d4(i+1,j,k,iTemp)+d4(i+1,j,k-1,iTemp)-d4(i-1,j,k,iTemp)-d4(i-1,j,k-1,iTemp))*(0.25*dxinv[0]);
                 dudx = (p4(i+1,j,k,Xvel)+p4(i+1,j,k-1,Xvel)-p4(i-1,j,k,Xvel)-p4(i-1,j,k-1,Xvel))*(0.25*dxinv[0]);
                 dwdx = (p4(i+1,j,k,Zvel)+p4(i+1,j,k-1,Zvel)-p4(i-1,j,k,Zvel)-p4(i-1,j,k-1,Zvel))*(0.25*dxinv[0]);
                 dvdy = (p4(i,j+1,k,Yvel)+p4(i,j+1,k-1,Yvel)-p4(i,j-1,k,Yvel)-p4(i,j-1,k-1,Yvel))*(0.25*dxinv[1]);
@@ -1100,10 +1163,19 @@ void BraginskiiCTU::calc_charged_viscous_fluxes(FluxSpecies flux_type,
                 dvdx = (p4(i+1,j,k,Yvel)+p4(i+1,j,k-1,Yvel)-p4(i-1,j,k,Yvel)-p4(i-1,j,k-1,Yvel))*(0.25*dxinv[0]);
                 dudy = (p4(i,j+1,k,Xvel)+p4(i,j+1,k-1,Xvel)-p4(i,j-1,k,Xvel)-p4(i,j-1,k-1,Xvel))*(0.25*dxinv[1]);
 
+                dTdy = (d4(i,j+1,k,iTemp)+d4(i,j+1,k-1,iTemp)-d4(i,j-1,k,iTemp)-d4(i,j-1,k-1,iTemp))*(0.25*dxinv[1]);
                 //--- retrive the viscous stress tensor and heat flux vector on this face
-                BraginskiiViscousTensorHeatFlux(flux_type,xB, yB, zB, u_rel, dTdx, dTdy, dTdz,
-                                                dudx, dudy, dudz, dvdx, dvdy, dvdz,
-                                                dwdx, dwdy, dwdz, faceCoefficients, ViscTens, q_flux);
+                if (braginskii_anisotropic) {
+                    BraginskiiViscousTensorHeatFlux(flux_type,
+                                                    xB, yB, zB, u_rel, dTdx, dTdy, dTdz,
+                                                    dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz,
+                                                    faceCoefficients, ViscTens, q_flux);
+                } else {
+                    IsotropicBraginskiiViscousTensorHeatFlux(flux_type,
+                                                             u_rel, dTdx, dTdy, dTdz,
+                                                             dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz,
+                                                             faceCoefficients, ViscTens, q_flux);
+                }
 
                 fluxZ(i,j,k,Xmom) += ViscTens[5];//tauxz;
                 fluxZ(i,j,k,Ymom) += ViscTens[4];//tauyz;
@@ -1123,7 +1195,6 @@ void BraginskiiCTU::calc_charged_viscous_fluxes(FluxSpecies flux_type,
     }
 
 #endif
-    */
     return;
 }
 
@@ -1141,7 +1212,6 @@ void BraginskiiCTU::BraginskiiViscousTensorHeatFlux(FluxSpecies flux_type,
                                                     Array<Real, 6> &ViscTens,
                                                     Array<Real, 3> &q_flux) 
 {
-    /*
     BL_PROFILE("HydroState::BraginskiiViscousTensorHeatFlux");
     //Print() << "braginskii anisotropic function\n";
     //Note all the properties used in here need to be for the interface, not just the cell i!!!
@@ -1465,7 +1535,6 @@ void BraginskiiCTU::BraginskiiViscousTensorHeatFlux(FluxSpecies flux_type,
     ViscTens[3] = ViscStress[0][1];
     ViscTens[4] = ViscStress[1][2];
     ViscTens[5] = ViscStress[0][2];
-    */
     return ;
 }
 
@@ -1483,7 +1552,6 @@ void BraginskiiCTU::IsotropicBraginskiiViscousTensorHeatFlux(FluxSpecies flux_ty
                                                              Array<Real, 6> &ViscTens,
                                                              Array<Real, 3> &q_flux) 
 {
-    /*
     BL_PROFILE("BraginskiiCTU::IsotropicBraginskiiViscousTensorHeatFlux");
     //Note all the properties used in here need to be for the interface, not just the cell i!!!
 
@@ -1588,7 +1656,6 @@ void BraginskiiCTU::IsotropicBraginskiiViscousTensorHeatFlux(FluxSpecies flux_ty
     ViscTens[4] = ViscStress[1][2];
     ViscTens[5] = ViscStress[0][2];
 
-    */
     return ;
 }
 
@@ -1599,6 +1666,10 @@ void BraginskiiCTU::IsotropicBraginskiiViscousTensorHeatFlux(FluxSpecies flux_ty
 void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update, const Real time, const Real dt, const Real flux_register_scale)
 {
     BL_PROFILE("BraginskiiCTU::calc_spatial_derivative");
+
+    if (do_intra_species == false) {  
+      return ;
+    }
 
     const Geometry& geom = mfp->Geom();
     const int level = mfp->get_level();
@@ -1856,35 +1927,32 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& update
         }
 #endif
 
-        // now calculate any viscous fluxes
-
         //=========================
-        //TODO I think this entry was more of a place holder or where Daryl started and 
-        //stopped the viscous step 
-
+        // now calculate any viscous fluxes
+ 
         //Print() << "\nname:\t" << istate.name << " num_grow: " << num_grow << "istate.numrow: " 
         //<< istate.num_grow_<< "\n" ; 
-        //const Box pbox = grow(box, istate.num_grow); //TODO is the idea here to grow the overall structure 
+        const Box pbox = grow(box, 1); //TODO is the idea here to grow the overall structure - grow the structure to facilitate derivatives - what order are we taking?
         //according to the largest num_grow??? which would correspond to the field state num_grwo 
 
         //        plot_FAB_2d(primitives[+BraginskiiStateIdx::Ion], 0, "ions[0]", false, false);
         //        plot_FAB_2d(primitives[+BraginskiiStateIdx::Electron], 0, "electrons[0]", false, true);
 
-        //        calc_ion_viscous_fluxes(box,
-        //                                fluxes[+BraginskiiStateIdx::Ion],
-        //                pbox,
-        //                primitives[+BraginskiiStateIdx::Ion].const_array(),
-        //                primitives[+BraginskiiStateIdx::Electron].const_array(),
-        //                primitives[+BraginskiiStateIdx::Field].const_array(),
-        //                dx);
+                calc_ion_viscous_fluxes(box,
+                                        fluxes[+BraginskiiStateIdx::Ion],
+                        pbox,
+                        primitives[+BraginskiiStateIdx::Ion].const_array(),
+                        primitives[+BraginskiiStateIdx::Electron].const_array(),
+                        primitives[+BraginskiiStateIdx::Field].const_array(),
+                        dx);
 
-        //        calc_electron_viscous_fluxes(box,
-        //                                     fluxes[+BraginskiiStateIdx::Electron],
-        //                pbox,
-        //                primitives[+BraginskiiStateIdx::Ion].const_array(),
-        //                primitives[+BraginskiiStateIdx::Electron].const_array(),
-        //                primitives[+BraginskiiStateIdx::Field].const_array(),
-        //                dx);
+                calc_electron_viscous_fluxes(box,
+                                             fluxes[+BraginskiiStateIdx::Electron],
+                        pbox,
+                        primitives[+BraginskiiStateIdx::Ion].const_array(),
+                        primitives[+BraginskiiStateIdx::Electron].const_array(),
+                        primitives[+BraginskiiStateIdx::Field].const_array(),
+                        dx);
 
         //=========================
 
@@ -2350,6 +2418,10 @@ void BraginskiiCTU::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, c
 {
     BL_PROFILE("BraginskiiCTU::calc_time_derivative::rhs");
 
+    if (do_inter_species == false) {
+      return ;
+    }
+
     const int nc_i = ion_state->n_cons();
     const int nc_e = electron_state->n_cons();
 
@@ -2454,7 +2526,7 @@ void BraginskiiCTU::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, c
                     electron_dU4(i,j,k,+HydroDef::ConsIdx::Ymom) = y[+VectorIdx::ElectronYmom] - U_e[+HydroDef::ConsIdx::Ymom];
                     electron_dU4(i,j,k,+HydroDef::ConsIdx::Zmom) = y[+VectorIdx::ElectronZmom] - U_e[+HydroDef::ConsIdx::Zmom];
                     electron_dU4(i,j,k,+HydroDef::ConsIdx::Eden) = y[+VectorIdx::ElectronEden] - U_e[+HydroDef::ConsIdx::Eden];
-  
+                    
                     /*
                     Print() << "dU:\t" << ion_dU4(i,j,k,+HydroDef::ConsIdx::Xmom) << " " 
                             << ion_dU4(i,j,k,+HydroDef::ConsIdx::Ymom) << " " 

@@ -169,7 +169,7 @@ endif
 
 #=== PYTHON ===
 
-PYTHON_PLOT ?= TRUE
+PYTHON_PLOT ?= FALSE
 PYTHON_INCLUDE ?= /usr/include/python3.10 #/usr/include/python3.8
 PYTHON_LIB ?= /usr/lib/python3.10/config-3.10-x86_64-linux-gnu
 
