@@ -210,11 +210,10 @@ public:
                      Reconstruction& reco,
                      const Real *dx) const;
 
-    static void get_alpha_beta_coefficients(const Real& Z_i, Real mass_e, Real T_e, Real charge_e,
-                                     Real charge_i, Real nd_e, Real nd_i, Real& alpha_0, Real& alpha_1,
-                                     Real& alpha_2,
-                                     Real& beta_0, Real& beta_1, Real& beta_2, Real& t_c_e, Real p_lambda,
-                                     Real Bx, Real By, Real Bz);
+    static void get_alpha_beta_coefficients(const Real& Z_i, Real Debye, Real Larmor, Real mass_e, Real T_e, 
+                                            Real charge_e, Real charge_i, Real nd_e, Real nd_i, Real& alpha_0, 
+                                            Real& alpha_1, Real& alpha_2, Real& beta_0, Real& beta_1, 
+                                            Real& beta_2, Real& t_c_e, Real p_lambda, Real Bx, Real By, Real Bz);
 
 
     enum class DataIdx {
@@ -230,6 +229,8 @@ public:
         By,
         Bz,
         AMREX_D_DECL(dTdx,dTdy,dTdz),
+        Debye, 
+        Larmor, 
         NUM
     };
 
@@ -284,6 +285,8 @@ public:
     ElectronCoeffs electron_coeffs;
 
     bool do_CTU;
+
+    Real DebyeRef, LarmorRef; 
 
     int time_refinement_factor;
     int max_time_refinement;

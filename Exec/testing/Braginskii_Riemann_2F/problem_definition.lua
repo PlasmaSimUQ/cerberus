@@ -1,5 +1,5 @@
 verbosity = 1
-cfl = 0.5
+cfl = 0.25
 
 -- === DEFINE PROBLEM ===
 mu_0_dim = 1.25663706e-6 
@@ -201,6 +201,8 @@ actions = {
         -- this handles inviscid and viscous fluxes as well as inter-species collisions
         type = 'BraginskiiCTU',
         corner_transport=true,
+        DebyeReference=10., 
+        LarmorReference=10., 
         srin_switch = false,
         anisotropic = false,
         cfl=1.0,

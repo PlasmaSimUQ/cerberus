@@ -32,6 +32,11 @@ BraginskiiCTU::BraginskiiCTU(const int idx, const sol::table &def)
 
     do_CTU = def.get_or("corner_transport", true);
 
+    DebyeRef = def.get_or("DebyeReference", MFP::Debye);
+    LarmorRef = def.get_or("LarmorReference", MFP::Larmor);
+    //Real Debye = def.get_or("DebyeReference", MFP::Debye);
+    //Real Larmor = def.get_or("LarmorReference", MFP::Larmor);
+  
     const sol::table state_names = def["states"];
 
     ion_state = &HydroState::get_state(state_names["ion"]);
@@ -140,17 +145,17 @@ void BraginskiiCTU::get_ion_coeffs(const Vector<Real>& Q_i,
     // absence of the boltzmann constant due to usage of nondimensional variables.
     // Note that here charge_i = e^4*Z^4
 
-    Real Debye = MFP::Debye, Larmor = MFP::Larmor;
+    //Real DebyeRef = MFP::DebyeRef, LarmorRef = MFP::LarmorRef;
 
     Real n0_ref=MFP::n0;
 
 
-    t_collision_ion = std::pow(Debye,4)*n0_ref
+    t_collision_ion = std::pow(DebyeRef,4)*n0_ref
             *(12*std::sqrt(mass_i)*std::pow(3.14159*T_i, 3./2.)) /
             (p_lambda * std::pow(charge_i,4) * nd_i);
 
-    omega_ci = charge_i * std::sqrt( Bx*Bx + By*By + Bz*Bz ) / mass_i / Larmor;
-    omega_p  = std::sqrt(nd_i*charge_i*charge_i/mass_i/Debye/Debye) ;
+    omega_ci = charge_i * std::sqrt( Bx*Bx + By*By + Bz*Bz ) / mass_i / LarmorRef;
+    omega_p  = std::sqrt(nd_i*charge_i*charge_i/mass_i/DebyeRef/DebyeRef) ;
 
     if (1/t_collision_ion < effective_zero) {
 
@@ -220,7 +225,6 @@ Real BraginskiiCTU::get_max_speed_ions(const Vector<amrex::Real>& U_i,
 {
     BL_PROFILE("BraginskiiIon::get_max_speed");
 
-    /*
     HydroState &estate = *electron_state;
     HydroState &istate = *ion_state;
 
@@ -254,14 +258,15 @@ Real BraginskiiCTU::get_max_speed_ions(const Vector<amrex::Real>& U_i,
     // absence of the boltzmann constant due to usage of nondimensional variables.
     // Note that here charge_i = e^4*Z^4
 
-    Real Debye = MFP::Debye, Larmor = MFP::Larmor, n0_ref=MFP::n0;
+    //Real DebyeRef = MFP::DebyeRef, LarmorRef = MFP::LarmorRef, 
+    Real n0_ref=MFP::n0;
 
-    t_collision_ion = std::pow(Debye,4)*n0_ref
+    t_collision_ion = std::pow(DebyeRef,4)*n0_ref
             *(12*std::sqrt(mass_i)*std::pow(3.14159*T_i, 3./2.)) /
             (p_lambda * std::pow(charge_i,4) * nd_i);
 
-    omega_ci = charge_i * std::sqrt( Bx*Bx + By*By + Bz*Bz ) / mass_i / Larmor;
-    omega_p  = std::sqrt(nd_i*charge_i*charge_i/mass_i/Debye/Debye) ;
+    omega_ci = charge_i * std::sqrt( Bx*Bx + By*By + Bz*Bz ) / mass_i / LarmorRef;
+    omega_p  = std::sqrt(nd_i*charge_i*charge_i/mass_i/DebyeRef/DebyeRef) ;
 
     if (1/t_collision_ion < effective_zero) t_collision_ion = 1/effective_zero;
 
@@ -332,7 +337,6 @@ Real BraginskiiCTU::get_max_speed_ions(const Vector<amrex::Real>& U_i,
     } else if (nu_thermal <= nu_visc) {
         nu = nu_visc ;
     }
-    */
     return 1.0;
 }
 
@@ -382,14 +386,15 @@ void BraginskiiCTU::get_electron_coeffs(
     Real t_collision_ele, p_lambda, omega_ce, omega_p;
     p_lambda = get_coulomb_logarithm(T_i,T_e,nd_e);
 
-    Real Debye = MFP::Debye, Larmor = MFP::Larmor, n0_ref=MFP::n0;
+    //Real DebyeRef = MFP::DebyeRef, LarmorRef = MFP::LarmorRef, 
+    Real n0_ref=MFP::n0;
 
-    t_collision_ele = std::pow(Debye,4)*n0_ref
+    t_collision_ele = std::pow(DebyeRef,4)*n0_ref
             *(6*std::sqrt(2*mass_e)*std::pow(3.14159*T_e, 3./2.)) /
             (p_lambda*std::pow((charge_i/-charge_e), 2)*nd_i);
 
-    omega_ce = -charge_e * std::sqrt( Bx*Bx + By*By + Bz*Bz ) / mass_e/ Larmor;
-    omega_p  = std::sqrt(nd_e*charge_e*charge_e/mass_e/Debye/Debye) ;
+    omega_ce = -charge_e * std::sqrt( Bx*Bx + By*By + Bz*Bz ) / mass_e/ LarmorRef;
+    omega_p  = std::sqrt(nd_e*charge_e*charge_e/mass_e/DebyeRef/DebyeRef) ;
 
     if (1/t_collision_ele < effective_zero) {
         t_collision_ele = 1/effective_zero;
@@ -595,15 +600,16 @@ Real BraginskiiCTU::get_max_speed_electrons(const Vector<Real>& U_e,
     p_lambda = get_coulomb_logarithm(T_i,T_e,nd_e);
 
     //collision time nondimensional
-    Real Debye = MFP::Debye, Larmor = MFP::Larmor, n0_ref=MFP::n0;
+    //Real DebyeRef = MFP::DebyeRef, LarmorRef = MFP::LarmorRef, 
+    Real n0_ref=MFP::n0;
 
-    t_collision_ele = std::pow(Debye,4)*n0_ref
+    t_collision_ele = std::pow(DebyeRef,4)*n0_ref
             *(6*std::sqrt(2*mass_e)*std::pow(3.14159*T_e, 3./2.)) /
             (p_lambda*std::pow((charge_i/-charge_e), 2)*nd_i);
     // the issue with the 'c' value in the
 
-    omega_ce = -charge_e * std::sqrt( Bx*Bx + By*By + Bz*Bz ) / mass_e/Larmor;
-    omega_p  = std::sqrt(nd_e*charge_e*charge_e/mass_e/Debye/Debye) ;
+    omega_ce = -charge_e * std::sqrt( Bx*Bx + By*By + Bz*Bz ) / mass_e/LarmorRef;
+    omega_p  = std::sqrt(nd_e*charge_e*charge_e/mass_e/DebyeRef/DebyeRef) ;
 
     if (1/t_collision_ele < effective_zero) t_collision_ele = 1/effective_zero;
 
@@ -805,7 +811,7 @@ void BraginskiiCTU::calc_electron_diffusion_terms(const Box& box,
 
                 get_electron_coeffs(Q_i,Q_e,B_xyz,T_e,eta_0,eta_1,eta_2,eta_3,
                                     eta_4, kappa_1,kappa_2, kappa_3, beta1, beta2, beta3, truncatedTau);
-
+                //Print() << "\nCoeff inspection:\t" << " " << eta_0 << " " << eta_1 << " " << eta_2 << " " << eta_3 << " " << eta_4 << " " << kappa_1 << " " << kappa_2 << " " << kappa_3 << " " << beta1 << " " << beta2 << " " << beta3;
                 d4(i,j,k,+ElectronDiffusionCoeffs::EleTemp) = T_e;
                 d4(i,j,k,+ElectronDiffusionCoeffs::EleKappa1) = kappa_1;
                 d4(i,j,k,+ElectronDiffusionCoeffs::EleKappa2) = kappa_2;
@@ -2041,12 +2047,13 @@ void BraginskiiCTU::calc_slopes(const Box& box,
     return;
 }
 
-void BraginskiiCTU::get_alpha_beta_coefficients(const Real& Z_i, Real mass_e, Real T_e, Real charge_e, 
+void BraginskiiCTU::get_alpha_beta_coefficients(const Real& Z_i, Real Debye, Real Larmor, Real mass_e, Real T_e, Real charge_e, 
       Real charge_i, Real nd_e, Real nd_i, Real& alpha_0, Real& alpha_1, Real& alpha_2, 
       Real& beta_0, Real& beta_1, Real& beta_2, Real& t_c_e, Real p_lambda, Real Bx, Real By, Real Bz)
 {
     //collision time nondimensional
-    Real Debye = MFP::Debye, Larmor = MFP::Larmor, n0_ref=MFP::n0;
+    //Real Debye = BraginskiiCTU::Debye, Larmor = BraginskiiCTU::Larmor;  //static member func with static memb
+    Real n0_ref=MFP::n0;
 
     Real pi_num = 3.14159265358979323846;
 
@@ -2176,8 +2183,9 @@ int BraginskiiCTU::rhs(Real t, Array<Real,+VectorIdx::NUM> y, Array<Real,+Vector
 {
     BL_PROFILE("BraginskiiSource::rhs");
 
-
-    Real Debye = MFP::Debye, Larmor = MFP::Larmor;
+    Real Debye = data[+DataIdx::Debye];
+    Real Larmor = data[+DataIdx::Larmor];
+    //Real Debye = MFP::Debye, Larmor = MFP::Larmor;
 
     //TODO find away around the variable declaration in the case of isotropic - may just need to bite the bullet and hav a spearate function
     Array<Real,3> B_unit; //Magnetic field unit vector
@@ -2312,7 +2320,7 @@ int BraginskiiCTU::rhs(Real t, Array<Real,+VectorIdx::NUM> y, Array<Real,+Vector
     Real alpha_0, alpha_1, alpha_2, beta_0, beta_1, beta_2, t_c_a; //TODO t_c_e change to t_c_e with others 
     Real p_lambda = get_coulomb_logarithm(T_i,T_e,n_e);
 
-    get_alpha_beta_coefficients(Z_i, m_e, T_e, q_e, q_i, n_e, n_i, alpha_0, alpha_1, alpha_2,
+    get_alpha_beta_coefficients(Z_i, Debye, Larmor, m_e, T_e, q_e, q_i, n_e, n_i, alpha_0, alpha_1, alpha_2,
                                 beta_0, beta_1, beta_2, t_c_a, p_lambda, xB, yB, zB);
 
     Array<Real,3> R_u, R_T;
@@ -2442,6 +2450,8 @@ void BraginskiiCTU::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, c
     Array<Real,+VectorIdx::NUM> y;
     Array<Real,+DataIdx::NUM> data;
 
+    data[+DataIdx::Debye] = BraginskiiCTU::DebyeRef;
+    data[+DataIdx::Larmor] = BraginskiiCTU::LarmorRef;
 
     for (MFIter mfi(cost); mfi.isValid(); ++mfi) {
 
@@ -2465,8 +2475,6 @@ void BraginskiiCTU::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, c
         calc_slopes(box, electron_data[mfi], slopes, *(electron_state->reconstructor.get()), dx);
 
         Array4<const Real> const& slopes4 = slopes.array();
-
-
 
         for     (int k = lo.z; k <= hi.z; ++k) {
             for   (int j = lo.y; j <= hi.y; ++j) {

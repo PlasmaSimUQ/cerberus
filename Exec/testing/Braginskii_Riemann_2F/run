@@ -8,7 +8,7 @@ INPUTS=*.inputs
 
 rm -r *plt* *chk*
 
-mpirun -n 4 -oversubscribe ${EXE} ${INPUTS} 2>&1 | tee run_log.txt
+mpirun -n 1 -oversubscribe ${EXE} ${INPUTS} 2>&1 | tee run_log.txt
 
 #python3 check.py
 python3 cerberus_1D_results_x-v-comparison.py

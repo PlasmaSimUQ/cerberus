@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-#(cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE)
+(cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE)
 
 d=$(date +%b%d-%H%M)
 #mkdir "oldFiles_$d.txt"
