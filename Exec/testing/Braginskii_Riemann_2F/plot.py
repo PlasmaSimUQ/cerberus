@@ -1,5 +1,6 @@
+
 import sys, pdb
-cmd_folder = "/home/kyriakos/Documents_ubuntu/000_refactor_cerberus/cerberus/vis"
+cmd_folder = "../../../vis"
 if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
     
@@ -15,11 +16,13 @@ import pdb;
 #==============================================================================
 # 
 #==============================================================================
-#plt.rc("font", family="serif")
-#plt.rc("font", size=8)
-#plt.rc("mathtext", fontset="cm")
-#params= {'text.latex.preamble' : [r'\usepackage{amsmath}']}
-#plt.rcParams.update(params)
+
+plt.rc("font", family="serif")
+plt.rc("font", size=8)
+plt.rc("mathtext", fontset="cm")
+params= {'text.latex.preamble' : [r'\usepackage{amsmath}']}
+plt.rcParams.update(params)
+
 
 #==============================================================================
 # 

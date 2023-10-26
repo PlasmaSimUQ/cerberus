@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
-(cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE)
+(cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE TINY_PROFILE=FALSE)
 
 EXE=../../local/MFP.1d.gnu.MPI.ex
+
                    
 INPUTS=*.inputs
 

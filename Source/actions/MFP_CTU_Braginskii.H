@@ -179,6 +179,13 @@ public:
                                      Array4<const Real> const& prim_f4,
                                      const Real* dx, FArrayBox& diff);
 
+    void hall_correction_viscosity(Real& eta0,
+                                   Real& eta1,
+                                   Real& eta2,
+                                   Real& eta3,
+                                   Real& eta4,
+                                   const Real& x_coef); 
+
     void BraginskiiViscousTensorHeatFlux(FluxSpecies flux_type,
                                          Real xB, Real yB, Real zB,
                                          Vector<Real> u_rel,
@@ -285,8 +292,10 @@ public:
     ElectronCoeffs electron_coeffs;
 
     bool do_CTU;
+    bool hall_correction ; 
 
     Real DebyeRef, LarmorRef; 
+
 
     int time_refinement_factor;
     int max_time_refinement;

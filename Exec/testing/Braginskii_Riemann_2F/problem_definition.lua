@@ -1,4 +1,4 @@
-verbosity = 1
+verbosity = 0
 cfl = 0.25
 
 -- === DEFINE PROBLEM ===
@@ -201,8 +201,9 @@ actions = {
         -- this handles inviscid and viscous fluxes as well as inter-species collisions
         type = 'BraginskiiCTU',
         corner_transport=true,
-        DebyeReference=10., 
-        LarmorReference=10., 
+        hall_correction=true, 
+        DebyeReference=Debye, 
+        LarmorReference=Larmor, 
         srin_switch = false,
         anisotropic = false,
         cfl=1.0,
