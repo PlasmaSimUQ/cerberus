@@ -1,5 +1,8 @@
 verbosity = 0
 cfl = 0.25
+cfl_viscous = 1.0
+
+time_integration_scheme = 'strang'
 
 -- === DEFINE PROBLEM ===
 mu_0_dim = 1.25663706e-6 
@@ -47,50 +50,6 @@ betaBoi = 2*(Larmor/ref_skin_nd)^2 -- magnetic interaction parameter
 print('\nbeta_0', betaBoi)
 
 
---[[
-lightspeed = 2000 -- 50 --100.0
-Larmor = 5.09 -- 1/30 --1/300
-Debye = 3.6e-3 --0.1 --Larmor/lightspeed --Larmor/100
-skinyBoi = Debye*lightspeed --skin depth
-betaBoi = 2*(Larmor/skinyBoi)^2 -- magnetic interaction parameter
-
-
-mass_ratio = 100 --1836.0
-mu_0_dim = 1.25663706e-6 ; -- m kg s-2 A-2
-
-ep0_dim = 8.85418782e-12
-kb = 1.38064852e-23
-
-n_ref = 1e31-- 1e20 * 1e-6 ; --cm3 to m3 --1e7;
-u_ref = 299792458.0/lightspeed;
-ref_mass = 1.6726219000e-27-- 1.6726219000e-27
-B_ref = math.sqrt(2*mu_0_dim*n_ref*ref_mass*u_ref*u_ref/betaBoi)
-q_ref = 1.60217662e-19 -- Coulombs
-
-ref_length =  1e-8 -- 1e11 -- m
-ref_mass = B_ref^2*betaBoi/(2*mu_0_dim*n_ref*u_ref^2) -- kg
-ref_density = ref_mass*n_ref -- kg/m^3
-i_skin = ref_mass/(q_ref*math.sqrt(mu_0_dim*ref_density))
-
-time_ref = ref_length/u_ref
-
-p_ref = ref_density*u_ref^2
-T_ref = p_ref/n_ref
-
-print('Ion skin depth:\t', i_skin)
-
-print('Non-dimensional ion skin depth:\t', i_skin/ref_length)
-
-print('Dimensional Collision time scales, t_e, t_i')
-t_e = 6*math.sqrt(2)*(math.pi)^(3./2.)*ep0_dim*ep0_dim*math.sqrt(ref_mass/mass_ratio)*(kb*T_ref)^(3./2.)/(10*(q_ref)^(4)*n_ref)
-t_i = 12*(math.pi)^(3./2.)*ep0_dim*ep0_dim*math.sqrt(ref_mass)*(kb*T_ref)^(3./2.)/(10*(q_ref)^(4)*n_ref)
-print(t_e)
-print(t_i)
-
-print('Non-dimensional collision time scales, t_e, t_i')
-print(t_e/time_ref, t_i/time_ref)
-
---]]
 print('Knudsen number in this regiem')
 Kn_dim = t_i*ref_velocity/ref_length
 print(Kn_dim)
@@ -201,14 +160,14 @@ actions = {
         -- this handles inviscid and viscous fluxes as well as inter-species collisions
         type = 'BraginskiiCTU',
         corner_transport=true,
-        hall_correction=true, 
+        hall_correction=false, 
         DebyeReference=Debye, 
         LarmorReference=Larmor, 
         srin_switch = false,
         anisotropic = false,
-        cfl=1.0,
-        --force_ion_viscosity = 1e-3,
-        --force_electron_viscosity = 1e-5,
+        cfl=cfl_viscous,
+        force_ion_viscosity = 0.0,
+        force_electron_viscosity = 0.0,
         do_inter_species=false, 
         do_intra_species=true, 
         time_refinement_factor = 10,

@@ -5,7 +5,7 @@ import matplotlib.ticker as mtick
 from matplotlib import animation
 from matplotlib.animation import FuncAnimation
 
-cmd_folder = "/home/kyriakos/Documents/Code/000_cerberus_dev/githubRelease-cerberus/cerberus/vis"
+cmd_folder = "../../../vis" #/home/kyriakos/Documents/Code/000_cerberus_dev/githubRelease-cerberus/cerberus/vis"
 
 analyticalHartmann_folder = "/media/H_drive/000_PhD/002_Hartmann_flow/"
 
@@ -279,10 +279,12 @@ def plotElectromagneticAnimated(dataFrame):
 
 
 if __name__ == "__main__":
-  prefix = '20220629_Cerberus_comparisons_'
+  prefix = '20231030_Cerberus_comparisons_'
   globalYlim = False
   plotStill = True
-  intervalVal = 10
+  intervalVal = 1
+  frameInterval = 100 #  miliseconds 
+  repeatAnimation = True
   print(f"Retrieving data...")
   global dataToPlot, fig_ani, nFiles;
   dataToPlot, nFiles, x_ref, rho_ref, m_ref, T_ref, skin_nd, beta = getPlotData(intervalVal)
@@ -296,7 +298,7 @@ if __name__ == "__main__":
     maxuzi.append((np.gradient(dataToPlot[timeIndex]['uz_i'], dataToPlot[timeIndex]['x'])).max())
   print(max(maxuye), "\n", max(maxuyi), "\n", max(maxuze), "\n", max(maxuzi))
 
-  if False: # static figures 
+  if True: # static figures 
     maxF = max(dataToPlot.keys())
     plotFiles = [0,1,maxF]
     #for i in range(nFiles):
@@ -305,8 +307,9 @@ if __name__ == "__main__":
       plotData(dataToPlot, i)
 
   global fig_ani1, fig_ani2, fig_ani2, ax_field, ax1, ax2;
-
-  if True: # Many em properties
+  
+  print("False here ln 311")
+  if False: # Many em properties
     interval = intervalVal
     fieldTitles = [r"$B_x$", r"$B_y$", r"$B_z$", r"$J_x$", r"$J_y$", r"$J_z$", 
                    r"$\partial B_x/\partial x$", r"$\partial B_y/\partial x$", 
@@ -343,9 +346,9 @@ if __name__ == "__main__":
       plt.show()
 
     ani1 = FuncAnimation(fig=fig_ani1, func=plotAnimatedData, 
-            frames=range(max(dataToPlot.keys())), interval=5, repeat=False)
+            frames=range(max(dataToPlot.keys())), interval=frameInterval, repeat=repeatAnimation)
     #plotAnimatedData(max(dataToPlot.keys()))
-    plt.show()
+    #plt.show()
 
   if True: #Miller graph comparison 
     #===== Get analytical solution
@@ -387,11 +390,12 @@ if __name__ == "__main__":
       fig_ani2.savefig(prefix+'_MillerGraphComparison.png')
 
     ani2 = FuncAnimation(fig=fig_ani2, func=plotMillerComparisonAnimated, 
-            frames=range(max(dataToPlot.keys())), interval=5,repeat=False)
+            frames=range(max(dataToPlot.keys())), interval=frameInterval,repeat=repeatAnimation)
     #plotMillerComparisonAnimated(0)
     plt.show()
  
-  if True: 
+  print("False here ln 397")
+  if False: 
     interval = intervalVal
     fig_ani3 = plt.figure(3, figsize=(30, 30)); 
     padBoi = 40
@@ -418,7 +422,7 @@ if __name__ == "__main__":
       fig_ani3.savefig(prefix+'_EM_props.png')
 
     ani3 = FuncAnimation(fig=fig_ani3, func=plotElectromagneticAnimated, 
-            frames=range(max(dataToPlot.keys())), interval=5,repeat=False)
+            frames=range(max(dataToPlot.keys())), interval=frameInterval,repeat=repeatAnimation)
     #plotElectromagneticAnimated(0)
     plt.show()
 

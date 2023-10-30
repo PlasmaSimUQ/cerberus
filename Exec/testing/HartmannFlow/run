@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-(cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE)
+(cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE TINY_PROFILE=FALSE  )
 
 d=$(date +%b%d-%H%M)
 #mkdir "oldFiles_$d.txt"
@@ -15,13 +15,15 @@ INPUTS=inputsHartmannFlow.inputs
 #mkdir $dirName
 #cd $dirName
 
+#rm -r *plt* *chk*
+
 #cp ../${INPUTS} ./
 #cp ../run ./
-mpirun -n 1 ${EXE} ${INPUTS} 2>&1 | tee "run_log$d.txt"
-#mv {*chk*,*plt*,run_log*} $dirName
+mpirun -n 4 ${EXE} ${INPUTS} 2>&1 | tee "run_log$d.txt" # use 4 for speed
+# mv {*chk*,*plt*,run_log*} $dirName
 #cp *inputs $dirName
 #cd ../
  
-#rm -r *plt* *chk*
 #mpirun -n 1 ${EXE} ${INPUTS} 2>&1 | tee "run_log$d.txt"
 
+python3 plot.py

@@ -167,7 +167,10 @@ void FieldState::set_udf()
     if ((!value.valid() || value.empty()) && ParallelDescriptor::IOProcessor())
         Warning("WARNING: State '"+name+"' does not have 'value' defined for initial conditions, using defaults");
 
-
+    //------Dynamic functions for enforcing conserved values during simulation run 
+    // get a list of any initialisation functions that need to be called during the run
+    sol::table dynamic = state_def["dynamic"].get_or(sol::table());
+    //------
 
     const Vector<std::pair<int,Real>> init_with_value = {
         {+FieldDef::ConsIdx::phi, 0.0},
@@ -203,6 +206,15 @@ void FieldState::set_udf()
 
         functions[i] = v;
 
+        //------Dynamic functions for enforcing conservative values during simulation run 
+        if (dynamic.valid()) {
+            for (const auto &d : dynamic) {
+                if (d.second.as<std::string>().compare(comp) == 0) {
+                    dynamic_functions[i] = &functions[i];
+                }
+            }
+        }
+        //------
     }
 
     return;

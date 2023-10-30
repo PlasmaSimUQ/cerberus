@@ -5,9 +5,9 @@ import matplotlib.ticker as mtick
 from matplotlib import animation
 from matplotlib.animation import FuncAnimation
 
-cmd_folder = "/home/kyriakos/Documents/Code/000_cerberus_dev/githubRelease-cerberus/cerberus/vis"
+cmd_folder = "../../../vis"
 
-analyticalHartmann_folder = "/media/H_drive/000_PhD/002_Hartmann_flow/"
+analyticalHartmann_folder = "./analyticalSolutionPython"
 
 if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
@@ -46,7 +46,8 @@ def getPlotData(fileInterval):
   for f in files:
     print(f"Extracting:\t{f}")
     rh5 = ReadBoxLib(f, max_level=-1)
-    t = rh5.time; 
+    t = rh5.time;   
+    print(t)
     if timeFilter and t < 10.: 
       print(f"Exclude time time: {t}\t at step:\t {nPlot(f)}")
       continue
@@ -67,9 +68,13 @@ def getPlotData(fileInterval):
     x, plotData[timeIndex]['Dx'] = rh5.get("x_D-field")
     x, plotData[timeIndex]['Dy'] = rh5.get("y_D-field")
     x, plotData[timeIndex]['Dz'] = rh5.get("z_D-field")
-    x, plotData[timeIndex]['dBxdx'] = rh5.get("x_B-field-dx")
-    x, plotData[timeIndex]['dBydx'] = rh5.get("y_B-field-dx")
-    x, plotData[timeIndex]['dBzdx'] = rh5.get("z_B-field-dx")
+    try:
+      x, plotData[timeIndex]['dBxdx'] = rh5.get("x_B-field-dx")
+      x, plotData[timeIndex]['dBydx'] = rh5.get("y_B-field-dx")
+      x, plotData[timeIndex]['dBzdx'] = rh5.get("z_B-field-dx")
+    except:
+      gradients 
+
     x, plotData[timeIndex]['P_i'] = rh5.get("p-ions")
     x, plotData[timeIndex]['P_e'] = rh5.get("p-electrons")
 
@@ -307,10 +312,10 @@ def plotElectromagneticAnimated(dataFrame):
 
 
 if __name__ == "__main__":
-  prefix = '20221224_PaperTwo_HartmannFlowTest_case_2_vp_1en3_n0_1_Bx0_1_T0_1' # happy birthday mah boi!!!
+  prefix = '2023_refactor_testing_HartmannFlowTest_case_2_vp_1en3_n0_1_Bx0_1_T0_1' # happy birthday mah boi!!!
   globalYlim = False
   plotStill = True
-  intervalVal = 10
+  intervalVal = 1 #10
   print(f"Retrieving data...")
   global dataToPlot, fig_ani, nFiles;
   dataToPlot, nFiles, x_ref, rho_ref, m_ref, T_ref, skin_nd, beta = getPlotData(intervalVal)

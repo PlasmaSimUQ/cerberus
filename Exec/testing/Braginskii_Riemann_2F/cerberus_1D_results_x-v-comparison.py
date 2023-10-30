@@ -1,13 +1,17 @@
 
 import sys
-cmd_folder = "/home/kyriakos/Documents_ubuntu/000_refactor_cerberus/cerberus/vis"
+cmd_folder = "/home/kyriakos/Documents/Code/000_cerberus_dev/refactor-githubRelease-cerberus/cerberus/vis" #"/home/kyriakos/Documents_ubuntu/000_refactor_cerberus/cerberus/vis"
 if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
     
-from get_boxlib import ReadBoxLib, get_files
+#from get_boxlib import ReadBoxLib, get_files
+from get_boxlib import ReadBoxLib as ReadBoxLib_refactor
+from get_boxlib import get_files as get_files_refactor
 
+from get_boxlib_original import ReadBoxLib as ReadBoxLib_original
+from get_boxlib_original import get_files as get_files_original
 
-derived_functions_code_folder = "/home/kyriakos/Documents_ubuntu/000_refactor_cerberus/cerberus/vis"
+derived_functions_code_folder = "/home/kyriakos/Documents/Code/000_cerberus_dev/refactor-githubRelease-cerberus/cerberus/vis" #"/home/kyriakos/Documents_ubuntu/000_refactor_cerberus/cerberus/vis"
 
 if derived_functions_code_folder not in sys.path:
   sys.path.insert(0, derived_functions_code_folder)
@@ -20,6 +24,16 @@ import pdb
 # 
 # =============================================================================
 
+def ReadBoxLib(fileRead, max_level=False, version=False):
+  if version == 'refactor': return ReadBoxLib_refactor(fileRead, max_level=max_level)
+  elif version == 'original': return ReadBoxLib_original(fileRead, max_level=max_level)
+  else: xxx
+
+def get_files(direc, include=[], exclude=[], get_all=False, version=False):
+  if version == 'refactor': return get_files_refactor(direc, include=include, exclude=exclude, get_all=get_all)
+  elif version == 'original': return get_files_original(direc, include=include, exclude=exclude, get_all=get_all)
+  else: xxx
+
 def exactTimeFrameCerberus(inputs):
   t_interest = inputs['t_interest']
   fileNames = inputs['fileNames']
@@ -27,7 +41,7 @@ def exactTimeFrameCerberus(inputs):
   max_level=-1
   t_n = 0; tol = 0.
   for i in range(len(fileNames)):
-    rc = ReadBoxLib(fileNames[i], max_level)
+    rc = ReadBoxLib(fileNames[i], max_level, version)
     if i == 0:
       tol = abs(t_interest - rc.time)
     else:
@@ -39,7 +53,6 @@ def exactTimeFrameCerberus(inputs):
         #break
     rc.close()  
     #if t_n > len(fileNames):
-    #pdb.set_trace()
   return t_n, fileNames[t_n]
 
 # =============================================================================
@@ -49,20 +62,24 @@ def exactTimeFrameCerberus(inputs):
 properties = ["rho-", "p-", "T-","x_vel-"]
 
 directories = [
-"/home/kyriakos/Documents_ubuntu/000_refactor_cerberus/cerberus/Exec/testing/Braginskii_Riemann_2F", 
+('refactor', "/home/kyriakos/Documents/Code/000_cerberus_dev/refactor-githubRelease-cerberus/cerberus/Exec/testing/Braginskii_Riemann_2F/IDEAL_CTU_STRANG_R2F_PROJECTION-CLEANING"),
+#"/home/kyriakos/Documents_ubuntu/000_refactor_cerberus/cerberus/Exec/testing/Braginskii_Riemann_2F", 
+('original', "/home/kyriakos/Documents/Code/000_cerberus_dev/githubRelease-cerberus/cerberus/Exec/testing/Braginskii/Riemann-2F-Braginskii"), 
     ]
 
-namesList = [ ["ion", "electron"], ["ion", "electron"]]
+namesList = [ ["ion", "electron"], ["ions", "electrons"]]
 
-labelList = ["Brag-", "Ideal-"]
+labelList = ["Refactor-", "Original-"]
 data = {}
-time_interest = 0.45
+time_interest = 0.2
 
 for i in range(len(directories)):
   # get a list of all the files in this directory
-  direc = directories[i]
-  files = get_files(direc, include=["plt"], exclude=["chk"], get_all=False)
+  version = directories[i][0]
+  direc = directories[i][1]
+  files = get_files(direc, include=["plt"], exclude=["chk"], get_all=False, version=version)
 
+  print("Data:\n\t", direc, "\n\t", version)
   inputs = {}; inputs['t_interest'] = time_interest;
   inputs['fileNames'] = files
   print("Finding time step...")
@@ -85,12 +102,13 @@ for i in range(len(directories)):
   print("\t", n_names, " names\t", n_times, " n_times")
 
   fileRead = files[stepCerberus]
-  ds = ReadBoxLib(fileRead, max_level = -1)
+  ds = ReadBoxLib(fileRead, max_level=-1, version=version)
   
   data[label+"t"] = ds.time
   print("\ttime = ", ds.time)
   for name in names:
       for prop in properties:
+          print(prop, name )
           x, v = ds.get(prop + name)
           data[label+"x"] = x[0]
           data[label+name][prop] = v
@@ -119,7 +137,7 @@ for i in range(len(properties)):
   ax[i].legend()
 
 fig.tight_layout()
-fig.savefig("Riemann-2F-FullBraginskii-Ideal-Comparison-t=%f.png"%time_interest, dpi=300)
+fig.savefig("ideal-Riemann-2F-Comparison-t=%f.png"%time_interest, dpi=300)
 plt.close(fig)
     
     

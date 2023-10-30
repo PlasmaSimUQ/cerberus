@@ -16,7 +16,6 @@ bool rk4_fixed (Real& t, Array<Real,N>& y, Array<Real,M>& data,
                bool (*check)(Array<Real,N>&, Array<Real,M>&),
                Real h)
 {
-
     // Declare local arrays
     Array<Real,N> k1, k2, k3, k4, f, dydt;
 
@@ -74,7 +73,6 @@ void rk4_adaptive (Real& t, Array<Real,N>& y, Array<Real,M>& data,
                    Real& h, Real S, int& depth,
                    int max_depth)
 {
-
     // Declare local arrays
     Array<Real,N> y0;
 

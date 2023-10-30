@@ -339,7 +339,7 @@ void EulerianState::calc_primitives(const Box& box,
                                  #endif
                                  ) const
 {
-    BL_PROFILE("MHDState::calc_primitives");
+    BL_PROFILE("EulerianState::calc_primitives");
 
     Vector<Real> U(n_cons());
     Vector<Real> Q(n_prim());
@@ -416,10 +416,8 @@ void EulerianState::calc_primitives(const Box& box,
                 } else {
 #endif
                     // grab the conserved variables
-                    //Print() << "\ncons indx 0...:\t" ; //TODO delete me 
                     for (int n=0; n<n_cons(); ++n) {
                         U[n] = s4(i,j,k,n);
-                        //Print() << U[n] << " " ; //TODO delete me 
                     }
 #ifdef AMREX_USE_EB
                 }
@@ -428,6 +426,31 @@ void EulerianState::calc_primitives(const Box& box,
 
                 // convert to primitive
                 cons2prim(U, Q);
+
+                //---------------------Dynamic update of cons from initiation function/values
+                // modify the primitives vector if needed and upload back to
+                // the conserved vector
+                if (!dynamic_functions.empty()) {
+                    for (const auto &f : dynamic_functions) {
+                        Q[f.first] = (*f.second)(x, y, z, t);
+                        //Print() << "\ndynamic " << f.first << " " 
+                        //        << (*f.second)(x, y, z, t) << "\n"  ; //TODO delete me 
+                    }
+
+                    // copy into primitive
+                    for (int n=0; n<n_prim(); ++n) {
+                        p4(i,j,k,n) = Q[n];
+                    } //TODO isn't this superfluous - delete if so 
+
+                    // convert primitive to conserved
+                    prim2cons(Q, U);
+
+                    // copy back into conserved array
+                    for (int n=0; n<n_cons(); ++n) {
+                        s4(i,j,k,n) = U[n];
+                    }
+                }
+                //---------------------------------------------------------------------------
 
                 // copy into primitive
                 for (int n=0; n<n_prim(); ++n) {
