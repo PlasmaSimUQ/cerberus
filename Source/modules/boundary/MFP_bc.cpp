@@ -104,8 +104,8 @@ void set_x_D_bc(BCRec& bc, const BCRec& phys_bc) {
   bc.setHi(1, tang_D_field_bc[hi_bc[1]]);
 #endif
 #if (AMREX_SPACEDIM == 3)
-  bc.setLo(2, tang_E_field_bc[lo_bc[2]]);
-  bc.setHi(2, tang_E_field_bc[hi_bc[2]]);
+  bc.setLo(2, tang_D_field_bc[lo_bc[2]]);
+  bc.setHi(2, tang_D_field_bc[hi_bc[2]]);
 #endif
 }
 
@@ -134,8 +134,8 @@ void set_y_D_bc(BCRec& bc, const BCRec& phys_bc) {
   bc.setHi(1, norm_D_field_bc[hi_bc[1]]);
 #endif
 #if (AMREX_SPACEDIM == 3)
-  bc.setLo(2, tang_E_field_bc[lo_bc[2]]);
-  bc.setHi(2, tang_E_field_bc[hi_bc[2]]);
+  bc.setLo(2, tang_D_field_bc[lo_bc[2]]);
+  bc.setHi(2, tang_D_field_bc[hi_bc[2]]);
 #endif
 }
 
@@ -164,8 +164,8 @@ void set_z_D_bc(BCRec& bc, const BCRec& phys_bc) {
   bc.setHi(1, tang_D_field_bc[hi_bc[1]]);
 #endif
 #if (AMREX_SPACEDIM == 3)
-  bc.setLo(2, norm_E_field_bc[lo_bc[2]]);
-  bc.setHi(2, norm_E_field_bc[hi_bc[2]]);
+  bc.setLo(2, norm_D_field_bc[lo_bc[2]]);
+  bc.setHi(2, norm_D_field_bc[hi_bc[2]]);
 #endif
 }
 
