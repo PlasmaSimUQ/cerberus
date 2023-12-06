@@ -1,0 +1,11 @@
+# Ignore revisions in git blame - set your git config to use the file by convention:
+# git config --global blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# Optional additional git config:
+# Mark any lines that have had a commit skipped using --ignore-rev with a `?`
+# git config --global blame.markIgnoredLines true
+# Mark any lines that were added in a skipped commit and can not be attributed with a `*`
+# git config --global blame.markUnblamableLines true
+
+# fix BL_PROFILE statements and code formatting (cpp, H, lua) based on .clang-format, .editorconfig
+a6450e97014feae33b8a489c7251b70e9b804b18
