@@ -3,25 +3,12 @@
 
 #include "MFP_utility.H"
 
-struct FieldDef
-{
-    enum class ConsIdx : int {
-        Dx=0,
-        Dy,
-        Dz,
-        Bx,
-        By,
-        Bz,
-        phi,
-        psi,
-        mu,
-        ep,
-        NUM
-    };
+struct FieldDef {
+    enum class ConsIdx : int { Dx = 0, Dy, Dz, Bx, By, Bz, phi, psi, mu, ep, NUM };
 
     enum class VectorIdx : int {
-        Cons=2,
+        Cons = 2,
     };
 };
 
-#endif // MFP_FIELD_DEFS_H
+#endif  // MFP_FIELD_DEFS_H

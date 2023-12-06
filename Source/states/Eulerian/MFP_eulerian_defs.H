@@ -3,4 +3,4 @@
 
 #include "MFP_utility.H"
 
-#endif // MFP_EULERIAN_DEFS_H
+#endif  // MFP_EULERIAN_DEFS_H

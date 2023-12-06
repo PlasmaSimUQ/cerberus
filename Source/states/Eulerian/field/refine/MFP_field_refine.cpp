@@ -1,19 +1,23 @@
 #include "MFP_field_refine.H"
+
 #include "MFP_field.H"
+
 #include <AMReX_AmrLevel.H>
 
-ClassFactory<Refinement>& GetFieldRefinementFactory() {
+ClassFactory<Refinement>& GetFieldRefinementFactory()
+{
     static ClassFactory<Refinement> F;
     return F;
 }
 
 std::string FieldGradientRefinement::tag = "field_gradient";
-bool FieldGradientRefinement::registered = GetFieldRefinementFactory().Register(FieldGradientRefinement::tag, FieldRefinementBuilder<FieldGradientRefinement>);
+bool FieldGradientRefinement::registered = GetFieldRefinementFactory().Register(
+  FieldGradientRefinement::tag, FieldRefinementBuilder<FieldGradientRefinement>);
 
-
-FieldGradientRefinement::FieldGradientRefinement(){}
-FieldGradientRefinement::FieldGradientRefinement(const int global_idx, const sol::table &def)
+FieldGradientRefinement::FieldGradientRefinement() {}
+FieldGradientRefinement::FieldGradientRefinement(const int global_idx, const sol::table& def)
 {
+    BL_PROFILE("FieldGradientRefinement::FieldGradientRefinement");
 
     idx = global_idx;
 
@@ -21,25 +25,28 @@ FieldGradientRefinement::FieldGradientRefinement(const int global_idx, const sol
     min_value = def.get_or("min_value", 0.0);
 
     // conserved variables
-    for (int i = 0; i<FieldState::cons_names.size(); ++i) {
+    for (int i = 0; i < FieldState::cons_names.size(); ++i) {
         std::string comp = FieldState::cons_names[i];
 
-        if (def[comp].valid()) {
-            cons.push_back(std::make_pair(i,def[comp]));
-        }
+        if (def[comp].valid()) { cons.push_back(std::make_pair(i, def[comp])); }
     }
 }
 
 void FieldGradientRefinement::get_tags(MFP* mfp, TagBoxArray& tags) const
 {
+    BL_PROFILE("FieldGradientRefinement::get_tags");
 
     if ((mfp->get_level() < max_level) || (max_level < 0)) {
-
         FieldState& istate = FieldState::get_state_global(idx);
 
         // grab the conservative state
         const int num_grow = 1;
-        MultiFab U(mfp->boxArray(), mfp->DistributionMap(), +FieldDef::ConsIdx::NUM, num_grow, MFInfo(),mfp->Factory());
+        MultiFab U(mfp->boxArray(),
+                   mfp->DistributionMap(),
+                   +FieldDef::ConsIdx::NUM,
+                   num_grow,
+                   MFInfo(),
+                   mfp->Factory());
 
 #ifdef AMREX_USE_EB
         EB2::IndexSpace::push(const_cast<EB2::IndexSpace*>(istate.eb2_index));
@@ -60,7 +67,7 @@ void FieldGradientRefinement::get_tags(MFP* mfp, TagBoxArray& tags) const
         const Real* prob_lo = mfp->Geom().ProbLo();
 
 #ifdef _OPENMP
-#pragma omp parallel
+    #pragma omp parallel
 #endif
         for (MFIter mfi(U); mfi.isValid(); ++mfi) {
             const Box& bx = mfi.tilebox();
@@ -74,47 +81,49 @@ void FieldGradientRefinement::get_tags(MFP* mfp, TagBoxArray& tags) const
 #endif
 
             if (flag_type != FabType::covered) {
-
                 // now go through the list of things to check for high gradients
                 for (const auto& info : cons) {
-                    const int& icomp = info.first; // index
-                    const Real& refine_grad = info.second; // threshold value
+                    const int& icomp = info.first;          // index
+                    const Real& refine_grad = info.second;  // threshold value
 
-                    tag_refinement(bx, U[mfi],
-               #ifdef AMREX_USE_EB
+                    tag_refinement(bx,
+                                   U[mfi],
+#ifdef AMREX_USE_EB
                                    flags[mfi],
-               #endif
+#endif
                                    tags[mfi],
                                    icomp,
                                    refine_grad);
-
                 }
             }
         }
     }
 }
 
-Real FieldGradientRefinement::refine_criteria(Array<Real,3> S, Real low_val) const
+Real FieldGradientRefinement::refine_criteria(Array<Real, 3> S, Real low_val) const
 {
-    Real a = S[2] - 2*S[1] + S[0];
-    Real b = std::abs(S[2] - S[1]) + std::abs(S[1] - S[0]) + 0.01*(S[2] + 2*S[1] + S[0]);
+    BL_PROFILE("FieldGradientRefinement::refine_criteria");
+
+    Real a = S[2] - 2 * S[1] + S[0];
+    Real b = std::abs(S[2] - S[1]) + std::abs(S[1] - S[0]) + 0.01 * (S[2] + 2 * S[1] + S[0]);
     if (std::abs(b) <= low_val) {
         return 0.0;
     } else {
-        return std::abs(a/b);
+        return std::abs(a / b);
     }
 }
 
 void FieldGradientRefinement::tag_refinement(const Box& box,
                                              const FArrayBox& src,
-                                             #ifdef AMREX_USE_EB
+#ifdef AMREX_USE_EB
                                              const EBCellFlagFab& flags,
-                                             #endif
+#endif
                                              TagBox& tags,
                                              const int n,
                                              const Real threshold) const
 {
     BL_PROFILE("FieldGradientRefinement::tag_refinement");
+
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
@@ -122,52 +131,49 @@ void FieldGradientRefinement::tag_refinement(const Box& box,
     Array4<char> const& tag = tags.array();
 
     Real val;
-    Array<Real,3> S;
-    Array<int,3> index;
+    Array<Real, 3> S;
+    Array<int, 3> index;
 
 #ifdef AMREX_USE_EB
     Array4<const EBCellFlag> const& flag4 = flags.array();
 #endif
 
-    for     (int k = lo.z; k <= hi.z; ++k) {
-        for   (int j = lo.y; j <= hi.y; ++j) {
+    for (int k = lo.z; k <= hi.z; ++k) {
+        for (int j = lo.y; j <= hi.y; ++j) {
             AMREX_PRAGMA_SIMD
-                    for (int i = lo.x; i <= hi.x; ++i) {
-
+            for (int i = lo.x; i <= hi.x; ++i) {
 #ifdef AMREX_USE_EB
-                if (flag4(i,j,k).isCovered()) continue;
+                if (flag4(i, j, k).isCovered()) continue;
 #endif
-                if (tag(i,j,k) == TagBox::SET) continue;
+                if (tag(i, j, k) == TagBox::SET) continue;
 
                 val = 0.0;
-                for (int d=0; d<AMREX_SPACEDIM; ++d) {
+                for (int d = 0; d < AMREX_SPACEDIM; ++d) {
                     // fill our stencil
                     index.fill(0);
                     index[d] = 1;
-                    S[0] = src4(i-index[0], j-index[1], k-index[2], n);
+                    S[0] = src4(i - index[0], j - index[1], k - index[2], n);
                     S[1] = src4(i, j, k, n);
-                    S[2] = src4(i+index[0], j+index[1], k+index[2], n);
+                    S[2] = src4(i + index[0], j + index[1], k + index[2], n);
                     // calculate the refinement criteria and compare it to previous value
                     val = std::max(val, refine_criteria(S, min_value));
                 }
 
                 // check against threshold and mark for refinement if necessary
-                if (val >= threshold) {
-                    tag(i,j,k) = TagBox::SET;
-                }
+                if (val >= threshold) { tag(i, j, k) = TagBox::SET; }
             }
         }
     }
 }
 
-
 std::string FieldValueRefinement::tag = "field_value";
-bool FieldValueRefinement::registered = GetFieldRefinementFactory().Register(FieldValueRefinement::tag, FieldRefinementBuilder<FieldValueRefinement>);
+bool FieldValueRefinement::registered = GetFieldRefinementFactory().Register(
+  FieldValueRefinement::tag, FieldRefinementBuilder<FieldValueRefinement>);
 
-
-FieldValueRefinement::FieldValueRefinement(){}
-FieldValueRefinement::FieldValueRefinement(const int global_idx, const sol::table &def)
+FieldValueRefinement::FieldValueRefinement() {}
+FieldValueRefinement::FieldValueRefinement(const int global_idx, const sol::table& def)
 {
+    BL_PROFILE("FieldValueRefinement::FieldValueRefinement");
 
     idx = global_idx;
 
@@ -175,25 +181,28 @@ FieldValueRefinement::FieldValueRefinement(const int global_idx, const sol::tabl
     min_value = def.get_or("min_value", 0.0);
 
     // conserved variables
-    for (int i = 0; i<FieldState::cons_names.size(); ++i) {
+    for (int i = 0; i < FieldState::cons_names.size(); ++i) {
         std::string comp = FieldState::cons_names[i];
 
-        if (def[comp].valid()) {
-            cons.push_back(std::make_pair(i,def[comp]));
-        }
+        if (def[comp].valid()) { cons.push_back(std::make_pair(i, def[comp])); }
     }
 }
 
 void FieldValueRefinement::get_tags(MFP* mfp, TagBoxArray& tags) const
 {
+    BL_PROFILE("FieldValueRefinement::get_tags");
 
     if ((mfp->get_level() < max_level) || (max_level < 0)) {
-
         FieldState& istate = FieldState::get_state_global(idx);
 
         // grab the conservative state
         const int num_grow = 1;
-        MultiFab U(mfp->boxArray(), mfp->DistributionMap(), +FieldDef::ConsIdx::NUM, num_grow, MFInfo(),mfp->Factory());
+        MultiFab U(mfp->boxArray(),
+                   mfp->DistributionMap(),
+                   +FieldDef::ConsIdx::NUM,
+                   num_grow,
+                   MFInfo(),
+                   mfp->Factory());
 
 #ifdef AMREX_USE_EB
         EB2::IndexSpace::push(const_cast<EB2::IndexSpace*>(istate.eb2_index));
@@ -203,15 +212,13 @@ void FieldValueRefinement::get_tags(MFP* mfp, TagBoxArray& tags) const
 
         mfp->FillPatch(*mfp, U, 0, time, istate.data_idx, 0, +FieldDef::ConsIdx::NUM);
 
-
 #ifdef AMREX_USE_EB
         EBData& eb = mfp->get_eb_data(idx);
         auto const& flags = eb.flags;
 #endif
 
-
 #ifdef _OPENMP
-#pragma omp parallel
+    #pragma omp parallel
 #endif
         for (MFIter mfi(U); mfi.isValid(); ++mfi) {
             const Box& bx = mfi.tilebox();
@@ -224,20 +231,19 @@ void FieldValueRefinement::get_tags(MFP* mfp, TagBoxArray& tags) const
 #endif
 
             if (flag_type != FabType::covered) {
-
                 // now go through the list of things to check
                 for (const auto& info : cons) {
-                    const int& icomp = info.first; // index
-                    const Real& refine_grad = info.second; // threshold value
+                    const int& icomp = info.first;          // index
+                    const Real& refine_grad = info.second;  // threshold value
 
-                    tag_refinement(bx, U[mfi],
-               #ifdef AMREX_USE_EB
+                    tag_refinement(bx,
+                                   U[mfi],
+#ifdef AMREX_USE_EB
                                    flags[mfi],
-               #endif
+#endif
                                    tags[mfi],
                                    icomp,
                                    refine_grad);
-
                 }
             }
         }
@@ -246,6 +252,7 @@ void FieldValueRefinement::get_tags(MFP* mfp, TagBoxArray& tags) const
 
 Real FieldValueRefinement::refine_criteria(Real S, Real low_val) const
 {
+    BL_PROFILE("FieldValueRefinement::refine_criteria");
 
     const Real v = std::abs(S);
 
@@ -257,40 +264,38 @@ Real FieldValueRefinement::refine_criteria(Real S, Real low_val) const
 }
 
 void FieldValueRefinement::tag_refinement(const Box& box,
-                                             const FArrayBox& src,
-                                             #ifdef AMREX_USE_EB
-                                             const EBCellFlagFab& flags,
-                                             #endif
-                                             TagBox& tags,
-                                             const int n,
-                                             const Real threshold) const
+                                          const FArrayBox& src,
+#ifdef AMREX_USE_EB
+                                          const EBCellFlagFab& flags,
+#endif
+                                          TagBox& tags,
+                                          const int n,
+                                          const Real threshold) const
 {
     BL_PROFILE("FieldValueRefinement::tag_refinement");
+
     const Dim3 lo = amrex::lbound(box);
     const Dim3 hi = amrex::ubound(box);
 
     Array4<Real const> const& src4 = src.array();
     Array4<char> const& tag = tags.array();
 
-
 #ifdef AMREX_USE_EB
     Array4<const EBCellFlag> const& flag4 = flags.array();
 #endif
 
-    for     (int k = lo.z; k <= hi.z; ++k) {
-        for   (int j = lo.y; j <= hi.y; ++j) {
+    for (int k = lo.z; k <= hi.z; ++k) {
+        for (int j = lo.y; j <= hi.y; ++j) {
             AMREX_PRAGMA_SIMD
-                    for (int i = lo.x; i <= hi.x; ++i) {
-
+            for (int i = lo.x; i <= hi.x; ++i) {
 #ifdef AMREX_USE_EB
-                if (flag4(i,j,k).isCovered()) continue;
+                if (flag4(i, j, k).isCovered()) continue;
 #endif
-                if (tag(i,j,k) == TagBox::SET) continue;
-
+                if (tag(i, j, k) == TagBox::SET) continue;
 
                 // check against threshold and mark for refinement if necessary
                 if (refine_criteria(src4(i, j, k, n), min_value) >= threshold) {
-                    tag(i,j,k) = TagBox::SET;
+                    tag(i, j, k) = TagBox::SET;
                 }
             }
         }

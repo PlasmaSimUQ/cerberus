@@ -3,10 +3,9 @@
 
 #include "MFP_utility.H"
 
-struct MHDDef
-{
+struct MHDDef {
     enum class ConsIdx : int {
-        Density=0,
+        Density = 0,
         Xmom,
         Ymom,
         Zmom,
@@ -19,7 +18,7 @@ struct MHDDef
     };
 
     enum class PrimIdx : int {
-        Density=0,
+        Density = 0,
         Xvel,
         Yvel,
         Zvel,
@@ -31,17 +30,9 @@ struct MHDDef
         NUM,
     };
 
-    enum class VectorIdx : int {
-        Cons=1,
-        Prim=1
-    };
+    enum class VectorIdx : int { Cons = 1, Prim = 1 };
 
-    enum class WallIndex : int {
-        MHDSlipWall = 0,
-        MHDDefined,
-        NUM
-    };
+    enum class WallIndex : int { MHDSlipWall = 0, MHDDefined, NUM };
 };
 
-
-#endif // MFP_MHD_DEFS_H
+#endif  // MFP_MHD_DEFS_H

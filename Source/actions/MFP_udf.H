@@ -2,23 +2,25 @@
 #define USERDEFINED_H
 
 #include "MFP_action.H"
-#include "MFP_optional_func.H"
 #include "MFP_eulerian.H"
-
+#include "MFP_optional_func.H"
 
 class UserDefined : public Action
 {
-public:
+  public:
     UserDefined();
-    UserDefined(const int idx, const sol::table &def);
+    UserDefined(const int idx, const sol::table& def);
     ~UserDefined();
 
     virtual void get_data(MFP* mfp, Vector<UpdateData>& update, const Real time) const override;
 
-    virtual void calc_time_derivative(MFP* mfp, Vector<UpdateData>& update, const Real time, const Real dt) override;
+    virtual void calc_time_derivative(MFP* mfp,
+                                      Vector<UpdateData>& update,
+                                      const Real time,
+                                      const Real dt) override;
 
-    virtual std::string get_tag() const override {return tag;}
-    virtual ActionType get_type() const override {return ActionType::UserDefined;}
+    virtual std::string get_tag() const override { return tag; }
+    virtual ActionType get_type() const override { return ActionType::UserDefined; }
 
     static bool registered;
     static std::string tag;
@@ -28,4 +30,4 @@ public:
     Vector<Optional3D1VFunction> terms;
 };
 
-#endif // USERDEFINED_H
+#endif  // USERDEFINED_H

@@ -1,16 +1,20 @@
 #include "MFP_acceleration.H"
+
 #include "MFP.H"
 #include "MFP_state.H"
 #include "sol.hpp"
 
 std::string Acceleration::tag = "acceleration";
-bool Acceleration::registered = GetActionFactory().Register(Acceleration::tag, ActionBuilder<Acceleration>);
+bool Acceleration::registered =
+  GetActionFactory().Register(Acceleration::tag, ActionBuilder<Acceleration>);
 
-Acceleration::Acceleration(){}
-Acceleration::~Acceleration(){}
+Acceleration::Acceleration() {}
+Acceleration::~Acceleration() {}
 
-Acceleration::Acceleration(const int idx, const sol::table &def)
+Acceleration::Acceleration(const int idx, const sol::table& def)
 {
+    BL_PROFILE("Acceleration::Acceleration");
+
     action_idx = idx;
     name = def["name"];
 
@@ -18,9 +22,8 @@ Acceleration::Acceleration(const int idx, const sol::table &def)
     for (const auto& key_value_pair : acc_vector) {
         int idx = key_value_pair.first.as<int>();
         Real val = key_value_pair.second.as<Real>();
-        acc[idx-1] = val;
+        acc[idx - 1] = val;
     }
-
 
     const sol::table state_names = def["states"];
 
@@ -33,8 +36,7 @@ Acceleration::Acceleration(const int idx, const sol::table &def)
             species.push_back(static_cast<HydroState*>(&istate));
             state_indexes.push_back(istate.global_idx);
             break;
-        default:
-            Abort("An invalid state has been defined for the Acceleration source "+name);
+        default: Abort("An invalid state has been defined for the Acceleration source " + name);
         }
     }
     return;
@@ -44,17 +46,17 @@ void Acceleration::get_data(MFP* mfp, Vector<UpdateData>& update, const Real tim
 {
     BL_PROFILE("Acceleration::get_data");
 
-    Vector<Array<int,2>> options(species.size());
+    Vector<Array<int, 2>> options(species.size());
 
-    for (size_t i=0; i<species.size();++i) {
-        options[i] = {species[i]->global_idx, 0};
-    }
+    for (size_t i = 0; i < species.size(); ++i) { options[i] = {species[i]->global_idx, 0}; }
 
     Action::get_data(mfp, options, update, time);
-
 }
 
-void Acceleration::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, const Real time, const Real dt)
+void Acceleration::calc_time_derivative(MFP* mfp,
+                                        Vector<UpdateData>& update,
+                                        const Real time,
+                                        const Real dt)
 {
     BL_PROFILE("Acceleration::calc_time_derivative");
 
@@ -71,18 +73,14 @@ void Acceleration::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, co
     Vector<Array4<Real>> species4(n_species);
     Vector<Array4<Real>> species_dU4(n_species);
 
-
     // define some 'registers'
 
-
     for (MFIter mfi(cost); mfi.isValid(); ++mfi) {
-
         Real wt = ParallelDescriptor::second();
 
         const Box& box = mfi.tilebox();
         const Dim3 lo = amrex::lbound(box);
         const Dim3 hi = amrex::ubound(box);
-
 
 #ifdef AMREX_USE_EB
         // get the EB data required for later calls and check if we can skip this FAB entirely
@@ -95,33 +93,29 @@ void Acceleration::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, co
 
 #endif
 
-        for (int n=0; n<n_species; ++n) {
+        for (int n = 0; n < n_species; ++n) {
             species4[n] = update[species[n]->data_idx].U.array(mfi);
             species_dU4[n] = update[species[n]->data_idx].dU.array(mfi);
         }
 
-
-        for     (int k = lo.z; k <= hi.z; ++k) {
-            for   (int j = lo.y; j <= hi.y; ++j) {
+        for (int k = lo.z; k <= hi.z; ++k) {
+            for (int j = lo.y; j <= hi.y; ++j) {
                 AMREX_PRAGMA_SIMD
-                        for (int i = lo.x; i <= hi.x; ++i) {
-
+                for (int i = lo.x; i <= hi.x; ++i) {
 #ifdef AMREX_USE_EB
-                    if (vf4(i,j,k) == 0.0) {
-                        continue;
-                    }
+                    if (vf4(i, j, k) == 0.0) { continue; }
 #endif
 
-
                     for (size_t n = 0; n < n_species; ++n) {
-
-                        const Real rho =   species4[n](i,j,k,+HydroDef::ConsIdx::Density);
+                        const Real rho = species4[n](i, j, k, +HydroDef::ConsIdx::Density);
 
                         // momentum and energy
-                        for (int d = 0; d<3; ++d) {
-                            const Real m = species4[n](i,j,k,+HydroDef::ConsIdx::Xmom + d);
-                            species_dU4[n](i,j,k,+HydroDef::ConsIdx::Xmom + d) += dt*acc[d]*rho; // g*rho
-                            species_dU4[n](i,j,k,+HydroDef::ConsIdx::Eden)     += dt*acc[d]*m; // g*rho*u
+                        for (int d = 0; d < 3; ++d) {
+                            const Real m = species4[n](i, j, k, +HydroDef::ConsIdx::Xmom + d);
+                            species_dU4[n](i, j, k, +HydroDef::ConsIdx::Xmom + d) +=
+                              dt * acc[d] * rho;  // g*rho
+                            species_dU4[n](i, j, k, +HydroDef::ConsIdx::Eden) +=
+                              dt * acc[d] * m;  // g*rho*u
                         }
                     }
                 }

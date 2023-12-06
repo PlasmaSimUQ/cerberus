@@ -1,14 +1,14 @@
 #ifndef MFP_MHDRIEMANN_H
 #define MFP_MHDRIEMANN_H
 
-#include <AMReX_Vector.H>
-#include <AMReX_REAL.H>
-
-#include "sol.hpp"
+#include "MFP_eulerian_riemann.H"
 #include "MFP_factory.H"
 #include "MFP_mhd_defs.H"
 #include "MFP_utility.H"
-#include "MFP_eulerian_riemann.H"
+#include "sol.hpp"
+
+#include <AMReX_REAL.H>
+#include <AMReX_Vector.H>
 
 using namespace amrex;
 
@@ -16,7 +16,7 @@ using namespace amrex;
 
 class MHDRiemannSolver : public RiemannSolver
 {
-public:
+  public:
     MHDRiemannSolver();
     virtual ~MHDRiemannSolver();
 };
@@ -31,6 +31,6 @@ std::unique_ptr<MHDRiemannSolver> MHDRiemannSolverBuilder(const sol::table& def)
     }
 }
 
-ClassFactory<MHDRiemannSolver> &GetMHDRiemannSolverFactory();
+ClassFactory<MHDRiemannSolver>& GetMHDRiemannSolverFactory();
 
-#endif // MFP_MHDRIEMANN_H
+#endif  // MFP_MHDRIEMANN_H

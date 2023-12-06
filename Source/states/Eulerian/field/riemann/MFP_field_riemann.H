@@ -1,13 +1,13 @@
 #ifndef MFP_FLUX_H
 #define MFP_FLUX_H
 
-#include <AMReX_Vector.H>
-#include <AMReX_REAL.H>
-
-#include "sol.hpp"
+#include "MFP_eulerian_riemann.H"
 #include "MFP_factory.H"
 #include "MFP_field_defs.H"
-#include "MFP_eulerian_riemann.H"
+#include "sol.hpp"
+
+#include <AMReX_REAL.H>
+#include <AMReX_Vector.H>
 
 using namespace amrex;
 
@@ -15,12 +15,11 @@ using namespace amrex;
 
 class FieldRiemannSolver : public RiemannSolver
 {
-public:
+  public:
     FieldRiemannSolver();
     virtual ~FieldRiemannSolver();
 
     int idx;
-
 };
 
 template <typename D>
@@ -35,6 +34,6 @@ std::unique_ptr<FieldRiemannSolver> FieldRiemannSolverBuilder(const sol::table& 
     }
 }
 
-ClassFactory<FieldRiemannSolver> &GetFieldRiemannSolverFactory();
+ClassFactory<FieldRiemannSolver>& GetFieldRiemannSolverFactory();
 
-#endif // MFP_FLUX_H
+#endif  // MFP_FLUX_H

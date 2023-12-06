@@ -2,19 +2,19 @@
 #define CTU_H
 #ifndef AMREX_USE_EB
 
-#include "MFP_action.H"
-#include "MFP_hydro.H"
-#include "MFP_field.H"
+    #include "MFP_action.H"
+    #include "MFP_field.H"
+    #include "MFP_hydro.H"
 
 class BraginskiiCTU : public Action
 {
-public:
+  public:
     BraginskiiCTU();
-    BraginskiiCTU(const int idx, const sol::table &def);
+    BraginskiiCTU(const int idx, const sol::table& def);
     ~BraginskiiCTU();
 
-    virtual std::string get_tag() const override {return tag;}
-    virtual ActionType get_type() const override {return ActionType::CTU;}
+    virtual std::string get_tag() const override { return tag; }
+    virtual ActionType get_type() const override { return ActionType::CTU; }
 
     virtual void get_data(MFP* mfp, Vector<UpdateData>& update, const Real time) const override;
 
@@ -46,11 +46,9 @@ public:
         NUM_ION_DIFF_COEFFS
     };
 
-
-
     void get_ion_coeffs(const Vector<Real>& Q_i,
                         const Vector<Real>& Q_e,
-                        const Array<Real,3>& B_xyz,
+                        const Array<Real, 3>& B_xyz,
                         Real& T_i,
                         Real& eta0,
                         Real& eta1,
@@ -70,11 +68,10 @@ public:
                                   Array4<const Real> const& prim_i4,
                                   Array4<const Real> const& prim_e4,
                                   Array4<const Real> const& prim_f4,
-                                  FArrayBox& diff
-                                  );
+                                  FArrayBox& diff);
 
     void calc_ion_viscous_fluxes(const Box& box,
-                                 Array<FArrayBox, AMREX_SPACEDIM> &fluxes,
+                                 Array<FArrayBox, AMREX_SPACEDIM>& fluxes,
                                  const Box& pbox,
                                  Array4<const Real> const& prim_i4,
                                  Array4<const Real> const& prim_e4,
@@ -113,38 +110,36 @@ public:
         NUM_ELE_DIFF_COEFFS
     };
 
-    void get_electron_coeffs(
-            const Vector<Real>& Q_i,
-            const Vector<Real>& Q_e,
-            const Array<Real,3>& B_xyz,
-            Real& T_e,
-            Real& eta0,
-            Real& eta1,
-            Real& eta2,
-            Real& eta3,
-            Real& eta4,
-            Real& kappa1,
-            Real& kappa2,
-            Real& kappa3,
-            Real& beta1,
-            Real& beta2,
-            Real& beta3,
-            int& truncatedTau);
+    void get_electron_coeffs(const Vector<Real>& Q_i,
+                             const Vector<Real>& Q_e,
+                             const Array<Real, 3>& B_xyz,
+                             Real& T_e,
+                             Real& eta0,
+                             Real& eta1,
+                             Real& eta2,
+                             Real& eta3,
+                             Real& eta4,
+                             Real& kappa1,
+                             Real& kappa2,
+                             Real& kappa3,
+                             Real& beta1,
+                             Real& beta2,
+                             Real& beta3,
+                             int& truncatedTau);
 
-  virtual void get_transport_constants(
-            const Real& Z_i, 
-            Real& delta_0, 
-            Real& delta_1, 
-            Real& BT_gamma_0, 
-            Real& BT_gamma_0_p, 
-            Real& BT_gamma_1_p, 
-            Real& BT_gamma_1_pp, 
-            Real& BT_gamma_0_pp,    
-            Real& b_0, 
-            Real& b_0_pp, 
-            Real& b_0_p, 
-            Real& b_1_p, 
-            Real& b_1_pp);
+    virtual void get_transport_constants(const Real& Z_i,
+                                         Real& delta_0,
+                                         Real& delta_1,
+                                         Real& BT_gamma_0,
+                                         Real& BT_gamma_0_p,
+                                         Real& BT_gamma_1_p,
+                                         Real& BT_gamma_1_pp,
+                                         Real& BT_gamma_0_pp,
+                                         Real& b_0,
+                                         Real& b_0_pp,
+                                         Real& b_0_p,
+                                         Real& b_1_p,
+                                         Real& b_1_pp);
 
     Real get_max_speed_electrons(const Vector<Real>& U_e,
                                  const Vector<Real>& U_i,
@@ -154,77 +149,107 @@ public:
                                        Array4<const Real> const& prim_i4,
                                        Array4<const Real> const& prim_e4,
                                        Array4<const Real> const& prim_f4,
-                                       FArrayBox& diff
-                                       );
+                                       FArrayBox& diff);
 
     void calc_electron_viscous_fluxes(const Box& box,
-                                      Array<FArrayBox, AMREX_SPACEDIM> &fluxes,
+                                      Array<FArrayBox, AMREX_SPACEDIM>& fluxes,
                                       const Box& pbox,
                                       Array4<const Real> const& prim_i4,
                                       Array4<const Real> const& prim_e4,
                                       Array4<const Real> const& prim_f4,
                                       const Real* dx);
 
-    enum class FluxSpecies {
-        IonFlux=0,
-        ElectronFlux
-    };
+    enum class FluxSpecies { IonFlux = 0, ElectronFlux };
 
     void calc_charged_viscous_fluxes(FluxSpecies flux_type,
                                      const Box& box,
-                                     Array<FArrayBox, AMREX_SPACEDIM> &fluxes,
+                                     Array<FArrayBox, AMREX_SPACEDIM>& fluxes,
                                      Array4<const Real> const& p4,
                                      Array4<const Real> const& prim_i4,
                                      Array4<const Real> const& prim_e4,
                                      Array4<const Real> const& prim_f4,
-                                     const Real* dx, FArrayBox& diff);
+                                     const Real* dx,
+                                     FArrayBox& diff);
 
-    void hall_correction_viscosity(Real& eta0,
-                                   Real& eta1,
-                                   Real& eta2,
-                                   Real& eta3,
-                                   Real& eta4,
-                                   const Real& x_coef); 
+    void hall_correction_viscosity(
+      Real& eta0, Real& eta1, Real& eta2, Real& eta3, Real& eta4, const Real& x_coef);
 
-    void BraginskiiViscousTensorHeatFlux(FluxSpecies flux_type,
-                                         Real xB, Real yB, Real zB,
-                                         Vector<Real> u_rel,
-                                         Real dTdx, Real dTdy, Real dTdz,
-                                         Real dudx, Real dudy, Real dudz,
-                                         Real dvdx, Real dvdy, Real dvdz,
-                                         Real dwdx, Real dwdy, Real dwdz,
-                                         Array<Real,+ElectronDiffusionCoeffs::NUM_ELE_DIFF_COEFFS> faceCoefficients,
-                                         Array<Real,6>& ViscTens,
-                                         Array<Real,3>& q_flux);
+    void BraginskiiViscousTensorHeatFlux(
+      FluxSpecies flux_type,
+      Real xB,
+      Real yB,
+      Real zB,
+      Vector<Real> u_rel,
+      Real dTdx,
+      Real dTdy,
+      Real dTdz,
+      Real dudx,
+      Real dudy,
+      Real dudz,
+      Real dvdx,
+      Real dvdy,
+      Real dvdz,
+      Real dwdx,
+      Real dwdy,
+      Real dwdz,
+      Array<Real, +ElectronDiffusionCoeffs::NUM_ELE_DIFF_COEFFS> faceCoefficients,
+      Array<Real, 6>& ViscTens,
+      Array<Real, 3>& q_flux);
 
-    void IsotropicBraginskiiViscousTensorHeatFlux(FluxSpecies flux_type,
-                                                  Vector<Real> u_rel,
-                                                  Real dTdx, Real dTdy, Real dTdz,
-                                                  Real dudx, Real dudy, Real dudz,
-                                                  Real dvdx, Real dvdy, Real dvdz,
-                                                  Real dwdx, Real dwdy, Real dwdz,
-                                                  Array<Real,+ElectronDiffusionCoeffs::NUM_ELE_DIFF_COEFFS> faceCoefficients,
-                                                  Array<Real, 6> &ViscTens,
-                                                  Array<Real, 3> &q_flux);
+    void IsotropicBraginskiiViscousTensorHeatFlux(
+      FluxSpecies flux_type,
+      Vector<Real> u_rel,
+      Real dTdx,
+      Real dTdy,
+      Real dTdz,
+      Real dudx,
+      Real dudy,
+      Real dudz,
+      Real dvdx,
+      Real dvdy,
+      Real dvdz,
+      Real dwdx,
+      Real dwdy,
+      Real dwdz,
+      Array<Real, +ElectronDiffusionCoeffs::NUM_ELE_DIFF_COEFFS> faceCoefficients,
+      Array<Real, 6>& ViscTens,
+      Array<Real, 3>& q_flux);
 
-
-
-    virtual void calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& dU, const Real time, const Real dt, const Real flux_register_scale) override;
+    virtual void calc_spatial_derivative(MFP* mfp,
+                                         Vector<UpdateData>& dU,
+                                         const Real time,
+                                         const Real dt,
+                                         const Real flux_register_scale) override;
 
     void calc_slopes(const Box& box,
                      const FArrayBox& src,
                      FArrayBox& slopes,
                      Reconstruction& reco,
-                     const Real *dx) const;
+                     const Real* dx) const;
 
-    static void get_alpha_beta_coefficients(const Real& Z_i, Real Debye, Real Larmor, Real mass_e, Real T_e, 
-                                            Real charge_e, Real charge_i, Real nd_e, Real nd_i, Real& alpha_0, 
-                                            Real& alpha_1, Real& alpha_2, Real& beta_0, Real& beta_1, 
-                                            Real& beta_2, Real& t_c_e, Real p_lambda, Real Bx, Real By, Real Bz);
-
+    static void get_alpha_beta_coefficients(const Real& Z_i,
+                                            Real Debye,
+                                            Real Larmor,
+                                            Real mass_e,
+                                            Real T_e,
+                                            Real charge_e,
+                                            Real charge_i,
+                                            Real nd_e,
+                                            Real nd_i,
+                                            Real& alpha_0,
+                                            Real& alpha_1,
+                                            Real& alpha_2,
+                                            Real& beta_0,
+                                            Real& beta_1,
+                                            Real& beta_2,
+                                            Real& t_c_e,
+                                            Real p_lambda,
+                                            Real Bx,
+                                            Real By,
+                                            Real Bz);
 
     enum class DataIdx {
-        IonMass=0,
+        IonMass = 0,
         IonCharge,
         IonGamma,
         IonDensity,
@@ -235,14 +260,14 @@ public:
         Bx,
         By,
         Bz,
-        AMREX_D_DECL(dTdx,dTdy,dTdz),
-        Debye, 
-        Larmor, 
+        AMREX_D_DECL(dTdx, dTdy, dTdz),
+        Debye,
+        Larmor,
         NUM
     };
 
     enum class VectorIdx {
-        IonXmom=0,
+        IonXmom = 0,
         IonYmom,
         IonZmom,
         IonEden,
@@ -253,17 +278,19 @@ public:
         NUM
     };
 
-    static int rhs(Real t, Array<Real,+VectorIdx::NUM> y, Array<Real,+VectorIdx::NUM> &dydt, Array<Real,+DataIdx::NUM>& data);
-    static bool check_invalid(Array<Real,+VectorIdx::NUM> &y, Array<Real,+DataIdx::NUM>& data);
-    virtual void calc_time_derivative(MFP* mfp, Vector<UpdateData>& dU, const Real time, const Real dt) override;
+    static int rhs(Real t,
+                   Array<Real, +VectorIdx::NUM> y,
+                   Array<Real, +VectorIdx::NUM>& dydt,
+                   Array<Real, +DataIdx::NUM>& data);
+    static bool check_invalid(Array<Real, +VectorIdx::NUM>& y, Array<Real, +DataIdx::NUM>& data);
+    virtual void calc_time_derivative(MFP* mfp,
+                                      Vector<UpdateData>& dU,
+                                      const Real time,
+                                      const Real dt) override;
 
-    enum class BraginskiiStateIdx {
-        Ion=0,
-        Electron,
-        Field
-    };
+    enum class BraginskiiStateIdx { Ion = 0, Electron, Field };
 
-    Array<EulerianState*,3> states;
+    Array<EulerianState*, 3> states;
 
     HydroState *ion_state, *electron_state;
     FieldState* field_state;
@@ -278,7 +305,7 @@ public:
     struct IonCoeffs {
         Real mu_0, T0, BT, forceViscosityValue;
         bool forceViscosity;
-        Real T_i,eta0,eta1,eta2,eta3,eta4,kappa1,kappa2,kappa3;
+        Real T_i, eta0, eta1, eta2, eta3, eta4, kappa1, kappa2, kappa3;
     };
 
     IonCoeffs ion_coeffs;
@@ -286,16 +313,15 @@ public:
     struct ElectronCoeffs {
         Real mu_0, T0, BT, forceViscosityValue;
         bool forceViscosity;
-        Real T_e,eta0,eta1,eta2,eta3,eta4,kappa1,kappa2,kappa3,beta1,beta2,beta3;
+        Real T_e, eta0, eta1, eta2, eta3, eta4, kappa1, kappa2, kappa3, beta1, beta2, beta3;
     };
 
     ElectronCoeffs electron_coeffs;
 
     bool do_CTU;
-    bool hall_correction ; 
+    bool hall_correction;
 
-    Real DebyeRef, LarmorRef; 
-
+    Real DebyeRef, LarmorRef;
 
     int time_refinement_factor;
     int max_time_refinement;
@@ -305,4 +331,4 @@ public:
 };
 
 #endif
-#endif // CTU_H
+#endif  // CTU_H

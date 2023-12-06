@@ -1,4 +1,5 @@
 #include "MFP_lorentz.H"
+
 #include "MFP.H"
 #include "MFP_state.H"
 #include "sol.hpp"
@@ -6,11 +7,13 @@
 std::string Lorentz::tag = "Lorentz";
 bool Lorentz::registered = GetActionFactory().Register(Lorentz::tag, ActionBuilder<Lorentz>);
 
-Lorentz::Lorentz(){}
-Lorentz::~Lorentz(){}
+Lorentz::Lorentz() {}
+Lorentz::~Lorentz() {}
 
-Lorentz::Lorentz(const int idx, const sol::table &def)
+Lorentz::Lorentz(const int idx, const sol::table& def)
 {
+    BL_PROFILE("Lorentz::Lorentz");
+
     action_idx = idx;
     name = def["name"];
 
@@ -34,8 +37,7 @@ Lorentz::Lorentz(const int idx, const sol::table &def)
             hydro->associated_actions.push_back(action_idx);
             break;
         }
-        default:
-            Abort("An invalid state has been defined for the Lorentz source "+name);
+        default: Abort("An invalid state has been defined for the Lorentz source " + name);
         }
     }
 
@@ -46,18 +48,19 @@ void Lorentz::get_data(MFP* mfp, Vector<UpdateData>& update, const Real time) co
 {
     BL_PROFILE("Lorentz::get_data");
 
-    Vector<Array<int,2>> options(species.size()+1);
+    Vector<Array<int, 2>> options(species.size() + 1);
 
     options[0] = {field->global_idx, 0};
 
-    for (size_t i=0; i<species.size();++i) {
-        options[i+1] = {species[i]->global_idx, 0};
-    }
+    for (size_t i = 0; i < species.size(); ++i) { options[i + 1] = {species[i]->global_idx, 0}; }
 
     Action::get_data(mfp, options, update, time);
 }
 
-void Lorentz::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, const Real time, const Real dt)
+void Lorentz::calc_time_derivative(MFP* mfp,
+                                   Vector<UpdateData>& update,
+                                   const Real time,
+                                   const Real dt)
 {
     BL_PROFILE("Lorentz::calc_time_derivative");
 
@@ -67,7 +70,7 @@ void Lorentz::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, const R
     size_t n_species = species.size();
 
     Vector<Vector<Real>> U(species.size());
-    for (size_t i=0; i<species.size();++i) {
+    for (size_t i = 0; i < species.size(); ++i) {
         const HydroState& hstate = *species[i];
         U[i].resize(hstate.n_cons());
         update[hstate.data_idx].dU_status = UpdateData::Status::Changed;
@@ -88,22 +91,20 @@ void Lorentz::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, const R
     Real u, v, w;
 
     const Real Larmor = MFP::Larmor;
-//    const Real Debye = MFP::Debye;
+    //    const Real Debye = MFP::Debye;
     const Real lightspeed = MFP::lightspeed;
 
-//    const Real f1 = dt*Larmor/(Debye*Debye*lightspeed);
+    //    const Real f1 = dt*Larmor/(Debye*Debye*lightspeed);
 
     // get charge and current density
     Real charge_density, current_x, current_y, current_z;
 
     for (MFIter mfi(cost); mfi.isValid(); ++mfi) {
-
         Real wt = ParallelDescriptor::second();
 
         const Box& box = mfi.tilebox();
         const Dim3 lo = amrex::lbound(box);
         const Dim3 hi = amrex::ubound(box);
-
 
 #ifdef AMREX_USE_EB
         // get the EB data required for later calls and check if we can skip this FAB entirely
@@ -117,40 +118,35 @@ void Lorentz::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, const R
 #endif
 
         Array4<Real> const& field4 = update[field->data_idx].U.array(mfi);
-//        Array4<Real> const& field_dU4 = update[field->data_idx].second.array(mfi);
+        //        Array4<Real> const& field_dU4 = update[field->data_idx].second.array(mfi);
 
-        for (int n=0; n<n_species; ++n) {
+        for (int n = 0; n < n_species; ++n) {
             const int data_idx = species[n]->data_idx;
             species4[n] = update[data_idx].U.array(mfi);
             species_dU4[n] = update[data_idx].dU.array(mfi);
         }
 
-
-        for     (int k = lo.z; k <= hi.z; ++k) {
-            for   (int j = lo.y; j <= hi.y; ++j) {
+        for (int k = lo.z; k <= hi.z; ++k) {
+            for (int j = lo.y; j <= hi.y; ++j) {
                 AMREX_PRAGMA_SIMD
-                        for (int i = lo.x; i <= hi.x; ++i) {
-
+                for (int i = lo.x; i <= hi.x; ++i) {
 #ifdef AMREX_USE_EB
-                    if (vf4(i,j,k) == 0.0) {
-                        continue;
-                    }
+                    if (vf4(i, j, k) == 0.0) { continue; }
 #endif
 
-
-                    ep = field4(i,j,k,+FieldDef::ConsIdx::ep);
+                    ep = field4(i, j, k, +FieldDef::ConsIdx::ep);
 
                     // magnetic field
-                    Bx = field4(i,j,k,+FieldDef::ConsIdx::Bx);
-                    By = field4(i,j,k,+FieldDef::ConsIdx::By);
-                    Bz = field4(i,j,k,+FieldDef::ConsIdx::Bz);
-                    pB = field4(i,j,k,+FieldDef::ConsIdx::psi);
+                    Bx = field4(i, j, k, +FieldDef::ConsIdx::Bx);
+                    By = field4(i, j, k, +FieldDef::ConsIdx::By);
+                    Bz = field4(i, j, k, +FieldDef::ConsIdx::Bz);
+                    pB = field4(i, j, k, +FieldDef::ConsIdx::psi);
 
                     // electric field
-                    Ex = field4(i,j,k,+FieldDef::ConsIdx::Dx)/ep;
-                    Ey = field4(i,j,k,+FieldDef::ConsIdx::Dy)/ep;
-                    Ez = field4(i,j,k,+FieldDef::ConsIdx::Dz)/ep;
-                    pD = field4(i,j,k,+FieldDef::ConsIdx::phi);
+                    Ex = field4(i, j, k, +FieldDef::ConsIdx::Dx) / ep;
+                    Ey = field4(i, j, k, +FieldDef::ConsIdx::Dy) / ep;
+                    Ez = field4(i, j, k, +FieldDef::ConsIdx::Dz) / ep;
+                    pD = field4(i, j, k, +FieldDef::ConsIdx::phi);
 
                     // get charge and current density
                     charge_density = 0.0;
@@ -159,37 +155,37 @@ void Lorentz::calc_time_derivative(MFP* mfp, Vector<UpdateData> &update, const R
                     current_z = 0.0;
 
                     for (size_t n = 0; n < n_species; ++n) {
-
                         const Array4<Real>& sp4 = species4[n];
                         Vector<Real>& UU = U[n];
-                        for (size_t l=0; l<UU.size(); ++l) {
-                            UU[l] = sp4(i,j,k,l);
-                        }
+                        for (size_t l = 0; l < UU.size(); ++l) { UU[l] = sp4(i, j, k, l); }
 
-                        rho =   sp4(i,j,k,+HydroDef::ConsIdx::Density);
-                        mx =    sp4(i,j,k,+HydroDef::ConsIdx::Xmom);
-                        my =    sp4(i,j,k,+HydroDef::ConsIdx::Ymom);
-                        mz =    sp4(i,j,k,+HydroDef::ConsIdx::Zmom);
-
+                        rho = sp4(i, j, k, +HydroDef::ConsIdx::Density);
+                        mx = sp4(i, j, k, +HydroDef::ConsIdx::Xmom);
+                        my = sp4(i, j, k, +HydroDef::ConsIdx::Ymom);
+                        mz = sp4(i, j, k, +HydroDef::ConsIdx::Zmom);
 
                         m = species[n]->gas->get_mass_from_cons(UU);
                         q = species[n]->gas->get_charge_from_cons(UU);
 
-                        r = q/m;
+                        r = q / m;
 
-                        charge_density += rho*r;
-                        current_x += r*mx;
-                        current_y += r*my;
-                        current_z += r*mz;
+                        charge_density += rho * r;
+                        current_x += r * mx;
+                        current_y += r * my;
+                        current_z += r * mz;
 
-                        u = mx/rho;
-                        v = my/rho;
-                        w = mz/rho;
+                        u = mx / rho;
+                        v = my / rho;
+                        w = mz / rho;
 
-                        species_dU4[n](i,j,k,+HydroDef::ConsIdx::Xmom) += dt*(rho*r/Larmor)*(lightspeed*Ex + v*Bz - w*By);
-                        species_dU4[n](i,j,k,+HydroDef::ConsIdx::Ymom) += dt*(rho*r/Larmor)*(lightspeed*Ey + w*Bx - u*Bz);
-                        species_dU4[n](i,j,k,+HydroDef::ConsIdx::Zmom) += dt*(rho*r/Larmor)*(lightspeed*Ez + u*By - v*Bx);
-                        species_dU4[n](i,j,k,+HydroDef::ConsIdx::Eden) += dt*(rho*r*lightspeed)/Larmor*(u*Ex + v*Ey + w*Ez);
+                        species_dU4[n](i, j, k, +HydroDef::ConsIdx::Xmom) +=
+                          dt * (rho * r / Larmor) * (lightspeed * Ex + v * Bz - w * By);
+                        species_dU4[n](i, j, k, +HydroDef::ConsIdx::Ymom) +=
+                          dt * (rho * r / Larmor) * (lightspeed * Ey + w * Bx - u * Bz);
+                        species_dU4[n](i, j, k, +HydroDef::ConsIdx::Zmom) +=
+                          dt * (rho * r / Larmor) * (lightspeed * Ez + u * By - v * Bx);
+                        species_dU4[n](i, j, k, +HydroDef::ConsIdx::Eden) +=
+                          dt * (rho * r * lightspeed) / Larmor * (u * Ex + v * Ey + w * Ez);
                     }
                 }
             }

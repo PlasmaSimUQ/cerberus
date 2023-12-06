@@ -1,53 +1,53 @@
 #include "MFP_hydro_gas.H"
 
 #include "MFP.H"
-#include "MFP_state.H"
 #include "MFP_hydro.H"
+#include "MFP_state.H"
 
 // ====================================================================================
 
-HydroGas::HydroGas()
-{
-}
+HydroGas::HydroGas() {}
 
-HydroGas::~HydroGas()
-{
-}
+HydroGas::~HydroGas() {}
 
-void HydroGas::get_alpha_fractions_from_prim(const Vector<Real> &Q, Vector<Real> &alpha, const int tracer_idx) const
+void HydroGas::get_alpha_fractions_from_prim(const Vector<Real>& Q,
+                                             Vector<Real>& alpha,
+                                             const int tracer_idx) const
 {
+    BL_PROFILE("HydroGas::get_alpha_fractions_from_prim");
+
     alpha.resize(n_species(), 0.0);
 
-    std::copy(Q.begin()+tracer_idx, Q.begin()+tracer_idx+n_tracers(), alpha.begin());
+    std::copy(Q.begin() + tracer_idx, Q.begin() + tracer_idx + n_tracers(), alpha.begin());
 
     Real sum_alpha = 0.0;
-    for (size_t i=0; i<n_tracers(); ++i) {
-        sum_alpha += alpha[i];
-    }
+    for (size_t i = 0; i < n_tracers(); ++i) { sum_alpha += alpha[i]; }
 
-    alpha[n_species()-1] = 1.0 - sum_alpha;
+    alpha[n_species() - 1] = 1.0 - sum_alpha;
 }
 
-void HydroGas::get_alpha_fractions_from_cons(const Vector<Real> &U,
-                                               Vector<Real> &alpha,
-                                               const int density_idx,
-                                               const int tracer_idx) const
+void HydroGas::get_alpha_fractions_from_cons(const Vector<Real>& U,
+                                             Vector<Real>& alpha,
+                                             const int density_idx,
+                                             const int tracer_idx) const
 {
+    BL_PROFILE("HydroGas::get_alpha_fractions_from_cons");
+
     alpha.resize(n_species(), 0.0);
 
-    std::copy(U.begin()+tracer_idx, U.begin()+tracer_idx+n_tracers(), alpha.begin());
+    std::copy(U.begin() + tracer_idx, U.begin() + tracer_idx + n_tracers(), alpha.begin());
 
     Real rho = U[density_idx];
     Real sum_alpha = 0.0;
-    for (size_t i=0; i<n_tracers(); ++i) {
+    for (size_t i = 0; i < n_tracers(); ++i) {
         alpha[i] /= rho;
         sum_alpha += alpha[i];
     }
 
-    alpha[n_species()-1] = 1.0 - sum_alpha;
+    alpha[n_species() - 1] = 1.0 - sum_alpha;
 }
 
-Real HydroGas::get_mass_from_prim(const Vector<Real> &Q, const int tracer_idx) const
+Real HydroGas::get_mass_from_prim(const Vector<Real>& Q, const int tracer_idx) const
 {
     BL_PROFILE("HydroGas::get_mass_from_prim");
 
@@ -64,12 +64,14 @@ Real HydroGas::get_mass_from_prim(const Vector<Real> &Q, const int tracer_idx) c
         S_alphai_mi += alphai / mass[i];
     }
 
-    S_alphai_mi += (1.0-S_alphas) / mass[n_tracers()];
+    S_alphai_mi += (1.0 - S_alphas) / mass[n_tracers()];
 
     return 1.0 / S_alphai_mi;
 }
 
-Real HydroGas::get_mass_from_cons(const Vector<Real> &U, const int density_idx, const int tracer_idx) const
+Real HydroGas::get_mass_from_cons(const Vector<Real>& U,
+                                  const int density_idx,
+                                  const int tracer_idx) const
 {
     BL_PROFILE("HydroGas::get_mass_from_cons");
 
@@ -88,12 +90,12 @@ Real HydroGas::get_mass_from_cons(const Vector<Real> &U, const int density_idx, 
         S_alphai_mi += alphai / mass[i];
     }
 
-    S_alphai_mi += (1.0-S_alphas) / mass[n_tracers()];
+    S_alphai_mi += (1.0 - S_alphas) / mass[n_tracers()];
 
     return 1.0 / S_alphai_mi;
 }
 
-Real HydroGas::get_charge_from_prim(const Vector<Real> &Q, const int tracer_idx) const
+Real HydroGas::get_charge_from_prim(const Vector<Real>& Q, const int tracer_idx) const
 {
     BL_PROFILE("HydroGas::get_charge_from_prim");
 
@@ -112,13 +114,15 @@ Real HydroGas::get_charge_from_prim(const Vector<Real> &Q, const int tracer_idx)
         S_alphas += alphai;
     }
 
-    S_alphaiqi_mi += (1.0-S_alphas) * charge[n_tracers()] / mass[n_tracers()];
-    S_alphai_mi += (1.0-S_alphas) / mass[n_tracers()];
+    S_alphaiqi_mi += (1.0 - S_alphas) * charge[n_tracers()] / mass[n_tracers()];
+    S_alphai_mi += (1.0 - S_alphas) / mass[n_tracers()];
 
     return S_alphaiqi_mi / S_alphai_mi;
 }
 
-Real HydroGas::get_charge_from_cons(const Vector<Real> &U, const int density_idx, const int tracer_idx) const
+Real HydroGas::get_charge_from_cons(const Vector<Real>& U,
+                                    const int density_idx,
+                                    const int tracer_idx) const
 {
     BL_PROFILE("HydroGas::get_charge_from_cons");
 
@@ -139,48 +143,54 @@ Real HydroGas::get_charge_from_cons(const Vector<Real> &U, const int density_idx
         S_alphas += alphai;
     }
 
-    S_alphaiqi_mi += (1.0-S_alphas) * charge[n_tracers()] / mass[n_tracers()];
-    S_alphai_mi += (1.0-S_alphas) / mass[n_tracers()];
+    S_alphaiqi_mi += (1.0 - S_alphas) * charge[n_tracers()] / mass[n_tracers()];
+    S_alphai_mi += (1.0 - S_alphas) / mass[n_tracers()];
 
     return S_alphaiqi_mi / S_alphai_mi;
 }
 
-bool HydroGas::prim_valid(const Vector<Real> &Q) const
+bool HydroGas::prim_valid(const Vector<Real>& Q) const
 {
-    if ((Q[+HydroDef::PrimIdx::Density] <= 0.0) ||  (Q[+HydroDef::PrimIdx::Prs] <= 0.0)
-            ||  (Q[+HydroDef::PrimIdx::Temp] <= 0.0)
-            ) {
-        //Print() << "\n" << Q[+HydroDef::PrimIdx::Density] << " " << Q[+HydroDef::PrimIdx::Prs] << " " <<  Q[+HydroDef::PrimIdx::Temp] << " \n" ; //TODO delete 
+    BL_PROFILE("HydroGas::prim_valid");
+
+    if ((Q[+HydroDef::PrimIdx::Density] <= 0.0) || (Q[+HydroDef::PrimIdx::Prs] <= 0.0) ||
+        (Q[+HydroDef::PrimIdx::Temp] <= 0.0)) {
+        // Print() << "\n" << Q[+HydroDef::PrimIdx::Density] << " " << Q[+HydroDef::PrimIdx::Prs] <<
+        // " " <<  Q[+HydroDef::PrimIdx::Temp] << " \n" ; //TODO delete
         amrex::Abort("Primitive values outside of physical bounds!!");
         return false;
     }
     return true;
 }
 
-bool HydroGas::cons_valid(const Vector<Real> &U) const
+bool HydroGas::cons_valid(const Vector<Real>& U) const
 {
-    if ((U[+HydroDef::ConsIdx::Density] <= 0.0) ||  (U[+HydroDef::ConsIdx::Eden] <= 0.0)
-            ) {
+    BL_PROFILE("HydroGas::cons_valid");
+
+    if ((U[+HydroDef::ConsIdx::Density] <= 0.0) || (U[+HydroDef::ConsIdx::Eden] <= 0.0)) {
         amrex::Abort("Primitive values outside of physical bounds!!");
         return false;
     }
     return true;
 }
 
-Real HydroGas::get_energy_from_cons(const Vector<Real> &U) const
+Real HydroGas::get_energy_from_cons(const Vector<Real>& U) const
 {
+    BL_PROFILE("HydroGas::get_energy_from_cons");
+
     return U[+HydroDef::ConsIdx::Eden];
 }
 
-Real HydroGas::get_temperature_from_prim(const Vector<Real> &Q) const
+Real HydroGas::get_temperature_from_prim(const Vector<Real>& Q) const
 {
+    BL_PROFILE("HydroGas::get_temperature_from_prim");
+
     return Q[+HydroDef::PrimIdx::Temp];
 }
 
 Real HydroGas::get_internal_energy_density_from_cons(const Vector<Real>& U) const
 {
-
-    BL_PROFILE("ThermallyPerfectGas::get_specific_internal_energy_from_cons");
+    BL_PROFILE("HydroGas::get_internal_energy_density_from_cons");
 
     Real rho = U[+HydroDef::ConsIdx::Density];
     Real mx = U[+HydroDef::ConsIdx::Xmom];
@@ -188,45 +198,48 @@ Real HydroGas::get_internal_energy_density_from_cons(const Vector<Real>& U) cons
     Real mz = U[+HydroDef::ConsIdx::Zmom];
     Real ed = U[+HydroDef::ConsIdx::Eden];
 
-    Real rhoinv = 1/rho;
-    Real u = mx*rhoinv;
-    Real v = my*rhoinv;
-    Real w = mz*rhoinv;
-    Real ke = 0.5*rho*(u*u + v*v + w*w);
+    Real rhoinv = 1 / rho;
+    Real u = mx * rhoinv;
+    Real v = my * rhoinv;
+    Real w = mz * rhoinv;
+    Real ke = 0.5 * rho * (u * u + v * v + w * w);
 
-    Real ied = ed - ke; // internal energy density
+    Real ied = ed - ke;  // internal energy density
 
     return ied;
 }
 
 Real HydroGas::get_density_from_number_density(const Real nd, Vector<Real>& Q) const
 {
+    BL_PROFILE("HydroGas::get_density_from_number_density");
 
     Real mass_inv = 0.0;
-    if (mass_const)
-        return nd * mass[0];
+    if (mass_const) return nd * mass[0];
 
     Real alphai = 0.0;
     Real S_alphas = 0.0;
-    for (int i=0; i < n_tracers(); ++i) {
+    for (int i = 0; i < n_tracers(); ++i) {
         alphai = Q[+HydroDef::PrimIdx::NUM + i];
         alphai = std::clamp(alphai, 0.0, 1.0);
         S_alphas += alphai;
         mass_inv += alphai / mass[i];
     }
-    mass_inv += (1.0-S_alphas) / mass[n_tracers()]; // deduce alpha value for final component
+    mass_inv += (1.0 - S_alphas) / mass[n_tracers()];  // deduce alpha value for final component
 
     return nd / mass_inv;
 }
 
-void HydroGas::write_info(nlohmann::json &js) const
+void HydroGas::write_info(nlohmann::json& js) const
 {
+    BL_PROFILE("HydroGas::write_info");
+
     js["mass"] = mass;
     js["charge"] = charge;
     js["comp_names"] = comp_names;
 }
 
-ClassFactory<HydroGas>& GetHydroGasFactory() {
+ClassFactory<HydroGas>& GetHydroGasFactory()
+{
     static ClassFactory<HydroGas> F;
     return F;
 }

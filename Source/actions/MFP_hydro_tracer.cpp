@@ -1,17 +1,20 @@
 #ifdef AMREX_PARTICLES
-#include "MFP_hydro_tracer.H"
-#include "sol.hpp"
-#include "MFP_diagnostics.H"
+    #include "MFP_hydro_tracer.H"
+
+    #include "MFP_diagnostics.H"
+    #include "sol.hpp"
 
 std::string HydroTracer::tag = "hydro_tracer";
-bool HydroTracer::registered = GetActionFactory().Register(HydroTracer::tag, ActionBuilder<HydroTracer>);
+bool HydroTracer::registered =
+  GetActionFactory().Register(HydroTracer::tag, ActionBuilder<HydroTracer>);
 
+HydroTracer::HydroTracer() {}
+HydroTracer::~HydroTracer() {}
 
-HydroTracer::HydroTracer(){}
-HydroTracer::~HydroTracer(){}
-
-HydroTracer::HydroTracer(const int idx, const sol::table &def)
+HydroTracer::HydroTracer(const int idx, const sol::table& def)
 {
+    BL_PROFILE("HydroTracer::HydroTracer");
+
     action_idx = idx;
     name = def["name"];
 
@@ -21,13 +24,12 @@ HydroTracer::HydroTracer(const int idx, const sol::table &def)
     for (const auto& i : MFP::eulerian_states) {
         EulerianState& istate = EulerianState::get_state_global(i);
         if (istate.get_type() == State::StateType::Hydro) {
-            if (istate.name == hydro_name) {
-                hydro_state = static_cast<HydroState*>(&istate);
-            }
+            if (istate.name == hydro_name) { hydro_state = static_cast<HydroState*>(&istate); }
         }
     }
 
-    if (!hydro_state) Abort("Source '"+name+"' unable to attach to hydro state '"+hydro_name+"'");
+    if (!hydro_state)
+        Abort("Source '" + name + "' unable to attach to hydro state '" + hydro_name + "'");
 
     for (const auto& i : MFP::lagrangian_states) {
         LagrangianState& istate = LagrangianState::get_state_global(i);
@@ -38,58 +40,68 @@ HydroTracer::HydroTracer(const int idx, const sol::table &def)
         }
     }
 
-    if (!tracer_state) Abort("Source '"+name+"' unable to attach to tracer particles '"+particle_name+"'");
+    if (!tracer_state)
+        Abort("Source '" + name + "' unable to attach to tracer particles '" + particle_name + "'");
 }
 
 void HydroTracer::apply_spatial_derivative(MFP* mfp, const Real time, const Real dt)
 {
-    BL_PROFILE("HydroTracer::solve");
+    BL_PROFILE("HydroTracer::apply_spatial_derivative");
 
     // collect all of the MultiFabs that we need
     MultiFab& cost = mfp->get_new_data(MFP::Cost_Idx);
 
     // grab the density and as many momentum components as necessary
     int num_grow = 1;
-    MultiFab hydro_cons(mfp->boxArray(), mfp->DistributionMap(), AMREX_SPACEDIM+1, num_grow, MFInfo(),mfp->Factory());
-    mfp->FillPatch(*mfp, hydro_cons, num_grow, time, hydro_state->data_idx, +HydroDef::ConsIdx::Density, AMREX_SPACEDIM+1);
+    MultiFab hydro_cons(mfp->boxArray(),
+                        mfp->DistributionMap(),
+                        AMREX_SPACEDIM + 1,
+                        num_grow,
+                        MFInfo(),
+                        mfp->Factory());
+    mfp->FillPatch(*mfp,
+                   hydro_cons,
+                   num_grow,
+                   time,
+                   hydro_state->data_idx,
+                   +HydroDef::ConsIdx::Density,
+                   AMREX_SPACEDIM + 1);
 
     FArrayBox vel;
 
     for (MFIter mfi(cost); mfi.isValid(); ++mfi) {
-
         Real wt = ParallelDescriptor::second();
 
         const Box& box = mfi.tilebox();
 
-#ifdef AMREX_USE_EB
+    #ifdef AMREX_USE_EB
         EBData& eb = mfp->get_eb_data(hydro_state->global_idx);
         const FArrayBox& vfrac = eb.volfrac[mfi];
         const EBCellFlagFab& flag = eb.flags[mfi];
         if (vfrac.getType() == FabType::covered) continue;
-#endif
+    #endif
 
-        hydro_state->calc_velocity(grow(box,1),
+        hydro_state->calc_velocity(grow(box, 1),
                                    hydro_cons[mfi],
                                    vel
-                           #ifdef AMREX_USE_EB
-                                   ,vfrac
-                           #endif
-                                   );
+    #ifdef AMREX_USE_EB
+                                   ,
+                                   vfrac
+    #endif
+        );
 
-//        plot_FAB_2d(vel, 0, "x-vel",false,true);
+        //        plot_FAB_2d(vel, 0, "x-vel",false,true);
 
         tracer_state->push_particles(mfp->get_level(),
                                      mfi,
                                      vel,
                                      mfp->Geom(),
                                      dt
-                             #ifdef AMREX_USE_EB
-                                     ,flag
-                             #endif
-                                     );
-
-
-
+    #ifdef AMREX_USE_EB
+                                     ,
+                                     flag
+    #endif
+        );
 
         // update the cost function
         wt = (ParallelDescriptor::second() - wt) / box.d_numPts();

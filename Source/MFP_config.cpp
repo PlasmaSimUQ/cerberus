@@ -1,21 +1,19 @@
-#include <AMReX_ParmParse.H>
-
 #include "MFP.H"
-#include "MFP_state.H"
+#include "MFP_action.H"
 #include "MFP_eb_sdf.H"
 #include "MFP_read_geom.h"
+#include "MFP_state.H"
 #include "MFP_utility.H"
 
-#include "MFP_state.H"
-#include "MFP_action.H"
+#include <AMReX_ParmParse.H>
 
-
-void MFP::set_lua_script(const std::string &script)
+void MFP::set_lua_script(const std::string& script)
 {
     BL_PROFILE("MFP::set_lua_script");
+
     lua_script =
-        #include "default.lua"
-            ;
+#include "default.lua"
+      ;
 
     lua_script += script;
 
@@ -23,17 +21,17 @@ void MFP::set_lua_script(const std::string &script)
     lua_script += "\npreprocess()\n";
 }
 
-void MFP::save_lua_script() {
+void MFP::save_lua_script()
+{
+    BL_PROFILE("MFP::save_lua_script");
 
     if (ParallelDescriptor::IOProcessor()) {
-
         std::ofstream ofs;
 
         ofs.open("MFP_Lua_initialisation.lua", std::ofstream::out | std::ofstream::trunc);
         ofs << lua_script;
         ofs.close();
         Print() << "'MFP_Lua_initialisation.lua' written to file\n";
-
     }
 
     return;
@@ -42,7 +40,6 @@ void MFP::save_lua_script() {
 void MFP::read_config()
 {
     BL_PROFILE("MFP::read_config");
-
 
     lua.open_libraries(sol::lib::base,
                        sol::lib::package,
@@ -55,12 +52,11 @@ void MFP::read_config()
     // register geometry stuff
     LuaSplineIF::register_with_lua(lua);
     ReadSTL::register_with_lua(lua);
-#if AMREX_SPACEDIM == 2
+    #if AMREX_SPACEDIM == 2
     PolySpline::register_with_lua(lua);
     ReadSVG::register_with_lua(lua);
+    #endif
 #endif
-#endif
-
 
     // parse the input script
     lua.script(lua_script);
@@ -86,7 +82,8 @@ void MFP::read_config()
     } else if (time_integrator == "symplectic") {
         time_integration_scheme = TimeIntegrator::Symplectic;
     } else {
-        Abort("Time integration scheme '"+time_integrator+"' is not recognised, try ['runge-kutta', 'strang', 'symplectic']");
+        Abort("Time integration scheme '" + time_integrator +
+              "' is not recognised, try ['runge-kutta', 'strang', 'symplectic']");
     }
 
     linear_solver_verbosity = lua["linear_solver_verbosity"];
@@ -108,10 +105,7 @@ void MFP::read_config()
 
     // get a list of all the tags
     Vector<std::string> state_tags;
-    for (const auto& S : sfact.getRegistered()) {
-        state_tags.push_back(S.first);
-    }
-
+    for (const auto& S : sfact.getRegistered()) { state_tags.push_back(S.first); }
 
     int global_idx = 0;
     for (auto& item : state_def_names) {
@@ -127,7 +121,7 @@ void MFP::read_config()
         std::unique_ptr<State> istate = sfact.Build(state_type, state_def);
 
         if (!istate)
-            Abort("Failed to read state "+name+", must be one of "+vec2str(state_tags));
+            Abort("Failed to read state " + name + ", must be one of " + vec2str(state_tags));
 
         states.push_back(std::move(istate));
         state_names.push_back(name);
@@ -136,17 +130,10 @@ void MFP::read_config()
         State& S = get_state(name);
 
         switch (S.get_classification()) {
-        case State::StateClassification::Eulerian:
-            eulerian_states.push_back(global_idx);
-            break;
-        case State::StateClassification::Lagrangian:
-            lagrangian_states.push_back(global_idx);
-            break;
-        default:
-            Abort("How did we get here?");
+        case State::StateClassification::Eulerian: eulerian_states.push_back(global_idx); break;
+        case State::StateClassification::Lagrangian: lagrangian_states.push_back(global_idx); break;
+        default: Abort("How did we get here?");
         }
-
-
 
         global_idx++;
     }
@@ -155,27 +142,25 @@ void MFP::read_config()
     // initialize states
     //
 
-    for (auto &istate : states) {
-        istate->init_from_lua();
-    }
+    for (auto& istate : states) { istate->init_from_lua(); }
 
     //
     // forced refinement
     //
 
     sol::table ref_boxes = lua["refine_boxes"];
-    Array<Real,AMREX_SPACEDIM> boxlo, boxhi;
+    Array<Real, AMREX_SPACEDIM> boxlo, boxhi;
     for (const auto& ubox : ref_boxes) {
-        const sol::table &pair = ubox.second;
-        const sol::table &lo = pair[1];
-        const sol::table &hi = pair[2];
+        const sol::table& pair = ubox.second;
+        const sol::table& lo = pair[1];
+        const sol::table& hi = pair[2];
         for (int i = 0; i < AMREX_SPACEDIM; ++i) {
             boxlo[i] = lo[i + 1];
             boxhi[i] = hi[i + 1];
         }
         refine_boxes.push_back(RealBox(boxlo, boxhi));
 
-        std::string type = pair.get_or<std::string>("type","force_refine");
+        std::string type = pair.get_or<std::string>("type", "force_refine");
         if (type == "force_refine") {
             refine_box_type.push_back(RefineBoxType::ForceRefine);
         } else if (type == "no_refine") {
@@ -185,7 +170,8 @@ void MFP::read_config()
             refine_box_type.push_back(RefineBoxType::OnlyRefine);
             only_refine_in_box = true;
         } else {
-            Abort("Refine box has undefined type '"+type+"', valid types are 'force_refine', 'no_refine', 'only_refine'");
+            Abort("Refine box has undefined type '" + type +
+                  "', valid types are 'force_refine', 'no_refine', 'only_refine'");
         }
     }
 
@@ -195,9 +181,7 @@ void MFP::read_config()
 
     zero_dimensional = lua.get_or("zero_dimensional", false);
 
-    for (int i = 0; i < AMREX_SPACEDIM; i++) {
-        tile_size[i] = lua["tile_size"][i + 1];
-    }
+    for (int i = 0; i < AMREX_SPACEDIM; i++) { tile_size[i] = lua["tile_size"][i + 1]; }
 
     force_dt = lua["force_dt"];
 
@@ -217,7 +201,7 @@ void MFP::read_config()
     std::size_t i = 0;
     for (const auto& eb_key : eb_keys) {
         //        const sol::object &eb_name = eb_item.first;
-        const sol::table &eb_desc = eb_list[eb_key.second.as<std::string>()];
+        const sol::table& eb_desc = eb_list[eb_key.second.as<std::string>()];
 
         DataEB eb_dat;
 
@@ -238,7 +222,7 @@ void MFP::read_config()
         const std::string boolean_op = eb_desc.get_or<std::string>("boolean_operation", "or");
         if (boolean_op == "or") {
             eb_dat.insertion_type = 1;
-        } else if (boolean_op == "and"){
+        } else if (boolean_op == "and") {
             eb_dat.insertion_type = -1;
         } else {
             Abort("Unknown option for 'boolean_operation', try 'and' or 'or'");
@@ -250,14 +234,14 @@ void MFP::read_config()
         // and the type of boundary condition that state uses to interact with
         // the embedded boundary
         std::size_t j = 0;
-        const sol::table &bcs = eb_desc["bcs"];
+        const sol::table& bcs = eb_desc["bcs"];
         for (const auto& bc : bcs) {
-            const sol::object &state = bc.first;
-            const sol::object &bc_def = bc.second;
+            const sol::object& state = bc.first;
+            const sol::object& bc_def = bc.second;
             std::string state_name = state.as<std::string>();
             if (state_name != "func") {
-                State &istate = get_state(state_name);
-                eb_dat.states.push_back({istate.global_idx,istate.get_eb_bc_size()});
+                State& istate = get_state(state_name);
+                eb_dat.states.push_back({istate.global_idx, istate.get_eb_bc_size()});
                 istate.set_eb_bc(bc_def);
             }
             ++j;
@@ -268,7 +252,6 @@ void MFP::read_config()
         ++i;
     }
 #endif
-
 
     //
     // generate actions
@@ -281,10 +264,7 @@ void MFP::read_config()
 
     // get a list of all the tags
     Vector<std::string> act_tags;
-    for (const auto& S : act_fact.getRegistered()) {
-        act_tags.push_back(S.first);
-    }
-
+    for (const auto& S : act_fact.getRegistered()) { act_tags.push_back(S.first); }
 
     int act_idx = 0;
     for (auto& item : act_def_names) {
@@ -300,7 +280,8 @@ void MFP::read_config()
         std::unique_ptr<Action> act = act_fact.Build(src_type, act_def);
 
         if (!act)
-            Abort("Failed to read action "+act_name+", 'type' must be one of "+vec2str(act_tags));
+            Abort("Failed to read action " + act_name + ", 'type' must be one of " +
+                  vec2str(act_tags));
 
         actions.push_back(std::move(act));
         source_names.push_back(act_name);
@@ -309,38 +290,33 @@ void MFP::read_config()
         act_idx++;
     }
 
-
-
     // update anything in the states that requires actions to be defined
-    for (auto &istate : states) {
-        istate->post_init_from_lua();
-    }
+    for (auto& istate : states) { istate->post_init_from_lua(); }
 
     // plot functions
     const sol::table plot = lua["plot"];
 
-    const Array<std::string, AMREX_SPACEDIM> grad = {AMREX_D_DECL("-dx","-dy","-dz")};
+    const Array<std::string, AMREX_SPACEDIM> grad = {AMREX_D_DECL("-dx", "-dy", "-dz")};
 
     const sol::table plot_vars = plot["variables"];
 
-
     // first get all the variables we want in our output
-    for (const auto& key_value_pair : plot_vars ) {
+    for (const auto& key_value_pair : plot_vars) {
         sol::object value = key_value_pair.second;
         std::string name = value.as<std::string>();
-        plot_variables[name] = {0, AMREX_D_DECL(0,0,0)};
+        plot_variables[name] = {0, AMREX_D_DECL(0, 0, 0)};
     }
 
     // now check if we have any request for gradients
-    for (const auto& var : plot_variables ) {
+    for (const auto& var : plot_variables) {
         std::string name = var.first;
-        for (int i=0; i<AMREX_SPACEDIM; ++i) {
+        for (int i = 0; i < AMREX_SPACEDIM; ++i) {
             size_t found = name.find(grad[i]);
             if (found != std::string::npos) {
-                const std::string base_name = name.erase(found,found+grad[i].size());
+                const std::string base_name = name.erase(found, found + grad[i].size());
                 if (plot_variables.find(base_name) == plot_variables.end())
-                    plot_variables[base_name] = {-1, AMREX_D_DECL(0,0,0)};
-                plot_variables[base_name][i+1] = 1;
+                    plot_variables[base_name] = {-1, AMREX_D_DECL(0, 0, 0)};
+                plot_variables[base_name][i + 1] = 1;
                 break;
             }
         }
@@ -348,12 +324,11 @@ void MFP::read_config()
 
     // get everything???
     if (plot_variables.find("all") != plot_variables.end()) {
-
         plot_variables["cost"][0] = 0;
 
         for (const auto& state : states) {
             for (auto& name : state->get_plot_output_names()) {
-                plot_variables[name+"-"+state->name][0] = 0;
+                plot_variables[name + "-" + state->name][0] = 0;
             }
         }
         plot_variables.erase("all");
@@ -367,14 +342,14 @@ void MFP::read_config()
         }
     }
 
-//    for (const auto& var : plot_variables) {
-//        Print() << var.first << " : " << var.second[0] << std::endl;
-//    }
+    //    for (const auto& var : plot_variables) {
+    //        Print() << var.first << " : " << var.second[0] << std::endl;
+    //    }
 
     const sol::table plot_funcs = plot["functions"];
     // need to get sorted function names to ensure consistency across processors
     const sol::table func_names = lua.script("return get_sorted_keys(plot['functions'])");
-    for (const auto& key_value_pair : func_names ) {
+    for (const auto& key_value_pair : func_names) {
         const std::string name = key_value_pair.second.as<std::string>();
         plot_functions.push_back(std::make_pair(name, get_udf(plot_funcs[name])));
     }
@@ -382,28 +357,24 @@ void MFP::read_config()
 
 void MFP::update_config_post_data_instantiation()
 {
-    BL_PROFILE("MFP::read_config_2");
+    BL_PROFILE("MFP::update_config_post_data_instantiation");
 
 #ifdef AMREX_USE_EB
 
     // iterate over states and update the data index of all embedded boundaries
 
-    Vector<size_t> glob2dat(states.size(),-1);
-    for (size_t i=0; i<eulerian_states.size(); ++i) {
-        glob2dat[eulerian_states[i]] = i;
-    }
+    Vector<size_t> glob2dat(states.size(), -1);
+    for (size_t i = 0; i < eulerian_states.size(); ++i) { glob2dat[eulerian_states[i]] = i; }
 
-    for (auto& istate : states) {
-        istate->update_eb_bc(glob2dat);
-    }
+    for (auto& istate : states) { istate->update_eb_bc(glob2dat); }
 
 #endif
-
 }
 
 void MFP::update_ref()
 {
     BL_PROFILE("MFP::update_ref");
+
     x_ref = lua["ref_length"];
     rho_ref = lua["ref_density"];
     m_ref = lua["ref_mass"];
@@ -416,33 +387,33 @@ void MFP::update_ref()
     Larmor = lua["Larmor"];
     Debye = lua["Debye"];
 
-    n_ref = rho_ref/m_ref;
+    n_ref = rho_ref / m_ref;
 
-    n0 = n_ref*x_ref*x_ref*x_ref;
+    n0 = n_ref * x_ref * x_ref * x_ref;
 
-    const Real kB = 1.38064852e-23; // m^2.kg.s^-2.K^-1
-    const Real mu0= 1.25663706e-6 ; // m kg s-2 A-2
-    const Real ep0= 8.85418782e-12; // m-3 kg-1 s4 A2
+    const Real kB = 1.38064852e-23;   // m^2.kg.s^-2.K^-1
+    const Real mu0 = 1.25663706e-6;   // m kg s-2 A-2
+    const Real ep0 = 8.85418782e-12;  // m-3 kg-1 s4 A2
     // have choice of T or c
     if ((T_ref > 0) && (c > 0)) {
         Abort("ref_temp and lightspeed both set, only set one");
     } else if (T_ref > 0) {
-        //Print() << "T_ref >0, set c from this.";
+        // Print() << "T_ref >0, set c from this.";
         T_ref = T_ref;
-        u_ref = sqrt(kB*T_ref/m_ref);
-        lightspeed = c_ref/u_ref;
-    } else if (c > 0) { // default
+        u_ref = sqrt(kB * T_ref / m_ref);
+        lightspeed = c_ref / u_ref;
+    } else if (c > 0) {  // default
         lightspeed = c;
-        //Print() << "c>0, set T_ref from this.";
-        u_ref = c_ref/lightspeed;
-        T_ref = ((c_ref*c_ref)/(lightspeed*lightspeed))*(m_ref/kB);
-        //Print() << "T_ref = " + std::to_string(T_ref);
+        // Print() << "c>0, set T_ref from this.";
+        u_ref = c_ref / lightspeed;
+        T_ref = ((c_ref * c_ref) / (lightspeed * lightspeed)) * (m_ref / kB);
+        // Print() << "T_ref = " + std::to_string(T_ref);
     } else {
         Abort("Either ref_temp or lightspeed need to be set, only set one");
     }
 
-    prs_ref = n_ref*m_ref*u_ref*u_ref;
-    t_ref = x_ref/u_ref;
+    prs_ref = n_ref * m_ref * u_ref * u_ref;
+    t_ref = x_ref / u_ref;
 
     // need Larmor and Debye, can set these explicitly or via dS and beta
     int set = 0;
@@ -454,32 +425,31 @@ void MFP::update_ref()
 
     switch (set) {
     case 0:
-        Abort("plasma parameters not set, define skin_depth & beta or Larmor & Debye, choose one pair");
+        Abort(
+          "plasma parameters not set, define skin_depth & beta or Larmor & Debye, choose one pair");
     case 1:
-        skin_depth = Debye*lightspeed;
-        beta = 2*(Larmor/skin_depth)*(Larmor/skin_depth);
+        skin_depth = Debye * lightspeed;
+        beta = 2 * (Larmor / skin_depth) * (Larmor / skin_depth);
         plasma_params_set = true;
         break;
     case 2:
-        Debye =  skin_depth/lightspeed;
-        Larmor = sqrt(beta/2.0)*skin_depth;
+        Debye = skin_depth / lightspeed;
+        Larmor = sqrt(beta / 2.0) * skin_depth;
         break;
-    case 3:
-        Abort("skin_depth+beta as well as Larmor+Debye defined, choose one pair");
+    case 3: Abort("skin_depth+beta as well as Larmor+Debye defined, choose one pair");
     }
-    Real B_ref = std::sqrt(2*mu0*n_ref*m_ref*u_ref*u_ref/beta), E_ref = c_ref*B_ref;
+    Real B_ref = std::sqrt(2 * mu0 * n_ref * m_ref * u_ref * u_ref / beta), E_ref = c_ref * B_ref;
 
     plasma_params_set = true;
 
     Print() << "\n===Simulation Reference parameters===\n  Mechanical\n  x_ref = "
-            << std::scientific << x_ref <<"\n  rho_ref = " << std::scientific
-            << rho_ref<< "\n  m_ref = " << std::scientific << m_ref <<  +"\n  T_ref = "
-            << std::scientific << T_ref << "\n  n_ref = " << std::scientific << n_ref
-            << "\n  n0_ref = " << std::scientific << n0 <<  "\n  t_ref = "
-            << std::scientific << x_ref/u_ref << "\n\n  Electromagnetic\n  c_ref = "
-            << std::scientific << c_ref << "\n  B_ref = " << std::scientific
-            << B_ref << "\n  E_ref = " << std::scientific << E_ref
-            << "\n\n  NonDimensional c = " << std::scientific << c
+            << std::scientific << x_ref << "\n  rho_ref = " << std::scientific << rho_ref
+            << "\n  m_ref = " << std::scientific << m_ref << +"\n  T_ref = " << std::scientific
+            << T_ref << "\n  n_ref = " << std::scientific << n_ref
+            << "\n  n0_ref = " << std::scientific << n0 << "\n  t_ref = " << std::scientific
+            << x_ref / u_ref << "\n\n  Electromagnetic\n  c_ref = " << std::scientific << c_ref
+            << "\n  B_ref = " << std::scientific << B_ref << "\n  E_ref = " << std::scientific
+            << E_ref << "\n\n  NonDimensional c = " << std::scientific << c
             << "\n  NonDimensional beta = " << std::scientific << beta
             << "\n  NonDimensional skin_depth = " << std::scientific << skin_depth
             << "\n  NonDimensional Larmor = " << std::scientific << Larmor
@@ -487,11 +457,11 @@ void MFP::update_ref()
 }
 
 // pointer to state initialization routine
-typedef void (*state_config)(const std::string &name, const int idx);
+typedef void (*state_config)(const std::string& name, const int idx);
 
 void MFP::read_params()
 {
-    BL_PROFILE("MFP::read_params()");
+    BL_PROFILE("MFP::read_params");
 
     ParmParse mfp("mfp");
     std::string lua_script;
@@ -517,5 +487,4 @@ void MFP::read_params()
 
     // pass off to global data routine
     read_config();
-
 }

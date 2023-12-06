@@ -1,23 +1,18 @@
 #include "MFP.H"
 #include "MFP_state.H"
 
-Real MFP::estTimeStep() {
-    BL_PROFILE("MFP::estTimeStep()");
+Real MFP::estTimeStep()
+{
+    BL_PROFILE("MFP::estTimeStep");
 
-    if (force_dt > 0.0) {
-        return force_dt;
-    }
+    if (force_dt > 0.0) { return force_dt; }
 
     Real estdt = std::numeric_limits<Real>::max();
 
     // handle all of the intrinsic time step limitations of a state
-    for (auto& state : states) {
-        estdt = std::min(estdt, state->get_allowed_time_step(this));
-    }
+    for (auto& state : states) { estdt = std::min(estdt, state->get_allowed_time_step(this)); }
 
-    for (auto& action : actions) {
-        estdt = std::min(estdt, action->get_allowed_time_step(this));
-    }
+    for (auto& action : actions) { estdt = std::min(estdt, action->get_allowed_time_step(this)); }
 
     estdt *= cfl;
     ParallelDescriptor::ReduceRealMin(estdt);
@@ -25,17 +20,19 @@ Real MFP::estTimeStep() {
     return estdt;
 }
 
-void MFP::computeInitialDt(int finest_level, int sub_cycle,
+void MFP::computeInitialDt(int finest_level,
+                           int sub_cycle,
                            Vector<int>& n_cycle,
                            const Vector<IntVect>& ref_ratio,
-                           Vector<Real>& dt_level, Real stop_time)
+                           Vector<Real>& dt_level,
+                           Real stop_time)
 {
+    BL_PROFILE("MFP::computeInitialDt");
+
     //
     // Grids have been constructed, compute dt for all levels.
     //
-    if (level > 0) {
-        return;
-    }
+    if (level > 0) { return; }
 
     Real dt_0 = std::numeric_limits<Real>::max();
     int n_factor = 1;
@@ -61,30 +58,30 @@ void MFP::computeInitialDt(int finest_level, int sub_cycle,
     }
 }
 
-void MFP::computeNewDt(int finest_level, int sub_cycle, Vector<int>& n_cycle,
-                       const Vector<IntVect>& ref_ratio, Vector<Real>& dt_min,
-                       Vector<Real>& dt_level, Real stop_time,
+void MFP::computeNewDt(int finest_level,
+                       int sub_cycle,
+                       Vector<int>& n_cycle,
+                       const Vector<IntVect>& ref_ratio,
+                       Vector<Real>& dt_min,
+                       Vector<Real>& dt_level,
+                       Real stop_time,
                        int post_regrid_flag)
 {
+    BL_PROFILE("MFP::computeNewDt");
+
     //
     // We are at the end of a coarse grid timecycle.
     // Compute the timesteps for the next iteration.
     //
-    if (level > 0) {
-        return;
-    }
+    if (level > 0) { return; }
 
-    for (int i = 0; i <= finest_level; i++) {
-        dt_min[i] = getLevel(i).estTimeStep();
-    }
+    for (int i = 0; i <= finest_level; i++) { dt_min[i] = getLevel(i).estTimeStep(); }
 
     if (post_regrid_flag == 1) {
         //
         // Limit dt's by pre-regrid dt
         //
-        for (int i = 0; i <= finest_level; i++) {
-            dt_min[i] = std::min(dt_min[i], dt_level[i]);
-        }
+        for (int i = 0; i <= finest_level; i++) { dt_min[i] = std::min(dt_min[i], dt_level[i]); }
     } else {
         //
         // Limit dt's by change_max * old dt
@@ -111,9 +108,7 @@ void MFP::computeNewDt(int finest_level, int sub_cycle, Vector<int>& n_cycle,
     const Real eps = 0.001 * dt_0;
     Real cur_time = state[0].curTime();
     if (stop_time >= 0.0) {
-        if ((cur_time + dt_0) > (stop_time - eps)) {
-            dt_0 = stop_time - cur_time;
-        }
+        if ((cur_time + dt_0) > (stop_time - eps)) { dt_0 = stop_time - cur_time; }
     }
 
     n_factor = 1;

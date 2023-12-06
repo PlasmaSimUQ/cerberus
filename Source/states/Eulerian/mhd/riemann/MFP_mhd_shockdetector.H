@@ -1,23 +1,22 @@
 #ifndef MHDSHOCKDETECTOR_H
 #define MHDSHOCKDETECTOR_H
 
-#include <AMReX_Vector.H>
-#include <AMReX_REAL.H>
-
-#include "sol.hpp"
-#include "json.hpp"
+#include "MFP_eulerian_riemann.H"
 #include "MFP_factory.H"
 #include "MFP_mhd_defs.H"
-#include "MFP_eulerian_riemann.H"
+#include "json.hpp"
+#include "sol.hpp"
+
+#include <AMReX_REAL.H>
+#include <AMReX_Vector.H>
 
 using namespace amrex;
 
 class State;
 
-
 class MHDShockDetector : public ShockDetector
 {
-public:
+  public:
     MHDShockDetector();
     ~MHDShockDetector();
 };
@@ -40,23 +39,20 @@ ClassFactory<MHDShockDetector>& GetMHDShockDetectorFactory();
 
 class PressureJumpShockDetectorMHD : public MHDShockDetector
 {
-public:
+  public:
     PressureJumpShockDetectorMHD();
-    PressureJumpShockDetectorMHD(const sol::table &def);
+    PressureJumpShockDetectorMHD(const sol::table& def);
 
-    virtual Real solve(Vector<Real> &L,
-                       Vector<Real> &R) const override;
+    virtual Real solve(Vector<Real>& L, Vector<Real>& R) const override;
 
-
-    virtual const std::string get_tag() const override {return tag;}
+    virtual const std::string get_tag() const override { return tag; }
     virtual void write_info(nlohmann::json& js) const override;
 
     static std::string tag;
     static bool registered;
 
-private:
+  private:
     Real shock_threshold;
-
 };
 
-#endif // SHOCKDETECTOR_H
+#endif  // SHOCKDETECTOR_H

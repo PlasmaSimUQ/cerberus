@@ -1,37 +1,40 @@
 #include "MFP_hydro_viscous.H"
 
 #include "MFP.H"
-#include "MFP_state.H"
 #include "MFP_hydro.H"
+#include "MFP_state.H"
 
 // ====================================================================================
 
 HydroViscous::HydroViscous()
 {
+    BL_PROFILE("HydroViscous::HydroViscous");
+
     active = false;
 }
 
 std::string HydroViscous::str() const
 {
+    BL_PROFILE("HydroViscous::str");
+
     std::stringstream msg;
 
     const auto coeffs = get_refs();
 
     msg << get_tag() << "(";
 
-    for (const auto& cf : coeffs) {
-        msg << cf.first << "=" << cf.second << ", ";
-    }
+    for (const auto& cf : coeffs) { msg << cf.first << "=" << cf.second << ", "; }
 
-    msg.seekp(-2,msg.cur);
+    msg.seekp(-2, msg.cur);
     msg << ")";
 
     return msg.str();
 }
 
-Real HydroViscous::get_min_dt(MFP *mfp) const
+Real HydroViscous::get_min_dt(MFP* mfp) const
 {
-    BL_PROFILE("get_max_speed");
+    BL_PROFILE("HydroViscous::get_min_dt");
+
     const HydroState& istate = HydroState::get_state_global(idx);
 
     MultiFab& data = mfp->get_new_data(istate.data_idx);
@@ -62,23 +65,17 @@ Real HydroViscous::get_min_dt(MFP *mfp) const
 
         Array4<Real const> const dat = data.const_array(mfi);
 
-        for     (int k = lo.z; k <= hi.z; ++k) {
-            for   (int j = lo.y; j <= hi.y; ++j) {
+        for (int k = lo.z; k <= hi.z; ++k) {
+            for (int j = lo.y; j <= hi.y; ++j) {
                 AMREX_PRAGMA_SIMD
-                        for (int i = lo.x; i <= hi.x; ++i) {
-
+                for (int i = lo.x; i <= hi.x; ++i) {
 #ifdef AMREX_USE_EB
-                    if (vf4(i,j,k) == 0.0) {
-                        continue;
-                    }
+                    if (vf4(i, j, k) == 0.0) { continue; }
 #endif
 
-                    for (int n=0; n<n_cons; ++n) {
-                        U[n] = dat(i,j,k,n);
-                    }
+                    for (int n = 0; n < n_cons; ++n) { U[n] = dat(i, j, k, n); }
 
                     max_speed = amrex::max(max_speed, calc_stability_condition(U));
-
                 }
             }
         }
@@ -88,15 +85,15 @@ Real HydroViscous::get_min_dt(MFP *mfp) const
 
     const Real* dx = mfp->Geom().CellSize();
 
-    for (int d=0; d<AMREX_SPACEDIM; ++d) {
-        min_dt = std::min(min_dt, dx[d]*dx[d]/max_speed);
+    for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+        min_dt = std::min(min_dt, dx[d] * dx[d] / max_speed);
     }
 
     return min_dt;
 }
 
-
-ClassFactory<HydroViscous>& GetHydroViscousFactory() {
+ClassFactory<HydroViscous>& GetHydroViscousFactory()
+{
     static ClassFactory<HydroViscous> F;
     return F;
 }
@@ -105,15 +102,19 @@ ClassFactory<HydroViscous>& GetHydroViscousFactory() {
 
 Sutherland::Sutherland()
 {
+    BL_PROFILE("Sutherland::Sutherland");
+
     active = true;
 }
-Sutherland::~Sutherland(){}
+Sutherland::~Sutherland() {}
 
 std::string Sutherland::tag = "Sutherland";
-bool Sutherland::registered = GetHydroViscousFactory().Register(Sutherland::tag, HydroViscousBuilder<Sutherland>);
+bool Sutherland::registered =
+  GetHydroViscousFactory().Register(Sutherland::tag, HydroViscousBuilder<Sutherland>);
 
 Sutherland::Sutherland(const int global_idx, const sol::table& def)
 {
+    BL_PROFILE("Sutherland::Sutherland");
 
     Real mu_ref = def["mu0"];
     Real T_ref = def["T0"];
@@ -127,58 +128,64 @@ Sutherland::Sutherland(const int global_idx, const sol::table& def)
     Real x_r = MFP::x_ref;
     Real T_r = MFP::T_ref;
 
-    mu_0 = mu_ref/(r_r*x_r*u_r);
-    T0 = T_ref/T_r;
-    S = S_ref/T_r;
+    mu_0 = mu_ref / (r_r * x_r * u_r);
+    T0 = T_ref / T_r;
+    S = S_ref / T_r;
 
     if ((mu_0 <= 0) || (T0 <= 0) || (S <= 0)) {
         amrex::Abort("Sutherland input coefficients non-physical");
     }
 }
 
-void Sutherland::get_coeffs(const Vector<Real> &Q, Real &T, Real &mu, Real &kappa) const
+void Sutherland::get_coeffs(const Vector<Real>& Q, Real& T, Real& mu, Real& kappa) const
 {
-    BL_PROFILE("Sutherland::get_neutral_coeffs");
+    BL_PROFILE("Sutherland::get_coeffs");
+
     const HydroState& istate = HydroState::get_state_global(idx);
 
     T = istate.gas->get_temperature_from_prim(Q);
     Real cp = istate.gas->get_cp_from_prim(Q);
 
-    Real T_ = T/T0;
-    mu = mu_0*T_*sqrt(T_)*(T0+S)/(T+S);
-    kappa = mu*cp/Prandtl;
+    Real T_ = T / T0;
+    mu = mu_0 * T_ * sqrt(T_) * (T0 + S) / (T + S);
+    kappa = mu * cp / Prandtl;
 
     return;
 }
 
 Real Sutherland::calc_stability_condition(Vector<Real>& U) const
 {
+    BL_PROFILE("Sutherland::calc_stability_condition");
+
     const HydroState& istate = HydroState::get_state_global(idx);
 
     const Real rho = U[+HydroDef::ConsIdx::Density];
     const Real T = istate.gas->get_temperature_from_cons(U);
     const Real gamma = istate.gas->get_gamma_from_cons(U);
 
+    const Real T_ = T / T0;
+    const Real mu = mu_0 * T_ * sqrt(T_) * (T0 + S) / (T + S);
 
-    const Real T_ = T/T0;
-    const Real mu = mu_0*T_*sqrt(T_)*(T0+S)/(T+S);
-
-    return (4*mu*gamma/(Prandtl*rho));
+    return (4 * mu * gamma / (Prandtl * rho));
 }
 
 // ====================================================================================
 
 PowerLaw::PowerLaw()
 {
+    BL_PROFILE("PowerLaw::PowerLaw");
+
     active = true;
 }
-PowerLaw::~PowerLaw(){}
+PowerLaw::~PowerLaw() {}
 
 std::string PowerLaw::tag = "PowerLaw";
-bool PowerLaw::registered = GetHydroViscousFactory().Register(PowerLaw::tag, HydroViscousBuilder<PowerLaw>);
+bool PowerLaw::registered =
+  GetHydroViscousFactory().Register(PowerLaw::tag, HydroViscousBuilder<PowerLaw>);
 
 PowerLaw::PowerLaw(const int global_idx, const sol::table& def)
 {
+    BL_PROFILE("PowerLaw::PowerLaw");
 
     Real mu_ref = def["mu0"];
     Real T_ref = def["T0"];
@@ -192,32 +199,32 @@ PowerLaw::PowerLaw(const int global_idx, const sol::table& def)
     Real x_r = MFP::x_ref;
     Real T_r = MFP::T_ref;
 
-    mu_0 = mu_ref/(r_r*x_r*u_r);
-    T0 = T_ref/T_r;
-
+    mu_0 = mu_ref / (r_r * x_r * u_r);
+    T0 = T_ref / T_r;
 
     if ((mu_0 <= 0) || (T0 <= 0) || (n <= 0)) {
         amrex::Abort("Power Law input coefficients non-physical");
     }
 }
 
-void PowerLaw::get_coeffs(const Vector<Real>& Q, Real &T, Real &mu, Real &kappa) const
+void PowerLaw::get_coeffs(const Vector<Real>& Q, Real& T, Real& mu, Real& kappa) const
 {
-    BL_PROFILE("PowerLaw::get_neutral_coeffs");
+    BL_PROFILE("PowerLaw::get_coeffs");
+
     const HydroState& istate = HydroState::get_state_global(idx);
 
     T = istate.gas->get_temperature_from_prim(Q);
     Real cp = istate.gas->get_cp_from_prim(Q);
 
-
-    mu = mu_0*pow(T/T0,n);
-    kappa = mu*cp/Prandtl;
+    mu = mu_0 * pow(T / T0, n);
+    kappa = mu * cp / Prandtl;
 
     return;
 }
 
 Real PowerLaw::calc_stability_condition(Vector<Real>& U) const
 {
+    BL_PROFILE("PowerLaw::calc_stability_condition");
 
     const HydroState& istate = HydroState::get_state_global(idx);
 
@@ -225,50 +232,55 @@ Real PowerLaw::calc_stability_condition(Vector<Real>& U) const
     const Real T = istate.gas->get_temperature_from_cons(U);
     const Real gamma = istate.gas->get_gamma_from_cons(U);
 
-    const Real mu = mu_0*pow(T/T0,n);
+    const Real mu = mu_0 * pow(T / T0, n);
 
-    return (4*mu*gamma/(Prandtl*rho));
+    return (4 * mu * gamma / (Prandtl * rho));
 }
 
 // ====================================================================================
 
 UserDefinedViscosity::UserDefinedViscosity()
 {
+    BL_PROFILE("UserDefinedViscosity::UserDefinedViscosity");
+
     active = true;
 }
-UserDefinedViscosity::~UserDefinedViscosity(){}
+UserDefinedViscosity::~UserDefinedViscosity() {}
 
 std::string UserDefinedViscosity::tag = "UserDefined";
-bool UserDefinedViscosity::registered = GetHydroViscousFactory().Register(UserDefinedViscosity::tag, HydroViscousBuilder<UserDefinedViscosity>);
+bool UserDefinedViscosity::registered = GetHydroViscousFactory().Register(
+  UserDefinedViscosity::tag, HydroViscousBuilder<UserDefinedViscosity>);
 
 UserDefinedViscosity::UserDefinedViscosity(const int global_idx, const sol::table& def)
 {
+    BL_PROFILE("UserDefinedViscosity::UserDefinedViscosity");
+
     mu_0 = def["mu0"];
     Prandtl = def["Pr"];
 
     idx = global_idx;
 
-    if (mu_0 <= 0) {
-        amrex::Abort("Constant viscosity input coefficients non-physical");
-    }
+    if (mu_0 <= 0) { amrex::Abort("Constant viscosity input coefficients non-physical"); }
 }
 
-void UserDefinedViscosity::get_coeffs(const Vector<Real>& Q, Real &T, Real &mu, Real &kappa) const
+void UserDefinedViscosity::get_coeffs(const Vector<Real>& Q, Real& T, Real& mu, Real& kappa) const
 {
-    BL_PROFILE("UserDefinedViscosity::get_neutral_coeffs");
+    BL_PROFILE("UserDefinedViscosity::get_coeffs");
+
     const HydroState& istate = HydroState::get_state_global(idx);
 
     T = istate.gas->get_temperature_from_prim(Q);
     Real cp = istate.gas->get_cp_from_prim(Q);
 
     mu = mu_0;
-    kappa = mu*cp/Prandtl;
+    kappa = mu * cp / Prandtl;
 
     return;
 }
 
 Real UserDefinedViscosity::calc_stability_condition(Vector<Real>& U) const
 {
+    BL_PROFILE("UserDefinedViscosity::calc_stability_condition");
 
     const HydroState& istate = HydroState::get_state_global(idx);
 
@@ -276,7 +288,5 @@ Real UserDefinedViscosity::calc_stability_condition(Vector<Real>& U) const
     const Real gamma = istate.gas->get_gamma_from_cons(U);
     const Real mu = mu_0;
 
-    return (4*mu*gamma/(Prandtl*rho));
+    return (4 * mu * gamma / (Prandtl * rho));
 }
-
-

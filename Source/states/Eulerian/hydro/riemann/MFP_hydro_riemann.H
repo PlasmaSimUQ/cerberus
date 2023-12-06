@@ -1,14 +1,14 @@
 #ifndef MFP_HYDRORIEMANN_H
 #define MFP_HYDRORIEMANN_H
 
-#include <AMReX_Vector.H>
-#include <AMReX_REAL.H>
-
-#include "sol.hpp"
+#include "MFP_eulerian_riemann.H"
 #include "MFP_factory.H"
 #include "MFP_hydro_defs.H"
 #include "MFP_utility.H"
-#include "MFP_eulerian_riemann.H"
+#include "sol.hpp"
+
+#include <AMReX_REAL.H>
+#include <AMReX_Vector.H>
 
 using namespace amrex;
 
@@ -16,7 +16,7 @@ using namespace amrex;
 
 class HydroRiemannSolver : public RiemannSolver
 {
-public:
+  public:
     HydroRiemannSolver();
     virtual ~HydroRiemannSolver();
 };
@@ -31,6 +31,6 @@ std::unique_ptr<HydroRiemannSolver> HydroRiemannSolverBuilder(const sol::table& 
     }
 }
 
-ClassFactory<HydroRiemannSolver> &GetHydroRiemannSolverFactory();
+ClassFactory<HydroRiemannSolver>& GetHydroRiemannSolverFactory();
 
-#endif // MFP_FLUX_H
+#endif  // MFP_FLUX_H

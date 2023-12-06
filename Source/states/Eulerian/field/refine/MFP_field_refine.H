@@ -1,46 +1,44 @@
 #ifndef FIELD_REFINE_H
 #define FIELD_REFINE_H
 
+#include <AMReX_Array.H>
 #include <AMReX_Box.H>
 #include <AMReX_FArrayBox.H>
-#include <AMReX_TagBox.H>
 #include <AMReX_REAL.H>
+#include <AMReX_TagBox.H>
 #include <AMReX_Vector.H>
-#include <AMReX_Array.H>
 
 #ifdef AMREX_USE_EB
-#include <AMReX_EBAmrUtil.H>
-#include <AMReX_EBFArrayBox.H>
-#include <AMReX_EBMultiFabUtil.H>
-#include <AMReX_EB2.H>
+    #include <AMReX_EB2.H>
+    #include <AMReX_EBAmrUtil.H>
+    #include <AMReX_EBFArrayBox.H>
+    #include <AMReX_EBMultiFabUtil.H>
 #endif
 
-#include "MFP_refine.H"
 #include "MFP_field_defs.H"
-
-
+#include "MFP_refine.H"
 
 class FieldGradientRefinement : public Refinement
 {
-public:
+  public:
     FieldGradientRefinement();
-    FieldGradientRefinement(const int global_idx, const sol::table &def);
+    FieldGradientRefinement(const int global_idx, const sol::table& def);
 
     virtual void get_tags(MFP* mfp, TagBoxArray& tags) const override;
 
-    Real refine_criteria(Array<Real,3> S, Real low_val=1e-12) const;
+    Real refine_criteria(Array<Real, 3> S, Real low_val = 1e-12) const;
 
     void tag_refinement(const Box& box,
                         const FArrayBox& src,
-                    #ifdef AMREX_USE_EB
+#ifdef AMREX_USE_EB
                         const EBCellFlagFab& flags,
-                    #endif
+#endif
                         TagBox& tags,
                         const int n,
                         const Real threshold) const;
 
     // the index,threshold pairs variables
-    Vector<std::pair<int,Real>> cons;
+    Vector<std::pair<int, Real>> cons;
     int max_level;
     Real min_value;
 
@@ -50,25 +48,25 @@ public:
 
 class FieldValueRefinement : public Refinement
 {
-public:
+  public:
     FieldValueRefinement();
-    FieldValueRefinement(const int global_idx, const sol::table &def);
+    FieldValueRefinement(const int global_idx, const sol::table& def);
 
     virtual void get_tags(MFP* mfp, TagBoxArray& tags) const override;
 
-    Real refine_criteria(Real S, Real low_val=1e-12) const;
+    Real refine_criteria(Real S, Real low_val = 1e-12) const;
 
     void tag_refinement(const Box& box,
                         const FArrayBox& src,
-                    #ifdef AMREX_USE_EB
+#ifdef AMREX_USE_EB
                         const EBCellFlagFab& flags,
-                    #endif
+#endif
                         TagBox& tags,
                         const int n,
                         const Real threshold) const;
 
     // the index,threshold pairs variables
-    Vector<std::pair<int,Real>> cons;
+    Vector<std::pair<int, Real>> cons;
     int max_level;
     Real min_value;
 
@@ -76,8 +74,7 @@ public:
     static std::string tag;
 };
 
-template <typename D>
-std::unique_ptr<Refinement> FieldRefinementBuilder(const sol::table& def)
+template <typename D> std::unique_ptr<Refinement> FieldRefinementBuilder(const sol::table& def)
 {
     std::unique_ptr<Refinement> refine;
 
@@ -96,4 +93,4 @@ std::unique_ptr<Refinement> FieldRefinementBuilder(const sol::table& def)
 
 ClassFactory<Refinement>& GetFieldRefinementFactory();
 
-#endif // HYDRO_REFINE_H
+#endif  // HYDRO_REFINE_H

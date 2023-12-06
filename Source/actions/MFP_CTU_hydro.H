@@ -6,25 +6,28 @@
 
 class HydroCTU : public Action
 {
-public:
+  public:
     HydroCTU();
-    HydroCTU(const int idx, const sol::table &def);
+    HydroCTU(const int idx, const sol::table& def);
     ~HydroCTU();
 
-    virtual std::string get_tag() const override {return tag;}
-    virtual ActionType get_type() const override {return ActionType::CTU;}
+    virtual std::string get_tag() const override { return tag; }
+    virtual ActionType get_type() const override { return ActionType::CTU; }
 
     virtual void get_data(MFP* mfp, Vector<UpdateData>& update, const Real time) const override;
 
-    virtual void calc_spatial_derivative(MFP* mfp, Vector<UpdateData>& dU, const Real time, const Real dt, const Real flux_register_scale) override;
+    virtual void calc_spatial_derivative(MFP* mfp,
+                                         Vector<UpdateData>& dU,
+                                         const Real time,
+                                         const Real dt,
+                                         const Real flux_register_scale) override;
 
     Vector<EulerianState*> states;
 
     bool do_CTU;
 
-
     static bool registered;
     static std::string tag;
 };
 
-#endif // CTU_H
+#endif  // CTU_H

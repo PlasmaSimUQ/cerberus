@@ -1,8 +1,8 @@
 #include "MFP_mhd_shockdetector.H"
 
-MHDShockDetector::MHDShockDetector(){}
+MHDShockDetector::MHDShockDetector() {}
 
-MHDShockDetector::~MHDShockDetector(){}
+MHDShockDetector::~MHDShockDetector() {}
 
 ClassFactory<MHDShockDetector>& GetMHDShockDetectorFactory()
 {
@@ -15,11 +15,14 @@ ClassFactory<MHDShockDetector>& GetMHDShockDetectorFactory()
 #include "MFP_mhd.H"
 
 std::string PressureJumpShockDetectorMHD::tag = "pressure_jump_detector";
-bool PressureJumpShockDetectorMHD::registered = GetMHDShockDetectorFactory().Register(PressureJumpShockDetectorMHD::tag, MHDShockDetectorBuilder<PressureJumpShockDetectorMHD>);
+bool PressureJumpShockDetectorMHD::registered = GetMHDShockDetectorFactory().Register(
+  PressureJumpShockDetectorMHD::tag, MHDShockDetectorBuilder<PressureJumpShockDetectorMHD>);
 
-PressureJumpShockDetectorMHD::PressureJumpShockDetectorMHD(){}
+PressureJumpShockDetectorMHD::PressureJumpShockDetectorMHD() {}
 PressureJumpShockDetectorMHD::PressureJumpShockDetectorMHD(const sol::table& def)
 {
+    BL_PROFILE("PressureJumpShockDetectorMHD::PressureJumpShockDetectorMHD");
+
     idx = def["global_idx"];
 
     shock_threshold = def["threshold"].get_or(-1.0);
@@ -27,23 +30,23 @@ PressureJumpShockDetectorMHD::PressureJumpShockDetectorMHD(const sol::table& def
     if (shock_threshold < 0.0) {
         Abort("Error: 'pressure_jump_detector' requires 'threshold' to be set (>0.0)");
     }
-
 }
 
-Real PressureJumpShockDetectorMHD::solve(Vector<Real> &L,
-                                      Vector<Real> &R) const
+Real PressureJumpShockDetectorMHD::solve(Vector<Real>& L, Vector<Real>& R) const
 {
-    BL_PROFILE("PressureJumpShockDetector::solve");
+    BL_PROFILE("PressureJumpShockDetectorMHD::solve");
 
     Real pL = L[+MHDDef::PrimIdx::Prs];
     Real pR = R[+MHDDef::PrimIdx::Prs];
-    Real varphi = std::abs(pR - pL)/(pR + pL);
+    Real varphi = std::abs(pR - pL) / (pR + pL);
 
-    return 0.5 + 0.5*tanh_approx(5*(varphi - 0.75*shock_threshold)/shock_threshold);
+    return 0.5 + 0.5 * tanh_approx(5 * (varphi - 0.75 * shock_threshold) / shock_threshold);
 }
 
 void PressureJumpShockDetectorMHD::write_info(nlohmann::json& js) const
 {
+    BL_PROFILE("PressureJumpShockDetectorMHD::write_info");
+
     nlohmann::json& sd = js["shock_detector"];
 
     sd["name"] = tag;

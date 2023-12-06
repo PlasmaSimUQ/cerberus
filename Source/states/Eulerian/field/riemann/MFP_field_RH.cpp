@@ -1,39 +1,41 @@
 #include "MFP_field_RH.H"
-#include "MFP_utility.H"
+
 #include "MFP.H"
 #include "MFP_field.H"
+#include "MFP_utility.H"
 
 //================================================================================
 
 // J. Moreno, E. Oliva, P. Velarde, J.C.P. 2020, In Press
 
 std::string FieldRH::tag = "RankineHugoniot";
-bool FieldRH::registered = GetFieldRiemannSolverFactory().Register(FieldRH::tag, FieldRiemannSolverBuilder<FieldRH>);
+bool FieldRH::registered =
+  GetFieldRiemannSolverFactory().Register(FieldRH::tag, FieldRiemannSolverBuilder<FieldRH>);
 
-FieldRH::FieldRH(){}
+FieldRH::FieldRH() {}
 FieldRH::FieldRH(const int i)
 {
+    BL_PROFILE("FieldRH::FieldRH");
+
     idx = i;
 
     FieldState& istate = FieldState::get_state_global(idx);
 
     c0 = MFP::lightspeed;
     ch = istate.div_speed;
-    ch2 = ch*ch;
+    ch2 = ch * ch;
 }
 
-void FieldRH::solve(Vector<Real> &L,
-                    Vector<Real> &R,
-                    Vector<Real> &F,
-                    Real *shk)
+void FieldRH::solve(Vector<Real>& L, Vector<Real>& R, Vector<Real>& F, Real* shk)
 {
     BL_PROFILE("FieldRH::solve");
+
     std::fill(F.begin(), F.end(), 0);
 
-    Real Dr, Dl; // y- & z- D fields
-    Real Br, Bl; // y- & z- B fields
-    Real Pl, Pr; // div correction factors
-    Real fl, fr; // x- fields
+    Real Dr, Dl;  // y- & z- D fields
+    Real Br, Bl;  // y- & z- B fields
+    Real Pl, Pr;  // div correction factors
+    Real fl, fr;  // x- fields
     Real epr, epl;
     Real mur, mul;
     Real cr, cl;
@@ -52,11 +54,13 @@ void FieldRH::solve(Vector<Real> &L,
     mur = R[+FieldDef::ConsIdx::mu];
     mul = L[+FieldDef::ConsIdx::mu];
 
-    cr = 1/std::sqrt(mur*epr);
-    cl = 1/std::sqrt(mul*epl);
+    cr = 1 / std::sqrt(mur * epr);
+    cl = 1 / std::sqrt(mul * epl);
 
-    F[+FieldDef::ConsIdx::Dy] = c0*((Bl*cl + Br*cr) + (Dl/epl - Dr/epr))/(cl*mul + cr*mur);
-    F[+FieldDef::ConsIdx::Bz] = c0*((Dl*cl + Dr*cr) + (Bl/mul - Br/mur))/(cl*epl + cr*epr);
+    F[+FieldDef::ConsIdx::Dy] =
+      c0 * ((Bl * cl + Br * cr) + (Dl / epl - Dr / epr)) / (cl * mul + cr * mur);
+    F[+FieldDef::ConsIdx::Bz] =
+      c0 * ((Dl * cl + Dr * cr) + (Bl / mul - Br / mur)) / (cl * epl + cr * epr);
 
     // div clean
     if (ch > 0) {
@@ -66,8 +70,8 @@ void FieldRH::solve(Vector<Real> &L,
         fl = L[+FieldDef::ConsIdx::Dx];
         fr = R[+FieldDef::ConsIdx::Dx];
 
-        F[+FieldDef::ConsIdx::Dx] =   0.5*c0*(Pr + Pl)  - 0.5*ch*(fr - fl);
-        F[+FieldDef::ConsIdx::phi] = 0.5*ch2/c0*(fr + fl) - 0.5*ch*(Pr - Pl);
+        F[+FieldDef::ConsIdx::Dx] = 0.5 * c0 * (Pr + Pl) - 0.5 * ch * (fr - fl);
+        F[+FieldDef::ConsIdx::phi] = 0.5 * ch2 / c0 * (fr + fl) - 0.5 * ch * (Pr - Pl);
     }
 
     // B-wave
@@ -81,8 +85,10 @@ void FieldRH::solve(Vector<Real> &L,
     Bl = L[+FieldDef::ConsIdx::By];
     Br = R[+FieldDef::ConsIdx::By];
 
-    F[+FieldDef::ConsIdx::Dz] = c0*(-(Bl*cl + Br*cr) + (Dl/epl - Dr/epr))/(cl*mul + cr*mur);
-    F[+FieldDef::ConsIdx::By] = c0*(-(Dl*cl + Dr*cr) + (Bl/mul - Br/mur))/(cl*epl + cr*epr);
+    F[+FieldDef::ConsIdx::Dz] =
+      c0 * (-(Bl * cl + Br * cr) + (Dl / epl - Dr / epr)) / (cl * mul + cr * mur);
+    F[+FieldDef::ConsIdx::By] =
+      c0 * (-(Dl * cl + Dr * cr) + (Bl / mul - Br / mur)) / (cl * epl + cr * epr);
 
     // div clean
     if (ch > 0) {
@@ -92,20 +98,17 @@ void FieldRH::solve(Vector<Real> &L,
         fl = L[+FieldDef::ConsIdx::Bx];
         fr = R[+FieldDef::ConsIdx::Bx];
 
-        F[+FieldDef::ConsIdx::Bx] =   0.5*c0*(Pr + Pl)  - 0.5*ch*(fr - fl);
-        F[+FieldDef::ConsIdx::psi] = 0.5*ch2/c0*(fr + fl) - 0.5*ch*(Pr - Pl);
+        F[+FieldDef::ConsIdx::Bx] = 0.5 * c0 * (Pr + Pl) - 0.5 * ch * (fr - fl);
+        F[+FieldDef::ConsIdx::psi] = 0.5 * ch2 / c0 * (fr + fl) - 0.5 * ch * (Pr - Pl);
     }
-
-
 
     return;
 }
 
 bool FieldRH::valid_state(const int idx)
 {
+    BL_PROFILE("FieldRH::valid_state");
 
-    if (MFP::get_state(idx).get_type() != State::StateType::Field) {
-        return false;
-    }
+    if (MFP::get_state(idx).get_type() != State::StateType::Field) { return false; }
     return true;
 }

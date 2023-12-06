@@ -1,13 +1,12 @@
 #include "MFP_field_riemann.H"
-#include <math.h>
-#include <algorithm>
-#include <iostream>
 
 #include "MFP_utility.H"
 
-FieldRiemannSolver::FieldRiemannSolver()
-{
-}
+#include <algorithm>
+#include <iostream>
+#include <math.h>
+
+FieldRiemannSolver::FieldRiemannSolver() {}
 
 FieldRiemannSolver::~FieldRiemannSolver()
 {

@@ -1,17 +1,20 @@
 #ifdef EILMER_GAS
-#include "MFP_eilmer_gas_model.H"
-#include "MFP_lua.H"
-#include "MFP_wrap_gas.H"
+    #include "MFP_eilmer_gas_model.H"
+
+    #include "MFP_lua.H"
+    #include "MFP_wrap_gas.H"
 
 std::string EilmerGasModel::tag = "eilmer";
-bool EilmerGasModel::registered = GetHydroGasFactory().Register(EilmerGasModel::tag, HydroGasBuilder<EilmerGasModel>);
+bool EilmerGasModel::registered =
+  GetHydroGasFactory().Register(EilmerGasModel::tag, HydroGasBuilder<EilmerGasModel>);
 
+EilmerGasModel::EilmerGasModel() {}
+EilmerGasModel::~EilmerGasModel() {}
 
-EilmerGasModel::EilmerGasModel(){}
-EilmerGasModel::~EilmerGasModel(){}
-
-EilmerGasModel::EilmerGasModel(const int global_idx, const sol::table &def)
+EilmerGasModel::EilmerGasModel(const int global_idx, const sol::table& def)
 {
+    BL_PROFILE("EilmerGasModel::EilmerGasModel");
+
     idx = global_idx;
 
     std::string name = MFP::state_names[idx];
@@ -22,18 +25,20 @@ EilmerGasModel::EilmerGasModel(const int global_idx, const sol::table &def)
     mass.resize(comp_names.size(), 0.0);
 
     if (mass.size() != charge.size())
-        Abort("State: "+name+"; 'charge' and 'names' must have the same number of entries");
+        Abort("State: " + name + "; 'charge' and 'names' must have the same number of entries");
 
     // set up the Eilmer gas model
 
     EilmerGas::initialise();
 
-    std::string gas_model_file = def.get_or<std::string>("gas_model","");
-    if (gas_model_file.empty()) Abort("Action '"+name+"' requires 'gas_model' to be defined (a lua file)");
+    std::string gas_model_file = def.get_or<std::string>("gas_model", "");
+    if (gas_model_file.empty())
+        Abort("Action '" + name + "' requires 'gas_model' to be defined (a lua file)");
 
     gas_model_id = gas_model_new(gas_model_file.data());
 
-    if (gas_model_id < 0) Abort("State '"+name+"' has failed when trying to create a new gas model");
+    if (gas_model_id < 0)
+        Abort("State '" + name + "' has failed when trying to create a new gas model");
 
     n_species = gas_model_n_species(gas_model_id);
 
@@ -45,9 +50,9 @@ EilmerGasModel::EilmerGasModel(const int global_idx, const sol::table &def)
 
     species_info.resize(n_species);
 
-    std::pair<bool, int > found;
+    std::pair<bool, int> found;
     int n;
-    for (int i=0; i<n_species; ++i) {
+    for (int i = 0; i < n_species; ++i) {
         std::string& sname = species_info[i].name;
         sname.resize(10);
         gas_model_species_name_and_length(gas_model_id, i, sname.data(), &n);
@@ -57,7 +62,7 @@ EilmerGasModel::EilmerGasModel(const int global_idx, const sol::table &def)
         if (found.first) {
             species_info[i].alpha_idx = found.second;
             // update the mass to match that given by the gas model
-            mass[found.second] = (mm[i]/6.02214076e23)/MFP::m_ref;
+            mass[found.second] = (mm[i] / 6.02214076e23) / MFP::m_ref;
         } else {
             species_info[i].alpha_idx = -1;
         }
@@ -65,20 +70,18 @@ EilmerGasModel::EilmerGasModel(const int global_idx, const sol::table &def)
 
     gas_state_id = gas_state_new(gas_model_id);
 
-    if (gas_state_id < 0) Abort("Action '"+name+"' has failed when trying to create a new gas state");
-
-
+    if (gas_state_id < 0)
+        Abort("Action '" + name + "' has failed when trying to create a new gas state");
 
     if (any_equal(mass.begin(), mass.end(), 0.0)) {
-        Abort("State "+name+" has species masses of zero: "+vec2str(mass));
+        Abort("State " + name + " has species masses of zero: " + vec2str(mass));
     }
 
     mass_const = all_equal(mass.begin(), mass.end(), mass[0]);
     charge_const = all_equal(charge.begin(), charge.end(), charge[0]);
-
 }
 
-void EilmerGasModel::set_eilmer_gas_state_from_cons(const Vector<Real> &U) const
+void EilmerGasModel::set_eilmer_gas_state_from_cons(const Vector<Real>& U) const
 {
     BL_PROFILE("EilmerGasModel::set_eilmer_gas_state_from_cons");
 
@@ -89,28 +92,27 @@ void EilmerGasModel::set_eilmer_gas_state_from_cons(const Vector<Real> &U) const
     get_alpha_fractions_from_cons(U, alpha);
 
     Vector<Real> massf(n_species, 0.0);
-    for (int i=0; i<n_species; ++i) {
+    for (int i = 0; i < n_species; ++i) {
         const int alpha_idx = species_info[i].alpha_idx;
-        if (alpha_idx > -1) {
-            massf[i] = alpha[alpha_idx];
-        }
+        if (alpha_idx > -1) { massf[i] = alpha[alpha_idx]; }
     }
 
+    Real specific_internal_nrg = get_internal_energy_density_from_cons(U) / rho;
 
-    Real specific_internal_nrg = get_internal_energy_density_from_cons(U)/rho;
-
-    gas_state_set_scalar_field(gas_model_id, "rho", rho*MFP::rho_ref);
-    gas_state_set_scalar_field(gas_model_id, "u", specific_internal_nrg*MFP::prs_ref/MFP::rho_ref);
+    gas_state_set_scalar_field(gas_model_id, "rho", rho * MFP::rho_ref);
+    gas_state_set_scalar_field(gas_model_id,
+                               "u",
+                               specific_internal_nrg * MFP::prs_ref / MFP::rho_ref);
     gas_state_set_array_field(gas_state_id, "massf", massf.data(), n_species);
 
     // need an initial guess at the temperature
-//    gas_state_set_scalar_field(gas_model_id, "T", guess_T*MFP::T_ref);
+    //    gas_state_set_scalar_field(gas_model_id, "T", guess_T*MFP::T_ref);
 
     // update model and solve for update
     gas_model_gas_state_update_thermo_from_rhou(gas_model_id, gas_state_id);
 }
 
-void EilmerGasModel::set_eilmer_gas_state_from_prim(const Vector<Real> &Q) const
+void EilmerGasModel::set_eilmer_gas_state_from_prim(const Vector<Real>& Q) const
 {
     BL_PROFILE("EilmerGasModel::set_eilmer_gas_state_from_prim");
 
@@ -122,22 +124,20 @@ void EilmerGasModel::set_eilmer_gas_state_from_prim(const Vector<Real> &Q) const
     get_alpha_fractions_from_prim(Q, alpha);
 
     Vector<Real> massf(n_species, 0.0);
-    for (int i=0; i<n_species; ++i) {
+    for (int i = 0; i < n_species; ++i) {
         const int alpha_idx = species_info[i].alpha_idx;
-        if (alpha_idx > -1) {
-            massf[i] = alpha[alpha_idx];
-        }
+        if (alpha_idx > -1) { massf[i] = alpha[alpha_idx]; }
     }
 
-    gas_state_set_scalar_field(gas_model_id, "rho", rho*MFP::rho_ref);
-    gas_state_set_scalar_field(gas_model_id, "p", p*MFP::prs_ref);
+    gas_state_set_scalar_field(gas_model_id, "rho", rho * MFP::rho_ref);
+    gas_state_set_scalar_field(gas_model_id, "p", p * MFP::prs_ref);
     gas_state_set_array_field(gas_state_id, "massf", massf.data(), n_species);
 
     // update model and solve for update
     gas_model_gas_state_update_thermo_from_rhop(gas_model_id, gas_state_id);
 }
 
-Real EilmerGasModel::get_gamma_from_prim(const Vector<Real> &Q, const int idx) const
+Real EilmerGasModel::get_gamma_from_prim(const Vector<Real>& Q, const int idx) const
 {
     BL_PROFILE("EilmerGasModel::get_gamma_from_prim");
 
@@ -147,10 +147,11 @@ Real EilmerGasModel::get_gamma_from_prim(const Vector<Real> &Q, const int idx) c
     gas_model_gas_state_gamma(gas_model_id, gas_state_id, &gamma);
 
     return gamma;
-
 }
 
-Real EilmerGasModel::get_gamma_from_cons(const Vector<Real> &U, const int density_idx, const int tracer_idx) const
+Real EilmerGasModel::get_gamma_from_cons(const Vector<Real>& U,
+                                         const int density_idx,
+                                         const int tracer_idx) const
 {
     BL_PROFILE("EilmerGasModel::get_gamma_from_cons");
 
@@ -162,7 +163,7 @@ Real EilmerGasModel::get_gamma_from_cons(const Vector<Real> &U, const int densit
     return gamma;
 }
 
-Real EilmerGasModel::get_cp_from_prim(const Vector<Real> &Q, const int tracer_idx) const
+Real EilmerGasModel::get_cp_from_prim(const Vector<Real>& Q, const int tracer_idx) const
 {
     BL_PROFILE("EilmerGasModel::get_cp_from_prim");
 
@@ -174,7 +175,9 @@ Real EilmerGasModel::get_cp_from_prim(const Vector<Real> &Q, const int tracer_id
     return cp;
 }
 
-Real EilmerGasModel::get_cp_from_cons(const Vector<Real> &U, const int density_idx, const int tracer_idx) const
+Real EilmerGasModel::get_cp_from_cons(const Vector<Real>& U,
+                                      const int density_idx,
+                                      const int tracer_idx) const
 {
     BL_PROFILE("EilmerGasModel::get_cp_from_cons");
 
@@ -184,9 +187,7 @@ Real EilmerGasModel::get_cp_from_cons(const Vector<Real> &U, const int density_i
     gas_model_gas_state_Cp(gas_model_id, gas_state_id, &cp);
 
     return cp;
-
 }
-
 
 // conversion from conserved to primitive
 bool EilmerGasModel::cons2prim(Vector<Real>& U, Vector<Real>& Q) const
@@ -200,10 +201,10 @@ bool EilmerGasModel::cons2prim(Vector<Real>& U, Vector<Real>& Q) const
     Real my = U[+HydroDef::ConsIdx::Ymom];
     Real mz = U[+HydroDef::ConsIdx::Zmom];
 
-    Real rhoinv = 1/rho;
-    Real u = mx*rhoinv;
-    Real v = my*rhoinv;
-    Real w = mz*rhoinv;
+    Real rhoinv = 1 / rho;
+    Real u = mx * rhoinv;
+    Real v = my * rhoinv;
+    Real w = mz * rhoinv;
 
     Real g, cp, p, T;
 
@@ -216,10 +217,10 @@ bool EilmerGasModel::cons2prim(Vector<Real>& U, Vector<Real>& Q) const
     Q[+HydroDef::PrimIdx::Xvel] = u;
     Q[+HydroDef::PrimIdx::Yvel] = v;
     Q[+HydroDef::PrimIdx::Zvel] = w;
-    Q[+HydroDef::PrimIdx::Prs] = p/MFP::prs_ref;
-    Q[+HydroDef::PrimIdx::Temp] = T/MFP::T_ref;
+    Q[+HydroDef::PrimIdx::Prs] = p / MFP::prs_ref;
+    Q[+HydroDef::PrimIdx::Temp] = T / MFP::T_ref;
     Q[+HydroDef::PrimIdx::Gamma] = g;
-    Q[+HydroDef::PrimIdx::SpHeat] = cp/(MFP::u_ref*MFP::u_ref/MFP::T_ref);
+    Q[+HydroDef::PrimIdx::SpHeat] = cp / (MFP::u_ref * MFP::u_ref / MFP::T_ref);
 
     for (int i = 0; i < n_tracers(); ++i) {
         Q[+HydroDef::PrimIdx::NUM + i] = U[+HydroDef::ConsIdx::NUM + i] * rhoinv;
@@ -239,16 +240,16 @@ void EilmerGasModel::prim2cons(Vector<Real>& Q, Vector<Real>& U) const
     Real v = Q[+HydroDef::PrimIdx::Yvel];
     Real w = Q[+HydroDef::PrimIdx::Zvel];
 
-    Real mx = u*rho;
-    Real my = v*rho;
-    Real mz = w*rho;
-    Real ke = 0.5*rho*(u*u + v*v + w*w);
+    Real mx = u * rho;
+    Real my = v * rho;
+    Real mz = w * rho;
+    Real ke = 0.5 * rho * (u * u + v * v + w * w);
 
     Real specific_internal_nrg;
     gas_state_get_scalar_field(gas_state_id, "u", &specific_internal_nrg);
-    specific_internal_nrg /= MFP::prs_ref/MFP::rho_ref;
+    specific_internal_nrg /= MFP::prs_ref / MFP::rho_ref;
 
-    Real ed = rho*specific_internal_nrg + ke;
+    Real ed = rho * specific_internal_nrg + ke;
 
     U[+HydroDef::ConsIdx::Density] = rho;
     U[+HydroDef::ConsIdx::Xmom] = mx;
@@ -259,23 +260,20 @@ void EilmerGasModel::prim2cons(Vector<Real>& Q, Vector<Real>& U) const
     for (int i = 0; i < n_tracers(); ++i) {
         U[+HydroDef::ConsIdx::NUM + i] = Q[+HydroDef::PrimIdx::NUM + i] * rho;
     }
-
 }
 
 void EilmerGasModel::define_rho_p_T(Vector<Real>& Q) const
 {
-    BL_PROFILE("EilmerGasModel::prim2cons");
+    BL_PROFILE("EilmerGasModel::define_rho_p_T");
 
     // get the mass fractions
     Vector<Real> alpha;
     get_alpha_fractions_from_prim(Q, alpha);
 
     Vector<Real> massf(n_species, 0.0);
-    for (int i=0; i<n_species; ++i) {
+    for (int i = 0; i < n_species; ++i) {
         const int alpha_idx = species_info[i].alpha_idx;
-        if (alpha_idx > -1) {
-            massf[i] = alpha[alpha_idx];
-        }
+        if (alpha_idx > -1) { massf[i] = alpha[alpha_idx]; }
     }
 
     gas_state_set_array_field(gas_state_id, "massf", massf.data(), n_species);
@@ -285,45 +283,40 @@ void EilmerGasModel::define_rho_p_T(Vector<Real>& Q) const
     Real T = Q[+HydroDef::PrimIdx::Temp];
 
     if ((rho > 0.0) && (p > 0.0)) {
-
-        gas_state_set_scalar_field(gas_model_id, "rho", rho*MFP::rho_ref);
-        gas_state_set_scalar_field(gas_model_id, "p", p*MFP::prs_ref);
-
+        gas_state_set_scalar_field(gas_model_id, "rho", rho * MFP::rho_ref);
+        gas_state_set_scalar_field(gas_model_id, "p", p * MFP::prs_ref);
 
         // update model and solve for update
         gas_model_gas_state_update_thermo_from_rhop(gas_model_id, gas_state_id);
 
         gas_state_get_scalar_field(gas_state_id, "T", &T);
 
-        Q[+HydroDef::PrimIdx::Temp] = T/MFP::T_ref;
+        Q[+HydroDef::PrimIdx::Temp] = T / MFP::T_ref;
 
     } else if ((p > 0.0) && (T > 0.0)) {
-        gas_state_set_scalar_field(gas_model_id, "T", T*MFP::T_ref);
-        gas_state_set_scalar_field(gas_model_id, "p", p*MFP::prs_ref);
-
+        gas_state_set_scalar_field(gas_model_id, "T", T * MFP::T_ref);
+        gas_state_set_scalar_field(gas_model_id, "p", p * MFP::prs_ref);
 
         // update model and solve for update
         gas_model_gas_state_update_thermo_from_pT(gas_model_id, gas_state_id);
 
         gas_state_get_scalar_field(gas_state_id, "rho", &rho);
 
-        Q[+HydroDef::PrimIdx::Density] = rho/MFP::rho_ref;
+        Q[+HydroDef::PrimIdx::Density] = rho / MFP::rho_ref;
     } else if ((rho > 0.0) && (T > 0.0)) {
-        gas_state_set_scalar_field(gas_model_id, "rho", rho*MFP::rho_ref);
-        gas_state_set_scalar_field(gas_model_id, "T", T*MFP::T_ref);
-
+        gas_state_set_scalar_field(gas_model_id, "rho", rho * MFP::rho_ref);
+        gas_state_set_scalar_field(gas_model_id, "T", T * MFP::T_ref);
 
         // update model and solve for update
         gas_model_gas_state_update_thermo_from_rhoT(gas_model_id, gas_state_id);
 
         gas_state_get_scalar_field(gas_state_id, "p", &p);
 
-        Q[+HydroDef::PrimIdx::Prs] = p/MFP::prs_ref;
+        Q[+HydroDef::PrimIdx::Prs] = p / MFP::prs_ref;
     }
-
 }
 
-Real EilmerGasModel::get_temperature_from_cons(const Vector<Real> &U) const
+Real EilmerGasModel::get_temperature_from_cons(const Vector<Real>& U) const
 {
     BL_PROFILE("EilmerGasModel::get_temperature_from_cons");
 
@@ -331,22 +324,22 @@ Real EilmerGasModel::get_temperature_from_cons(const Vector<Real> &U) const
 
     Real T;
     gas_state_get_scalar_field(gas_state_id, "T", &T);
-    return T/MFP::T_ref;
-
+    return T / MFP::T_ref;
 }
 
-RealArray EilmerGasModel::get_speed_from_cons(const Vector<Real> &U) const
+RealArray EilmerGasModel::get_speed_from_cons(const Vector<Real>& U) const
 {
     BL_PROFILE("EilmerGasModel::get_speed_from_cons");
+
     Real rho = U[+HydroDef::ConsIdx::Density];
     Real mx = U[+HydroDef::ConsIdx::Xmom];
     Real my = U[+HydroDef::ConsIdx::Ymom];
     Real mz = U[+HydroDef::ConsIdx::Zmom];
 
-    Real rhoinv = 1/rho;
-    Real u = mx*rhoinv;
-    Real v = my*rhoinv;
-    Real w = mz*rhoinv;
+    Real rhoinv = 1 / rho;
+    Real u = mx * rhoinv;
+    Real v = my * rhoinv;
+    Real w = mz * rhoinv;
 
     set_eilmer_gas_state_from_cons(U);
     gas_model_gas_state_update_sound_speed(gas_model_id, gas_state_id);
@@ -359,10 +352,9 @@ RealArray EilmerGasModel::get_speed_from_cons(const Vector<Real> &U) const
     RealArray s = {AMREX_D_DECL(a + std::abs(u), a + std::abs(v), a + std::abs(w))};
 
     return s;
-
 }
 
-RealArray EilmerGasModel::get_speed_from_prim(const Vector<Real> &Q) const
+RealArray EilmerGasModel::get_speed_from_prim(const Vector<Real>& Q) const
 {
     BL_PROFILE("EilmerGasModel::get_speed_from_prim");
 
@@ -375,20 +367,18 @@ RealArray EilmerGasModel::get_speed_from_prim(const Vector<Real> &Q) const
     a /= MFP::u_ref;
 
     RealArray s = {AMREX_D_DECL(a + std::abs(Q[+HydroDef::PrimIdx::Xvel]),
-                   a + std::abs(Q[+HydroDef::PrimIdx::Yvel]),
-                   a + std::abs(Q[+HydroDef::PrimIdx::Zvel]))};
-
+                                a + std::abs(Q[+HydroDef::PrimIdx::Yvel]),
+                                a + std::abs(Q[+HydroDef::PrimIdx::Zvel]))};
 
     return s;
-
 }
 
-void EilmerGasModel::write_info(nlohmann::json &js) const
+void EilmerGasModel::write_info(nlohmann::json& js) const
 {
+    BL_PROFILE("EilmerGasModel::write_info");
 
     HydroGas::write_info(js);
 
     js["type"] = tag;
-
 }
 #endif

@@ -39,7 +39,7 @@ force_dt = 0 -- force specific time step
 --       'only_refine' : only refine in regions marked as such
 refine_boxes = {}
 
-tile_size = {1024, 1024, 1024}
+tile_size = { 1024, 1024, 1024 }
 
 -- list of variables and functions to generate additional plot data
 -- all variables used by functions must be listed in variables
@@ -47,8 +47,8 @@ tile_size = {1024, 1024, 1024}
 -- e.g. variables = {'rho-electron', 'mass-electron'}
 -- e.g. functions = {nd_electron = function f(dat) return dat['rho-electron']/dat['mass-electron'] end}
 plot = {
-    variables = {'all'},
-    functions = {},
+  variables = { 'all' },
+  functions = {},
 }
 
 -- ======== STATES ==========
@@ -118,26 +118,30 @@ embedded_boundaries = {}
 
 -- sorted pairs
 function spairs(t, order)
-    -- collect the keys
-    local keys = {}
-    for k in pairs(t) do keys[#keys+1] = k end
+  -- collect the keys
+  local keys = {}
+  for k in pairs(t) do
+    keys[#keys + 1] = k
+  end
 
-    -- if order function given, sort by it by passing the table and keys a, b,
-    -- otherwise just sort the keys
-    if order then
-        table.sort(keys, function(a,b) return order(t, a, b) end)
-    else
-        table.sort(keys)
-    end
+  -- if order function given, sort by it by passing the table and keys a, b,
+  -- otherwise just sort the keys
+  if order then
+    table.sort(keys, function(a, b)
+      return order(t, a, b)
+    end)
+  else
+    table.sort(keys)
+  end
 
-    -- return the iterator function
-    local i = 0
-    return function()
-        i = i + 1
-        if keys[i] then
-            return keys[i], t[keys[i]]
-        end
+  -- return the iterator function
+  local i = 0
+  return function()
+    i = i + 1
+    if keys[i] then
+      return keys[i], t[keys[i]]
     end
+  end
 end
 
 -- get the length of a table
@@ -156,7 +160,7 @@ function get_sorted_keys(T)
     return keys
   end
   local n = 0
-  for k,v in spairs(T) do
+  for k, v in spairs(T) do
     n = n + 1
     keys[n] = k
   end
@@ -166,8 +170,8 @@ end
 -- given a table or a single value, expand it to be a table of n values
 function expand(v, opt)
   local out = {}
-  if (type(v) ~= "table") then
-    out = {v,v or opt}
+  if type(v) ~= 'table' then
+    out = { v, v or opt }
   else
     out = v
   end
@@ -182,10 +186,9 @@ function exists(v)
   return 1
 end
 
-
 -- checks if a variable is a function
 function is_function(v)
-  if (type(v) == "function") then
+  if type(v) == 'function' then
     return 1
   end
   return 0
@@ -193,7 +196,7 @@ end
 
 -- checks if a variable is a table
 function is_table(v)
-  if (type(v) == "table") then
+  if type(v) == 'table' then
     return 1
   end
   return 0
@@ -203,11 +206,10 @@ end
 function get_ipairs(v)
   local out = {}
   for key, value in ipairs(v) do
-    table.insert(out,value)
+    table.insert(out, value)
   end
   return out
 end
-
 
 -- gets the names of the arguments for a function
 -- https://stackoverflow.com/a/29246308
@@ -215,22 +217,24 @@ function get_args(fun)
   local args = {}
   local hook = debug.gethook()
 
-  local argHook = function( ... )
-      local info = debug.getinfo(3)
-      if 'pcall' ~= info.name then return end
+  local argHook = function(...)
+    local info = debug.getinfo(3)
+    if 'pcall' ~= info.name then
+      return
+    end
 
-      for i = 1, math.huge do
-          local name, value = debug.getlocal(2, i)
-          if '(*temporary)' == name then
-              debug.sethook(hook)
-              error('')
-              return
-          end
-          table.insert(args,name)
+    for i = 1, math.huge do
+      local name, value = debug.getlocal(2, i)
+      if '(*temporary)' == name then
+        debug.sethook(hook)
+        error('')
+        return
       end
+      table.insert(args, name)
+    end
   end
 
-  debug.sethook(argHook, "c")
+  debug.sethook(argHook, 'c')
   pcall(fun)
 
   return args
@@ -238,12 +242,11 @@ end
 
 -- get number of arguments for a function
 function get_num_args(fun)
-    args = get_args(fun)
-    return #args
+  args = get_args(fun)
+  return #args
 end
 
 -- currently empty function that is called after user code is defined
-function preprocess()
-end
+function preprocess() end
 
 --)"

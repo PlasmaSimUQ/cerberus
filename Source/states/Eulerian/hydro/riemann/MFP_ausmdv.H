@@ -5,19 +5,16 @@
 
 class HydroAUSMDV : public HydroRiemannSolver
 {
-public:
+  public:
     HydroAUSMDV();
     HydroAUSMDV(const sol::table& def);
 
-    virtual void solve(Vector<Real> &L,
-                       Vector<Real> &R,
-                       Vector<Real> &F,
-                       Real* shk) override;
+    virtual void solve(Vector<Real>& L, Vector<Real>& R, Vector<Real>& F, Real* shk) override;
 
-    virtual const std::string get_tag() const override {return tag;}
+    virtual const std::string get_tag() const override { return tag; }
     static std::string tag;
 
-    virtual int get_n_flux() const override {return n_flux;}
+    virtual int get_n_flux() const override { return n_flux; }
     int n_flux;
 
     static bool registered;
@@ -26,4 +23,4 @@ public:
     Vector<Real> trR;
 };
 
-#endif // HYDROAUSMDV_H
+#endif  // HYDROAUSMDV_H

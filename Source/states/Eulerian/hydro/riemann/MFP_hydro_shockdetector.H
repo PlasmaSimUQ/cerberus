@@ -1,21 +1,20 @@
 #ifndef HYDROSHOCKDETECTOR_H
 #define HYDROSHOCKDETECTOR_H
 
-#include <AMReX_Vector.H>
-#include <AMReX_REAL.H>
-
-#include "sol.hpp"
-#include "json.hpp"
+#include "MFP_eulerian_riemann.H"
 #include "MFP_factory.H"
 #include "MFP_hydro_defs.H"
-#include "MFP_eulerian_riemann.H"
+#include "json.hpp"
+#include "sol.hpp"
+
+#include <AMReX_REAL.H>
+#include <AMReX_Vector.H>
 
 using namespace amrex;
 
-
 class HydroShockDetector : public ShockDetector
 {
-public:
+  public:
     HydroShockDetector();
     ~HydroShockDetector();
 };
@@ -23,7 +22,7 @@ public:
 template <typename D>
 std::unique_ptr<HydroShockDetector> HydroShockDetectorBuilder(const sol::table& def)
 {
-//    int global_idx = def["global_idx"];
+    //    int global_idx = def["global_idx"];
 
     if (def["name"] == D::tag) {
         return std::unique_ptr<D>(new D(def));
@@ -38,22 +37,20 @@ ClassFactory<HydroShockDetector>& GetHydroShockDetectorFactory();
 
 class PressureJumpShockDetector : public HydroShockDetector
 {
-public:
+  public:
     PressureJumpShockDetector();
-    PressureJumpShockDetector(const sol::table &def);
+    PressureJumpShockDetector(const sol::table& def);
 
-    virtual Real solve(Vector<Real> &L,Vector<Real> &R) const override;
+    virtual Real solve(Vector<Real>& L, Vector<Real>& R) const override;
 
-
-    virtual const std::string get_tag() const override {return tag;}
+    virtual const std::string get_tag() const override { return tag; }
     virtual void write_info(nlohmann::json& js) const override;
 
     static std::string tag;
     static bool registered;
 
-private:
+  private:
     Real shock_threshold;
-
 };
 
-#endif // SHOCKDETECTOR_H
+#endif  // SHOCKDETECTOR_H

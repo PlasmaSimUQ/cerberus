@@ -7,17 +7,20 @@
 
 class Lorentz : public Action
 {
-public:
+  public:
     Lorentz();
-    Lorentz(const int idx, const sol::table &def);
+    Lorentz(const int idx, const sol::table& def);
     ~Lorentz();
 
     virtual void get_data(MFP* mfp, Vector<UpdateData>& update, const Real time) const override;
 
-    virtual void calc_time_derivative(MFP* mfp, Vector<UpdateData>& update,  const Real time, const Real dt) override;
+    virtual void calc_time_derivative(MFP* mfp,
+                                      Vector<UpdateData>& update,
+                                      const Real time,
+                                      const Real dt) override;
 
-    virtual std::string get_tag() const override {return tag;}
-    virtual ActionType get_type() const override {return ActionType::Lorentz;}
+    virtual std::string get_tag() const override { return tag; }
+    virtual ActionType get_type() const override { return ActionType::Lorentz; }
 
     FieldState* field;
     Vector<HydroState*> species;
@@ -26,4 +29,4 @@ public:
     static std::string tag;
 };
 
-#endif // LORENTZ_H
+#endif  // LORENTZ_H

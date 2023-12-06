@@ -1,13 +1,12 @@
 #include "MFP_hydro_riemann.H"
-#include <math.h>
-#include <algorithm>
-#include <iostream>
 
 #include "MFP_utility.H"
 
-HydroRiemannSolver::HydroRiemannSolver()
-{
-}
+#include <algorithm>
+#include <iostream>
+#include <math.h>
+
+HydroRiemannSolver::HydroRiemannSolver() {}
 
 HydroRiemannSolver::~HydroRiemannSolver()
 {

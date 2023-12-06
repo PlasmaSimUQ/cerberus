@@ -1,13 +1,12 @@
 #include "MFP_mhd_riemann.H"
-#include <math.h>
-#include <algorithm>
-#include <iostream>
 
 #include "MFP_utility.H"
 
-MHDRiemannSolver::MHDRiemannSolver()
-{
-}
+#include <algorithm>
+#include <iostream>
+#include <math.h>
+
+MHDRiemannSolver::MHDRiemannSolver() {}
 
 MHDRiemannSolver::~MHDRiemannSolver()
 {

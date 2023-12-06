@@ -1,44 +1,45 @@
 #ifdef AMREX_USE_EB
 
-#include "MFP_polyspline.H"
+    #include "MFP_polyspline.H"
 
-#include <math.h>
+    #include "MFP_diagnostics.H"
+    #include "MFP_utility.H"
 
-#include "MFP_utility.H"
+    #include <iomanip>
+    #include <iostream>
+    #include <list>
+    #include <math.h>
 
-#include <iostream>
-#include <iomanip>
-#include <list>
+Bezier::Bezier() {}
 
-
-#include "MFP_utility.H"
-#include "MFP_diagnostics.H"
-
-Bezier::Bezier(){}
-
-Bezier::Bezier(const RealVect& pt0, const RealVect& pt1, const RealVect& pt2, const RealVect& pt3)
-    : p0(pt0), p3(pt3), p1(pt1), p2(pt2)
+Bezier::Bezier(const RealVect& pt0, const RealVect& pt1, const RealVect& pt2, const RealVect& pt3) :
+    p0(pt0), p3(pt3), p1(pt1), p2(pt2)
 {
+    BL_PROFILE("Bezier::Bezier");
+
     generate_coeffs();
 }
 
 void Bezier::generate_coeffs()
 {
+    BL_PROFILE("Bezier::generate_coeffs");
+
     // generate the coefficients
-    coeffs[0] = -p0 + 3*p1 - 3*p2 + p3;
-    coeffs[1] = 3*p0 - 6*p1 + 3*p2;
-    coeffs[2] = -3*p0 + 3*p1;
+    coeffs[0] = -p0 + 3 * p1 - 3 * p2 + p3;
+    coeffs[1] = 3 * p0 - 6 * p1 + 3 * p2;
+    coeffs[2] = -3 * p0 + 3 * p1;
     coeffs[3] = p0;
 }
 
 RealVect Bezier::at(Real t) const
 {
     BL_PROFILE("Bezier::at");
+
     RealVect pt;
-    pt  = coeffs[3];
-    pt += coeffs[2]*t;
-    pt += coeffs[1]*t*t;
-    pt += coeffs[0]*t*t*t;
+    pt = coeffs[3];
+    pt += coeffs[2] * t;
+    pt += coeffs[1] * t * t;
+    pt += coeffs[0] * t * t * t;
 
     return pt;
 }
@@ -47,12 +48,13 @@ RealVect Bezier::at(Real t) const
 Vector<RealVect> Bezier::sample(Real min_length, const int N, bool include_start) const
 {
     BL_PROFILE("Bezier::sample");
-    min_length *= min_length; // deal in length squared
+
+    min_length *= min_length;  // deal in length squared
 
     std::list<std::pair<Real, RealVect>> points;
 
-    points.push_back(std::make_pair(0.0,p0));
-    points.push_back(std::make_pair(1.0,p3));
+    points.push_back(std::make_pair(0.0, p0));
+    points.push_back(std::make_pair(1.0, p3));
 
     Real l2;
 
@@ -65,11 +67,11 @@ Vector<RealVect> Bezier::sample(Real min_length, const int N, bool include_start
         Real tb = it->first;
         RealVect& b = it->second;
 
-        RealVect v = b-a;
+        RealVect v = b - a;
         l2 = v.dotProduct(v);
 
         if (l2 > min_length) {
-            Real t = (ta + tb)/2;
+            Real t = (ta + tb) / 2;
             points.insert(it, std::make_pair(t, at(t)));
             --it;
             --it;
@@ -80,12 +82,9 @@ Vector<RealVect> Bezier::sample(Real min_length, const int N, bool include_start
 
     // check if we have a zero length segment
     if (points.size() == 2 && l2 < 1e-12) {
-        if (include_start) {
-            pts = {p0};
-        }
+        if (include_start) { pts = {p0}; }
         return pts;
     }
-
 
     pts.reserve(points.size());
     it = points.begin();
@@ -96,35 +95,29 @@ Vector<RealVect> Bezier::sample(Real min_length, const int N, bool include_start
     }
 
     return pts;
-
 }
 
-
-PolySpline::PolySpline()
-{
-
-}
+PolySpline::PolySpline() {}
 
 void PolySpline::add_spline_element_lua(const sol::table& points, const Real dx)
 {
     BL_PROFILE("PolySpline::add_spline_element_lua");
+
     Vector<RealVect> pts;
     sol::table pt;
     int n_pts = points.size();
 
     if (n_pts < 4) Abort("Not enough points to define a cubic spline, need at least 4");
 
-    Array<RealVect,4> bzp;
+    Array<RealVect, 4> bzp;
     size_t pt_id = 1;
     size_t offset = 0;
     while (pt_id <= n_pts) {
-
-        for (size_t i=0; i<4; ++i) {
+        for (size_t i = 0; i < 4; ++i) {
             pt = points[pt_id - offset];
-            bzp[i] = RealVect(AMREX_D_DECL(pt[1],pt[2],pt[3]));
+            bzp[i] = RealVect(AMREX_D_DECL(pt[1], pt[2], pt[3]));
             ++pt_id;
         }
-
 
         Bezier b(bzp[0], bzp[1], bzp[2], bzp[3]);
 
@@ -138,7 +131,6 @@ void PolySpline::add_spline_element_lua(const sol::table& points, const Real dx)
         }
 
         offset = 1;
-
     }
 
     add_shape(pts);
@@ -147,27 +139,28 @@ void PolySpline::add_spline_element_lua(const sol::table& points, const Real dx)
 void PolySpline::add_line_element_lua(const sol::table& points)
 {
     BL_PROFILE("PolySpline::add_line_element_lua");
+
     Vector<amrex::RealVect> pts;
     sol::table pt;
     int n_pts = points.size();
     int pt_id = 1;
     while (pt_id <= n_pts) {
-        pt = points[pt_id]; ++pt_id;
-        pts.push_back(RealVect(AMREX_D_DECL(pt[1],pt[2],pt[3])));
+        pt = points[pt_id];
+        ++pt_id;
+        pts.push_back(RealVect(AMREX_D_DECL(pt[1], pt[2], pt[3])));
     }
-
 
     add_shape(pts);
 }
 
-void PolySpline::add_spline_element(const Vector<Array<RealVect,4>>& points, const Real dx)
+void PolySpline::add_spline_element(const Vector<Array<RealVect, 4>>& points, const Real dx)
 {
     BL_PROFILE("PolySpline::add_spline_element");
+
     Vector<RealVect> pts;
 
     size_t offset = 0;
     for (const auto& bzp : points) {
-
         Bezier b(bzp[0], bzp[1], bzp[2], bzp[3]);
 
         Vector<RealVect> bpts = b.sample(dx, 20, offset == 0);
@@ -180,30 +173,31 @@ void PolySpline::add_spline_element(const Vector<Array<RealVect,4>>& points, con
         }
 
         offset = 1;
-
     }
 
     add_shape(pts);
-
 }
 
 void PolySpline::add_polyspline(const PolySpline& poly)
 {
+    BL_PROFILE("PolySpline::add_polyspline");
+
     shapes.insert(shapes.end(), poly.shapes.begin(), poly.shapes.end());
 }
 
 void PolySpline::add_shape(const Vector<RealVect> shape)
 {
     BL_PROFILE("PolySpline::add_shape");
+
     size_t n_vec = shape.size() - 1;
     Vector<RealVect> vec(n_vec);
     Vector<Real> len(n_vec);
 
-    for (size_t i=0; i<n_vec; ++i) {
+    for (size_t i = 0; i < n_vec; ++i) {
         const RealVect& a = shape[i];
-        const RealVect& b = shape[i+1];
+        const RealVect& b = shape[i + 1];
 
-        vec[i] = b-a;
+        vec[i] = b - a;
         len[i] = vec[i].vectorLength();
         vec[i] /= len[i];
     }
@@ -216,11 +210,11 @@ void PolySpline::add_shape(const Vector<RealVect> shape)
 /*
  * Calculate the signed distance function for an arbitrary number of splines in the x-y plane
  */
-Real PolySpline::operator() (AMREX_D_DECL(Real x, Real y, Real z)) const noexcept
+Real PolySpline::operator()(AMREX_D_DECL(Real x, Real y, Real z)) const noexcept
 {
     BL_PROFILE("PolySpline::operator()");
-//    plot_poly_spline(*this, "poly", true);
 
+    //    plot_poly_spline(*this, "poly", true);
 
     Real d2 = std::numeric_limits<Real>::max();
     int side;
@@ -231,23 +225,21 @@ Real PolySpline::operator() (AMREX_D_DECL(Real x, Real y, Real z)) const noexcep
     Real t, dn;
     int nsegs;
 
-    for (size_t shape_idx=0; shape_idx<shapes.size(); ++shape_idx) {
-
+    for (size_t shape_idx = 0; shape_idx < shapes.size(); ++shape_idx) {
         const Vector<RealVect>& shape = shapes[shape_idx];
         const Vector<RealVect>& vector = vectors[shape_idx];
         const Vector<Real>& len = lengths[shape_idx];
 
-        Real dd = std::numeric_limits<Real>::max(); // distance squared
-        int wn = 0;               // winding number (inside/outside)
+        Real dd = std::numeric_limits<Real>::max();  // distance squared
+        int wn = 0;                                  // winding number (inside/outside)
 
         // iterate over the line segments
-        nsegs = shape.size()-1;
+        nsegs = shape.size() - 1;
 
         pb = p - shape[0];
 
-        for (size_t i = 0; i<nsegs; ++i) {
-
-            const RealVect& b = shape[i+1];
+        for (size_t i = 0; i < nsegs; ++i) {
+            const RealVect& b = shape[i + 1];
 
             // vector a -> b
             const RealVect& v = vector[i];
@@ -256,16 +248,16 @@ Real PolySpline::operator() (AMREX_D_DECL(Real x, Real y, Real z)) const noexcep
             pa = pb;
             pb = p - b;
 
-            t = pa.dotProduct(v); // t-parameter of projection onto line
-            dn = pa[0]*v[1] - pa[1]*v[0]; // normal distance from p to line
+            t = pa.dotProduct(v);              // t-parameter of projection onto line
+            dn = pa[0] * v[1] - pa[1] * v[0];  // normal distance from p to line
 
             // Distance to line segment
             if (t < 0) {
-                dd = std::min(dd, pa.dotProduct(pa)); // distance to vertex[0] of line
+                dd = std::min(dd, pa.dotProduct(pa));  // distance to vertex[0] of line
             } else if (t > l) {
-                dd = std::min(dd, pb.dotProduct(pb)); // distance to vertex[1] of line
+                dd = std::min(dd, pb.dotProduct(pb));  // distance to vertex[1] of line
             } else {
-                dd = std::min(dd, dn*dn); // normal distance to line
+                dd = std::min(dd, dn * dn);  // normal distance to line
             }
 
             // Is the point in the polygon?
@@ -273,24 +265,17 @@ Real PolySpline::operator() (AMREX_D_DECL(Real x, Real y, Real z)) const noexcep
             const RealVect& a = shape[i];
 
             if (a[1] <= y) {
-                if ((b[1] > y) and (dn < 0)) {
-                    wn = wn + 1;
-                }
+                if ((b[1] > y) and (dn < 0)) { wn = wn + 1; }
             } else {
-                if ((b[1] <= y) and (dn > 0)) {
-                    wn = wn - 1;
-                }
+                if ((b[1] <= y) and (dn > 0)) { wn = wn - 1; }
             }
-
         }
 
         if (dd < d2) {
             d2 = dd;
             side = wn;
         }
-
     }
-
 
     // normalise d*d to d
     d2 = std::sqrt(d2);
@@ -304,10 +289,16 @@ Real PolySpline::operator() (AMREX_D_DECL(Real x, Real y, Real z)) const noexcep
 
 void PolySpline::register_with_lua(sol::state& lua)
 {
-    lua.new_usertype<PolySpline>("PolySpline", sol::constructors<PolySpline()>(),
-                                 "addLine", &PolySpline::add_line_element_lua,
-                                 "addSpline", &PolySpline::add_spline_element_lua,
-                                 "query", &PolySpline::operator());
+    BL_PROFILE("PolySpline::register_with_lua");
+
+    lua.new_usertype<PolySpline>("PolySpline",
+                                 sol::constructors<PolySpline()>(),
+                                 "addLine",
+                                 &PolySpline::add_line_element_lua,
+                                 "addSpline",
+                                 &PolySpline::add_spline_element_lua,
+                                 "query",
+                                 &PolySpline::operator());
 }
 
 #endif

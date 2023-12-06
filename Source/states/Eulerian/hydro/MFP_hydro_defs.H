@@ -5,10 +5,9 @@
 
 using namespace amrex;
 
-struct HydroDef
-{
+struct HydroDef {
     enum class ConsIdx : int {
-        Density=0,
+        Density = 0,
         Xmom,
         Ymom,
         Zmom,
@@ -17,7 +16,7 @@ struct HydroDef
     };
 
     enum class PrimIdx : int {
-        Density=0,
+        Density = 0,
         Xvel,
         Yvel,
         Zvel,
@@ -28,18 +27,9 @@ struct HydroDef
         NUM,
     };
 
-    enum class VectorIdx : int {
-        Cons=1,
-        Prim=1
-    };
+    enum class VectorIdx : int { Cons = 1, Prim = 1 };
 
-    enum class WallIndex : int {
-        HydroSlipWall = 0,
-        HydroNoSlipWall,
-        HydroDefined,
-        NUM
-    };
+    enum class WallIndex : int { HydroSlipWall = 0, HydroNoSlipWall, HydroDefined, NUM };
 };
 
-
-#endif // MFP_HYDRO_DEFS_H
+#endif  // MFP_HYDRO_DEFS_H

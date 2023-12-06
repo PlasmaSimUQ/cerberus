@@ -1,10 +1,9 @@
-
 -- ======== PROBLEM ==========
 
 ref_density = 1.20 -- kg/m^-3
-ref_mass = 4.65*10^-26  -- kg
+ref_mass = 4.65 * 10 ^ -26 -- kg
 ref_temp = 273.0 -- K
-Sutherland = {Pr=0.72, mu0=1.71e-5, T0=273, S=110.4, type='Sutherland'}
+Sutherland = { Pr = 0.72, mu0 = 1.71e-5, T0 = 273, S = 110.4, type = 'Sutherland' }
 ref_length = 1.0
 
 gravity = -1.0
@@ -27,30 +26,26 @@ merge_fraction = 0.5
 svg_C = ReadSVG.new('cerberus.svg', 0.01)
 
 function svgC(x, y)
-  return -svg_C:query(x, y,'/Layer 1')
+  return -svg_C:query(x, y, '/Layer 1')
 end
-
 
 embedded_boundaries = {
 
   C = {
-    geom=svgC,
-    bcs={air={type='no_slip_wall', T=10},
-    },
-    boolean_operation='or',
-    inside=1,
+    geom = svgC,
+    bcs = { air = { type = 'no_slip_wall', T = 10 } },
+    boolean_operation = 'or',
+    inside = 1,
   },
-
 }
 
 function inside(funcs, x, y)
-
   local r
   for i, f in ipairs(funcs) do
     if i == 1 then
-      r = f(x,y)
+      r = f(x, y)
     else
-      r = math.max(r, f(x,y))
+      r = math.max(r, f(x, y))
     end
   end
 
@@ -62,9 +57,8 @@ function inside(funcs, x, y)
 end
 
 function make_particles(N)
-
   funcs = {}
-  for k,v in pairs(embedded_boundaries) do
+  for k, v in pairs(embedded_boundaries) do
     table.insert(funcs, v['geom'])
   end
 
@@ -76,8 +70,8 @@ function make_particles(N)
     y = math.random()
 
     if inside(funcs, x, y) > 0 then
-      table.insert(pos,{x,y})
-      n = n+1
+      table.insert(pos, { x, y })
+      n = n + 1
     end
   end
 
@@ -86,60 +80,55 @@ end
 
 -- === DEFINE STATES ===
 
-function make_circles(x,y,collection)
-
+function make_circles(x, y, collection)
   local d, dd
 
   for i, v in ipairs(collection) do
-    dd = v[1]^2 - ((x-v[2])^2 + (y-v[3])^2)
-    if (i == 1) then
-        d = dd
+    dd = v[1] ^ 2 - ((x - v[2]) ^ 2 + (y - v[3]) ^ 2)
+    if i == 1 then
+      d = dd
     end
     d = math.max(d, dd)
   end
 
   return -d
-
 end
 
 -- collection = {{{x_lo, x_hi},{y_lo,y_hi}}, ... }
-function make_rectangles(x,y,collection)
-
+function make_rectangles(x, y, collection)
   local d, dd
 
-  local coords = {x,y}
+  local coords = { x, y }
 
   for i, v in ipairs(collection) do
-    for j=1,2 do
+    for j = 1, 2 do
       dd = math.max(coords[j] - v[j][2], v[j][1] - coords[j])
-      if (i == 1) then
-          d = dd
+      if i == 1 then
+        d = dd
       end
       d = math.max(d, dd)
     end
   end
 
   return -d
-
 end
 
 function pressure(dat)
   local h = dat['y']
-  return math.exp(gravity*h/freestream_temperature)
+  return math.exp(gravity * h / freestream_temperature)
 end
 
 function density(dat)
   local p = pressure(dat)
-  return p/freestream_temperature
+  return p / freestream_temperature
 end
 
 function blob(dat)
-
   local circles = {
-    {0.1, 0.5, 0.8},
+    { 0.1, 0.5, 0.8 },
   }
 
-  if make_circles(dat['x'],dat['y'],circles) < 0 then
+  if make_circles(dat['x'], dat['y'], circles) < 0 then
     return 20.0
   else
     return density(dat)
@@ -149,61 +138,58 @@ end
 function tracer(dat)
   if blob(dat) == 20.0 then
     return 1.0
-  else 
+  else
     return 0.0
   end
 end
 
-
-
 states = {
 
-    air = {
-        type='hydro',
-        gas={
-          type='thermally_perfect',
-          mass=1.0,
-          charge= 0.0,
-          gamma=1.4,
-        },
-        reconstruction='constant', 
-        flux='HLLC',
-        viscosity=Sutherland,
-        value = {
-            rho =     blob,
-            x_vel =   0,
-            y_vel =   0,
-            z_vel =   0,
-            p =       pressure,
-            alpha =   tracer,
-        },
-        refinement={name='hydro_gradient', rho=0.1},
-        merge_threshold = 0.5,
-
-        bc={
-          x={
-            lo={
-              fill_hydro_bc='slipwall',
-            },
-            hi={
-              fill_hydro_bc='slipwall',
-            }
-          },
-          y={
-            lo={
-              fill_hydro_bc='slipwall',
-            },
-            hi={
-              fill_hydro_bc='slipwall',
-            }
-          }
-        }
-
+  air = {
+    type = 'hydro',
+    gas = {
+      type = 'thermally_perfect',
+      mass = 1.0,
+      charge = 0.0,
+      gamma = 1.4,
     },
+    reconstruction = 'constant',
+    flux = 'HLLC',
+    viscosity = Sutherland,
+    value = {
+      rho = blob,
+      x_vel = 0,
+      y_vel = 0,
+      z_vel = 0,
+      p = pressure,
+      alpha = tracer,
+    },
+    refinement = { name = 'hydro_gradient', rho = 0.1 },
+    merge_threshold = 0.5,
 
-    tracer = {
-      type='tracer',
-      particles=make_particles(1000),
+    bc = {
+      x = {
+        lo = {
+          fill_hydro_bc = 'slipwall',
+        },
+        hi = {
+          fill_hydro_bc = 'slipwall',
+        },
+      },
+      y = {
+        lo = {
+          fill_hydro_bc = 'slipwall',
+        },
+        hi = {
+          fill_hydro_bc = 'slipwall',
+        },
+      },
+    },
+  },
+
+  tracer = {
+    type = 'tracer',
+    particles = make_particles(1000),
   },
 }
 
@@ -213,20 +199,19 @@ actions = {
 
   hydro_fluxes = {
     type = 'CTU',
-    corner_transport=true,
-    states = {'air'},
-},
+    corner_transport = true,
+    states = { 'air' },
+  },
 
   gravity = {
-    type='acceleration',
-    states={'air'},
-    vector={0,gravity,0},
+    type = 'acceleration',
+    states = { 'air' },
+    vector = { 0, gravity, 0 },
   },
 
-  tracer={
-    type='hydro_tracer',
-    particles='tracer',
-    fluid='air'
+  tracer = {
+    type = 'hydro_tracer',
+    particles = 'tracer',
+    fluid = 'air',
   },
-  
 }

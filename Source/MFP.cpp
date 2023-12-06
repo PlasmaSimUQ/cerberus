@@ -1,10 +1,10 @@
 #include "MFP.H"
-#include "MFP_state.H"
-#include "MFP_eulerian.H"
-#include "MFP_lagrangian.H"
-#include "MFP_diagnostics.H"
 
+#include "MFP_diagnostics.H"
+#include "MFP_eulerian.H"
 #include "MFP_field.H"
+#include "MFP_lagrangian.H"
+#include "MFP_state.H"
 
 using namespace amrex;
 
@@ -33,8 +33,8 @@ bool MFP::zero_dimensional = false;
 
 IntVect MFP::tile_size;
 
-std::map<std::string,Array<int,AMREX_SPACEDIM+1>> MFP::plot_variables;
-Vector<std::pair<std::string,Optional3D1VFunction>> MFP::plot_functions;
+std::map<std::string, Array<int, AMREX_SPACEDIM + 1>> MFP::plot_variables;
+Vector<std::pair<std::string, Optional3D1VFunction>> MFP::plot_functions;
 
 constexpr int MFP::level_mask_interior;
 constexpr int MFP::level_mask_covered;
@@ -50,7 +50,6 @@ Vector<size_t> MFP::lagrangian_states;
 Vector<std::unique_ptr<Action>> MFP::actions;
 Vector<std::string> MFP::source_names;
 std::map<std::string, int> MFP::source_index;
-
 
 #ifdef AMREX_USE_EB
 Vector<DataEB> MFP::eb_def;
@@ -76,32 +75,42 @@ bool MFP::plasma_params_set = false;
 
 MFP::MFP() {}
 
-MFP::MFP(Amr& papa, int lev, const Geometry& level_geom, const BoxArray& bl,
-         const DistributionMapping& dm, Real time)
-    : AmrLevel(papa, lev, level_geom, bl, dm, time)
+MFP::MFP(Amr& papa,
+         int lev,
+         const Geometry& level_geom,
+         const BoxArray& bl,
+         const DistributionMapping& dm,
+         Real time) :
+    AmrLevel(papa, lev, level_geom, bl, dm, time)
 {
-    if (level > 0) {
+    BL_PROFILE("MFP::MFP");
 
+    if (level > 0) {
         flux_reg.resize(eulerian_states.size());
 
-        for (int data_idx=0; data_idx<eulerian_states.size(); ++data_idx) {
+        for (int data_idx = 0; data_idx < eulerian_states.size(); ++data_idx) {
             const int global_idx = eulerian_states[data_idx];
-            flux_reg[data_idx].define(
-                        bl, papa.boxArray(level - 1),
-                        dm, papa.DistributionMap(level - 1),
-                        level_geom, papa.Geom(level - 1),
-                        papa.refRatio(level - 1), level,
-                        desc_lst[data_idx].nComp());
+            flux_reg[data_idx].define(bl,
+                                      papa.boxArray(level - 1),
+                                      dm,
+                                      papa.DistributionMap(level - 1),
+                                      level_geom,
+                                      papa.Geom(level - 1),
+                                      papa.refRatio(level - 1),
+                                      level,
+                                      desc_lst[data_idx].nComp());
         }
     }
 
     build_eb();
 }
 
-MFP::~MFP(){}
+MFP::~MFP() {}
 
 void MFP::init(AmrLevel& old)
 {
+    BL_PROFILE("MFP::init");
+
     auto& oldlev = dynamic_cast<MFP&>(old);
 
     Real dt_new = parent->dtLevel(level);
@@ -124,11 +133,12 @@ void MFP::init(AmrLevel& old)
 
 void MFP::init()
 {
+    BL_PROFILE("MFP::init");
+
     Real dt = parent->dtLevel(level);
     Real cur_time = getLevel(level - 1).state[0].curTime();
     Real prev_time = getLevel(level - 1).state[0].prevTime();
-    Real dt_old = (cur_time - prev_time) /
-            static_cast<Real>(parent->MaxRefRatio(level - 1));
+    Real dt_old = (cur_time - prev_time) / static_cast<Real>(parent->MaxRefRatio(level - 1));
     setTimeLevel(cur_time, dt_old, dt);
 
     MultiFab& C_new = get_new_data(Cost_Idx);
@@ -145,13 +155,9 @@ void MFP::init()
 
 void MFP::initData()
 {
-    BL_PROFILE("MFP::initData()");
+    BL_PROFILE("MFP::initData");
 
-    for (const auto& state : states) {
-
-        state->init_data(this, get_cum_time());
-
-    }
+    for (const auto& state : states) { state->init_data(this, get_cum_time()); }
 
     // initialise cost state
     MultiFab& C_new = get_new_data(Cost_Idx);
@@ -160,6 +166,7 @@ void MFP::initData()
 
 void MFP::post_regrid(int lbase, int new_finest)
 {
+    BL_PROFILE("MFP::post_regrid");
 
 #ifdef AMREX_PARTICLES
     for (const auto& i : lagrangian_states) {
@@ -167,24 +174,24 @@ void MFP::post_regrid(int lbase, int new_finest)
         istate.redistribute(0, -1, 0);
     }
 #endif
-
 }
 
 void MFP::post_timestep(int iteration)
 {
+    BL_PROFILE("MFP::post_timestep");
+
     // reflux
     if (level < parent->finestLevel()) {
         MFP& fine_level = getLevel(level + 1);
 
-        for (int data_idx=0; data_idx<eulerian_states.size(); ++data_idx) {
+        for (int data_idx = 0; data_idx < eulerian_states.size(); ++data_idx) {
             EulerianState& istate = EulerianState::get_state(data_idx);
             if (istate.reflux) {
                 MultiFab& S_crse = get_new_data(data_idx);
 #ifdef AMREX_USE_EB
                 MultiFab& S_fine = fine_level.get_new_data(data_idx);
                 EBData& eb = get_eb_data(istate.global_idx);
-                fine_level.flux_reg[data_idx].Reflux(S_crse, eb.volfrac, S_fine,
-                                                     eb.volfrac);
+                fine_level.flux_reg[data_idx].Reflux(S_crse, eb.volfrac, S_fine, eb.volfrac);
 #else
                 fine_level.flux_reg[data_idx].Reflux(S_crse, 0);
 #endif
@@ -192,9 +199,7 @@ void MFP::post_timestep(int iteration)
         }
     }
 
-    if (level < parent->finestLevel()) {
-        avgDown();
-    }
+    if (level < parent->finestLevel()) { avgDown(); }
 
 #ifdef AMREX_PARTICLES
     const int ncycle = parent->nCycle(level);
@@ -208,18 +213,17 @@ void MFP::post_timestep(int iteration)
         }
     }
 #endif
-
 }
 
 void MFP::avgDown()
 {
-    BL_PROFILE("MFP::avgDown()");
+    BL_PROFILE("MFP::avgDown");
 
     if (level == parent->finestLevel()) return;
 
     auto& fine_lev = getLevel(level + 1);
 
-    for (int data_idx=0; data_idx<eulerian_states.size(); ++data_idx) {
+    for (int data_idx = 0; data_idx < eulerian_states.size(); ++data_idx) {
         const int global_idx = eulerian_states[data_idx];
 
         MultiFab& S_crse = get_new_data(data_idx);
@@ -229,66 +233,66 @@ void MFP::avgDown()
         MultiFab volume(S_fine.boxArray(), S_fine.DistributionMap(), 1, 0);
         volume.setVal(1.0);
 
-        EBData& eb = get_eb_data(level+1, global_idx);
-        amrex::EB_average_down(S_fine, S_crse, volume, eb.volfrac, 0,
-                               S_fine.nComp(), fine_ratio);
+        EBData& eb = get_eb_data(level + 1, global_idx);
+        amrex::EB_average_down(S_fine, S_crse, volume, eb.volfrac, 0, S_fine.nComp(), fine_ratio);
 #else
         amrex::average_down(S_fine, S_crse, 0, S_fine.nComp(), fine_ratio);
 #endif
-
     }
 }
 
 void MFP::postCoarseTimeStep(Real time)
 {
+    BL_PROFILE("MFP::postCoarseTimeStep");
+
     if (verbosity >= 1) {
         amrex::Print().SetPrecision(17)
-                << "[MFP] : step = " << parent->levelSteps(0) << ", time = " << time
-                << std::endl;
+          << "[MFP] : step = " << parent->levelSteps(0) << ", time = " << time << std::endl;
     }
 }
 
 void MFP::post_init(Real)
 {
+    BL_PROFILE("MFP::post_init");
+
     // check our reconstruction doesn't go out-of-bounds
 
     const Box& box = geom.Domain();
     const IntVect size = box.bigEnd() - box.smallEnd();
-    for (int data_idx=0; data_idx<eulerian_states.size(); ++data_idx) {
+    for (int data_idx = 0; data_idx < eulerian_states.size(); ++data_idx) {
         EulerianState& istate = EulerianState::get_state(data_idx);
 
-        for (int d=0; d<AMREX_SPACEDIM; ++d) {
+        for (int d = 0; d < AMREX_SPACEDIM; ++d) {
             if (istate.reconstructor->get_num_grow() > size[d])
-                Abort("Reconstruction stencil is larger than domain in dim="+num2str(d));
+                Abort("Reconstruction stencil is larger than domain in dim=" + num2str(d));
         }
     }
 
     if (level > 0) return;
-    for (int k = parent->finestLevel() - 1; k >= 0; --k) {
-        getLevel(k).avgDown();
-    }
-
+    for (int k = parent->finestLevel() - 1; k >= 0; --k) { getLevel(k).avgDown(); }
 }
 
 void MFP::post_restart()
 {
+    BL_PROFILE("MFP::post_restart");
+
     if (level > 0) {
         flux_reg.resize(eulerian_states.size());
         for (int data_idx = 0; data_idx < eulerian_states.size(); ++data_idx) {
-            EulerianState &istate = EulerianState::get_state(data_idx);
+            EulerianState& istate = EulerianState::get_state(data_idx);
             if (istate.reflux) {
-                flux_reg[data_idx].define(
-                            grids, parent->boxArray(level - 1), dmap,
-                            parent->DistributionMap(level - 1), geom,
-                            parent->Geom(level - 1),
-                            parent->refRatio(level - 1), level,
-                            desc_lst[data_idx].nComp());
+                flux_reg[data_idx].define(grids,
+                                          parent->boxArray(level - 1),
+                                          dmap,
+                                          parent->DistributionMap(level - 1),
+                                          geom,
+                                          parent->Geom(level - 1),
+                                          parent->refRatio(level - 1),
+                                          level,
+                                          desc_lst[data_idx].nComp());
             }
         }
-
-
     }
-
 
     build_eb();
 
@@ -305,46 +309,42 @@ void MFP::post_restart()
 void MFP::writeParticles(const std::string& dir)
 {
     BL_PROFILE("MFP::writeParticles");
+
     for (const auto& i : lagrangian_states) {
         LagrangianState& istate = LagrangianState::get_state_global(i);
         istate.checkpoint(dir);
     }
 }
 
-void
-MFP::ParticlePostRestart (const std::string& dir)
+void MFP::ParticlePostRestart(const std::string& dir)
 {
     BL_PROFILE("MFP::ParticlePostRestart");
-    if ((level == 0) && !lagrangian_states.empty()) {
 
+    if ((level == 0) && !lagrangian_states.empty()) {
         // handle if we have archived level data in a restart folder
         Vector<std::string> to_remove;
         if (ParallelDescriptor::IOProcessor()) {
-
             // get the names of the particle folders
             for (const auto& i : lagrangian_states) {
                 LagrangianState& istate = LagrangianState::get_state_global(i);
-                std::string particle_folder = "Particles_"+istate.name;
-                std::string FullPath = dir+"/"+particle_folder;
+                std::string particle_folder = "Particles_" + istate.name;
+                std::string FullPath = dir + "/" + particle_folder;
 
                 // check if we actually need to un-tar
-                if (FileExists(FullPath))
-                    continue;
+                if (FileExists(FullPath)) continue;
 
                 // check tar exists
-                if (!FileExists(FullPath + ".tar"))
-                    continue;
+                if (!FileExists(FullPath + ".tar")) continue;
 
                 // add to list of things to clean up later
                 to_remove.push_back(FullPath);
 
-
                 // perform un-tar
                 std::string cmd = "\\tar -C " + dir + " -xf " + FullPath + ".tar ";
-                const char * command = {cmd.c_str()};
+                const char* command = {cmd.c_str()};
                 int retVal = std::system(command);
                 if (retVal == -1 || WEXITSTATUS(retVal) != 0) {
-                    Abort("Error: Unable to un-tar '"+FullPath+"'");
+                    Abort("Error: Unable to un-tar '" + FullPath + "'");
                 }
             }
         }
@@ -360,25 +360,24 @@ MFP::ParticlePostRestart (const std::string& dir)
 
         // clean up after un-tar operation
         if (ParallelDescriptor::IOProcessor()) {
-            for (const auto& path : to_remove) {
-                FileSystem::RemoveAll(path);
-            }
+            for (const auto& path : to_remove) { FileSystem::RemoveAll(path); }
         }
     }
 }
 
 #endif
 
-
-State& MFP::get_state(const std::string& name) {
-    if ( state_index.find(name) == state_index.end() ) {
+State& MFP::get_state(const std::string& name)
+{
+    if (state_index.find(name) == state_index.end()) {
         Abort("Attempting to reference a state that doesn't exist");
     }
     return *states[state_index[name]];
 }
 
-Action& MFP::get_source(const std::string& name) {
-    if ( source_index.find(name) == source_index.end() ) {
+Action& MFP::get_source(const std::string& name)
+{
+    if (source_index.find(name) == source_index.end()) {
         Abort("Attempting to reference a source that doesn't exist");
     }
     return *actions[source_index[name]];
