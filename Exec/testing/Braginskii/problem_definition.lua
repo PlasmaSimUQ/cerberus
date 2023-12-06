@@ -55,6 +55,29 @@ local function log1p (x) -- not very precise, but works well
   return math.log(u) * x / (u - 1)
 end
 
+function tanh (x)
+if x == 0 then return 0.0 end
+local neg = false
+if x < 0 then x = -x; neg = true end
+if x < 0.54930614433405 then
+    local y = x * x
+    x = x + x * y *
+        ((-0.96437492777225469787e0  * y +
+        -0.99225929672236083313e2) * y +
+        -0.16134119023996228053e4) /
+        (((0.10000000000000000000e1  * y +
+            0.11274474380534949335e3) * y +
+            0.22337720718962312926e4) * y +
+            0.48402357071988688686e4)
+else
+    x = math.exp(x)
+    x = 1.0 - 2.0 / (x * x + 1.0)
+end
+if neg then x = -x end
+return x
+end
+
+
 function atanh (x)
   y = math.abs(x)
   if y < .5 then
@@ -98,7 +121,7 @@ function RMI_interface_B(x, y, L, R)
     end
 
     slope = (2.0/interface_transition)*atanh(at)
-    out = -((math.tanh(-slope*(rr - centre))-1.0)/2.0)*(L-R)+R
+    out = -((tanh(-slope*(rr - centre))-1.0)/2.0)*(L-R)+R
 
     return out
 end
@@ -190,19 +213,39 @@ time_integration_scheme = 'strang'
 
 force_dt = 0
 
-skin_depth = 1.0
+ref_mass = 1.6726219000e-27
+ref_density = 1.6726219000e+04
+ref_length = 1e-8
+skin_depth =  7.2008467405e+00 
 beta = 1.0
-lightspeed = 20.0
+lightspeed = 2.0000000000e+03
+
+-- debug delete 
+--[[
+yy = 0.5
+for i=0,100,1 do
+  xx = 2/100*i + -1
+  print(xx, yy)
+  dat = {x=xx, y=yy}
+  print(ion_density(dat), velocity_x(dat), pressure(dat), tracer(dat),tracer_shock(dat))
+  print(electron_density(dat), velocity_x(dat), pressure(dat), tracer(dat), tracer_shock(dat), '\n')
+end 
+--]]
+--
+
 
 -- === DEFINE STATES ===
 
-states = {
 
+states = {
     ion = {
         type='hydro',
-        mass=mass_ion,
-        charge=1,
-        gamma=5/3,
+        gas={
+          type='thermally_perfect', 
+          mass=mass_ion,
+          charge=1,
+          gamma=5/3,
+        }, 
         reconstruction = 'minmod',
         refinement={name='hydro_gradient', rho=0.1},
         flux = 'HLLC',
@@ -216,9 +259,12 @@ states = {
 
     electron = {
         type='hydro',
-        mass=mass_electron,
-        charge=-1.0,
-        gamma=5/3,
+        gas={
+          type='thermally_perfect', 
+          mass=mass_electron,
+          charge=-1.0,
+          gamma=5/3,
+        }, 
         reconstruction = 'minmod',
         refinement={name='hydro_gradient', rho=0.1},
         flux = 'HLLC',
@@ -236,7 +282,7 @@ states = {
         reconstruction='O6',
         flux = 'RankineHugoniot',
     },
-
+  
     electron_tracer = {
         type='tracer',
         particles=make_particles(100)
@@ -246,10 +292,16 @@ states = {
         type='tracer',
         particles=make_particles(100)
     }
-
 }
 
 actions = {
+    --[[
+    hydro_fluxes = {
+        type = 'CTU',
+        corner_transport=true,
+        states = {'ion', 'electron'},
+    },
+    --]]
 
     braginskii = {
         -- this handles inviscid and viscous fluxes as well as inter-species collisions
@@ -258,11 +310,19 @@ actions = {
         srin_switch = false,
         anisotropic = true,
         cfl=1.0,
-        force_ion_viscosity = 1e-3,
-        force_electron_viscosity = 1e-5,
+        --force_ion_viscosity = 1e-3,
+        --force_electron_viscosity = 1e-5,
+        do_inter_species = false, 
+        do_intra_species = true, 
         time_refinement_factor = 10,
         max_time_refinement_levels = 100,
         states = {ion='ion', electron='electron', field='field'},
+    },
+
+    em_fluxes = {
+        type = 'CTU',
+        corner_transport=true,
+        states = {'field'},
     },
 
     plasma={
@@ -270,7 +330,6 @@ actions = {
         solver = 'explicit',
         states = {'ion', 'electron', 'field'},
      },
-
      divergence_cleaning = {
         type='elliptic',
         projection=1,

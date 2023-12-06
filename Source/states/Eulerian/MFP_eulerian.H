@@ -47,6 +47,9 @@ public:
 
     std::map<std::string,Optional3D1VFunction> other_functions;
     Vector<Optional3D1VFunction> functions;
+    //Dynamic functions holder 
+    std::map<int,Optional3D1VFunction*> dynamic_functions; // index is for conserved values
+
 
     std::unique_ptr<Reconstruction> reconstructor;
 

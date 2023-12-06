@@ -2,13 +2,13 @@
 
 (cd ../../local && make -j8 DIM=2 USE_EB=FALSE AMREX_PARTICLES=TRUE)
 
-EXE=../../local/MFP.2d.gnu.MPI.PARTICLES.ex
+EXE=../../local/MFP.2d.gnu.MPI.PARTICLES.ex #MFP.2d.gnu.MPI.PARTICLES.ex
 
 INPUTS=BTRMI.inputs
 
 rm -r *chk* *plt*
 
-mpirun -n 8 ${EXE} ${INPUTS} 2>&1 | tee run_log.txt
+mpirun -n 1 --oversubscribe ${EXE} ${INPUTS} 2>&1 | tee run_log.txt
 
 ../visit.sh .
 

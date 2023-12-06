@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+(cd /home/kyriakos/Documents/Code/000_cerberus_dev/githubRelease-cerberus/cerberus/Exec/local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE USE_CVODE_LIBS=FALSE)
+
+d=$(date +%b%d-%H%M)
+#mkdir "oldFiles_$d.txt"
+#mv {*chk*,*plt*,run_log*} "oldFiles_$d.txt"
+
+EXE=/home/kyriakos/Documents/Code/000_cerberus_dev/githubRelease-cerberus/cerberus/Exec/local/MFP_energyCorrection.1d.gnu.MPI.ex
+
+INPUTS=1_ghoshThermalEquilibration.inputs
+mpirun -n 1 ${EXE} ${INPUTS} 2>&1 | tee "run_log_case_1_$d.txt"
+
+fileDir="Correct_Case_1_2_files$d"
+mkdir $fileDir
+mv {*chk*,*plt*,run_log*} $fileDir
+cp 1_gho*inputs $fileDir
+
+
+INPUTS=2_ghoshThermalEquilibration.inputs
+mpirun -n 1 ${EXE} ${INPUTS} 2>&1 | tee "run_log_case_2_$d.txt"
+fileDir="Correct_Case_2_2_files_$d"
+mkdir $fileDir
+mv {*chk*,*plt*,run_log*} $fileDir
+cp 2_gho*inputs $fileDir
+
+: '
+
+INPUTS=2_ghoshThermalEquilibration_debug.inputs
+mpirun -n 1 ${EXE} ${INPUTS} 2>&1 | tee "run_log_case_2_$d.txt"
+
+fileDir="Case_2_2_QiRegress$d"
+mkdir $fileDir
+mv {*chk*,*plt*,run_log*} $fileDir
+cp 2_gho*inputs $fileDir 
+'
+
+#../visit.sh .

@@ -1,0 +1,62 @@
+#======== AMREX ==========
+amrex.fpe_trap_invalid=1
+amrex.fpe_trap_zero=1
+fpe_trap_overflow=1
+amr.v = 0
+
+# ======== TIME ==========
+max_step  = 10000000
+stop_time = 0.2 # 1.0 #0.030973980073944
+
+# ======== DOMAIN ==========
+geometry.is_periodic = 0 0 0  
+geometry.coord_sys   = 0  # 0 => cart, 1 => RZ  2=>spherical
+
+# lo. res.
+geometry.prob_lo     = -2 # -25.0 #-1.0
+geometry.prob_hi     = 2  #  25.0  #1.0
+amr.n_cell           = 32 #2048 # 4
+
+# ======== LOAD BALANCE ==========
+amr.loadbalance_with_workestimates = 0
+amr.loadbalance_level0_int = 10
+
+# ======== GRID ==========
+amr.max_level       = 3      # maximum level number allowed
+amr.ref_ratio       = 2 2 2 2 2 2 2 2 2 # refinement ratio
+amr.regrid_int      = 2 2 2 2 2 2 2 2 2 # how often to regrid
+amr.blocking_factor = 8
+amr.max_grid_size   = 32
+amr.n_error_buf     = 4 4 4 4 4 4 4 4 4 # number of buffer cells in error est
+amr.grid_eff        = 0.99     # what constitutes an efficient grid
+amr.subcycling_mode = Auto # time sub-cycling (Auto, None, Manual, Optimal)
+
+# ======== GEOMETRY ==========
+#eb2.geom_type = all_regular
+
+# ======== PARTICLES ==========
+particles.do_particles = 0
+
+# ======== OUTPUT ==========
+
+# CHECKPOINT FILES
+amr.checkpoint_files_output = 1
+amr.check_file              = Braginskii-Riemann-2F.chk    # root name of checkpoint file
+amr.check_int               = -1    # number of timesteps between checkpoints
+amr.check_per               = 1e-1
+
+# PLOTFILES
+amr.plot_files_output = 1
+amr.plot_file         = Braginskii-Riemann-2F.plt     # root name of plotfile
+amr.plot_int          = -1      # number of timesteps between plotfiles
+amr.plot_per          = 1e-2
+
+
+# ======== PROBLEM DESCRIPTION ==========
+# Note that the problem description is defined as a lua script
+# Everything within the double quotes "..." must conform to lua standards
+# Note that any strings should therefore be defined by single quotes '...'
+
+mfp.lua = "
+dofile('problem_definition.lua')
+"

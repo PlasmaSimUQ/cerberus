@@ -1,0 +1,3 @@
+all:
+	$(MAKE) -f ../../Makefile
+

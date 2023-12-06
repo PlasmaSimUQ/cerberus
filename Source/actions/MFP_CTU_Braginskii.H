@@ -131,6 +131,21 @@ public:
             Real& beta3,
             int& truncatedTau);
 
+  virtual void get_transport_constants(
+            const Real& Z_i, 
+            Real& delta_0, 
+            Real& delta_1, 
+            Real& BT_gamma_0, 
+            Real& BT_gamma_0_p, 
+            Real& BT_gamma_1_p, 
+            Real& BT_gamma_1_pp, 
+            Real& BT_gamma_0_pp,    
+            Real& b_0, 
+            Real& b_0_pp, 
+            Real& b_0_p, 
+            Real& b_1_p, 
+            Real& b_1_pp);
+
     Real get_max_speed_electrons(const Vector<Real>& U_e,
                                  const Vector<Real>& U_i,
                                  const Vector<Real>& U_f);
@@ -164,6 +179,13 @@ public:
                                      Array4<const Real> const& prim_f4,
                                      const Real* dx, FArrayBox& diff);
 
+    void hall_correction_viscosity(Real& eta0,
+                                   Real& eta1,
+                                   Real& eta2,
+                                   Real& eta3,
+                                   Real& eta4,
+                                   const Real& x_coef); 
+
     void BraginskiiViscousTensorHeatFlux(FluxSpecies flux_type,
                                          Real xB, Real yB, Real zB,
                                          Vector<Real> u_rel,
@@ -195,11 +217,10 @@ public:
                      Reconstruction& reco,
                      const Real *dx) const;
 
-    static void get_alpha_beta_coefficients(Real mass_e, Real T_e, Real charge_e,
-                                     Real charge_i, Real nd_e, Real nd_i, Real& alpha_0, Real& alpha_1,
-                                     Real& alpha_2,
-                                     Real& beta_0, Real& beta_1, Real& beta_2, Real& t_c_e, Real p_lambda,
-                                     Real Bx, Real By, Real Bz);
+    static void get_alpha_beta_coefficients(const Real& Z_i, Real Debye, Real Larmor, Real mass_e, Real T_e, 
+                                            Real charge_e, Real charge_i, Real nd_e, Real nd_i, Real& alpha_0, 
+                                            Real& alpha_1, Real& alpha_2, Real& beta_0, Real& beta_1, 
+                                            Real& beta_2, Real& t_c_e, Real p_lambda, Real Bx, Real By, Real Bz);
 
 
     enum class DataIdx {
@@ -215,6 +236,8 @@ public:
         By,
         Bz,
         AMREX_D_DECL(dTdx,dTdy,dTdz),
+        Debye, 
+        Larmor, 
         NUM
     };
 
@@ -247,6 +270,8 @@ public:
 
     static constexpr Real effective_zero = 1e-14;
     static bool srin_switch;
+    static bool do_inter_species;
+    static bool do_intra_species;
     static bool braginskii_anisotropic;
     Real cfl = 1.0;
 
@@ -267,6 +292,10 @@ public:
     ElectronCoeffs electron_coeffs;
 
     bool do_CTU;
+    bool hall_correction ; 
+
+    Real DebyeRef, LarmorRef; 
+
 
     int time_refinement_factor;
     int max_time_refinement;

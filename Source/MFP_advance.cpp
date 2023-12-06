@@ -221,12 +221,12 @@ void MFP::advance_strang(Real time, Real dt, int iteration, int ncycle)
     ///////////////////////////////////////////////////////////////////////////
     /// FLUXES
 
-
     for (const auto& act : actions) {
 
         act->get_data(this, RK_step, time+dt);
 
         // calculate any contributions to dU (dU += f(new*))
+
         act->calc_spatial_derivative(this, RK_step, time+dt, dt, dt);
 
         // update new data with any one-shot updates based on new* data (new** = f(new*))

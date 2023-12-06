@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+(cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE TINY_PROFILE=FALSE)
+
+EXE=../../local/MFP.1d.gnu.MPI.ex
+
+                   
+INPUTS=*.inputs
+
+rm -r *plt* *chk*
+
+mpirun -n 1 -oversubscribe ${EXE} ${INPUTS} 2>&1 | tee run_log.txt
+
+#python3 check.py
+python3 cerberus_1D_results_x-v-comparison.py
+
+python3 plot.py

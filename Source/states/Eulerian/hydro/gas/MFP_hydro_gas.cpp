@@ -150,6 +150,7 @@ bool HydroGas::prim_valid(const Vector<Real> &Q) const
     if ((Q[+HydroDef::PrimIdx::Density] <= 0.0) ||  (Q[+HydroDef::PrimIdx::Prs] <= 0.0)
             ||  (Q[+HydroDef::PrimIdx::Temp] <= 0.0)
             ) {
+        //Print() << "\n" << Q[+HydroDef::PrimIdx::Density] << " " << Q[+HydroDef::PrimIdx::Prs] << " " <<  Q[+HydroDef::PrimIdx::Temp] << " \n" ; //TODO delete 
         amrex::Abort("Primitive values outside of physical bounds!!");
         return false;
     }
