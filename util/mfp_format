@@ -1,0 +1,297 @@
+#!/usr/bin/env python3
+
+import glob
+import os
+from argparse import ArgumentParser
+from subprocess import run
+from shutil import which
+
+import logging
+
+logging.basicConfig()
+
+# py-tree-sitter must be installed if you want BL_PROFILE fixing functionality to work
+# https://github.com/tree-sitter/py-tree-sitter
+HAS_TREE_SITTER: bool = False
+
+try:
+    from tree_sitter import Language
+    from tree_sitter.binding import Tree, Node, Parser, Query, TreeCursor
+    HAS_TREE_SITTER = True
+except ImportError:
+    logging.warning("py-tree-sitter not installed. BL_PROFILE statements cannot be fixed. See: https://github.com/tree-sitter/py-tree-sitter")
+
+from typing import IO
+
+INDENT_SPACES: int = 4
+
+SOURCE_DIR: str = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "../Source"))
+TESTS_DIR: str = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "../Exec/testing"))
+DEFAULT_SOURCE_DIRS: list[str] = [f"{SOURCE_DIR}/actions", f"{SOURCE_DIR}/diagnostics", f"{SOURCE_DIR}/config", f"{SOURCE_DIR}/modules", f"{SOURCE_DIR}/states"]
+
+if HAS_TREE_SITTER:
+    CPP_LANGUAGE: Language = Language(
+        os.path.join(os.path.dirname(os.path.realpath(__file__)), "libtree-sitter-cpp.so"), "cpp"
+    )
+
+    PARSER: Parser = Parser()
+
+    PARSER.set_language(CPP_LANGUAGE)
+
+
+
+    def is_bl_profile_in_node(node: Node) -> bool:
+        """Check if this node or any of its descendants contain a BL_PROFILE node.
+        """
+        if b"BL_PROFILE" in node.text:
+            return True
+        return False
+
+    def is_bl_profile_node(node: Node) -> bool:
+        """Is the current node a BL_PROFILE node?
+        """
+        if node.text.startswith(b"BL_PROFILE") and node.type == "expression_statement":
+            return True
+        return False
+
+    def descend_node_to_bl_profile(node: Node, depth: int = 5) -> Node | None:
+        """Descend through the current node until we locate the BL_PROFILE node.
+
+        depth: how many levels to descend before giving up.
+        """
+        if not is_bl_profile_in_node(node):
+            return None
+
+        current_node: Node = node
+        current_depth: int = 0
+        while current_depth < depth:
+            for child in current_node.children:
+                if is_bl_profile_node(child):
+                    return child
+                if is_bl_profile_in_node(child):
+                    current_node = child
+                    current_depth += 1
+                    break
+        return None
+
+
+    def remove_profile_statements_from_bytes(input_bytes: bytes) -> bytes:
+        """Remove all BL_PROFILE statements from a list of bytes representing the lines from a source file."""
+        tree: Tree = PARSER.parse(input_bytes)
+
+        input_bytes_lines = input_bytes.splitlines()
+
+        # a query that only matches when the function call matches "BL_PROFILE". 
+        BL_PROF_NODE_QUERY: Query = CPP_LANGUAGE.query("""
+        ((expression_statement (call_expression function: (identifier) @bl_prof.name arguments: (argument_list (string_literal (string_content) @bl_prof.content )? ))) @bl_prof.statement (#eq? @bl_prof.name "BL_PROFILE"))
+        """)
+
+        captures = [node for node, capture_type in BL_PROF_NODE_QUERY.captures(tree.root_node)[::-1] if capture_type == "bl_prof.statement"]
+        for node in captures:
+            linenum_start = node.start_point[0]
+            linenum_end = node.end_point[0]
+
+            start_col = node.start_point[1]
+            end_col = node.end_point[1]
+
+            # make sure the statement is across a single line only
+            if linenum_start == linenum_end:
+                input_bytes_lines[linenum_start] = input_bytes_lines[linenum_start][:start_col] + input_bytes_lines[linenum_start][end_col:]
+                continue
+            input_bytes_lines[linenum_start] = input_bytes_lines[linenum_start][:start_col] + b"\n"
+            for i in range(linenum_start+1,linenum_end):
+                input_bytes_lines[i] = b""
+            input_bytes_lines[linenum_end] = input_bytes_lines[linenum_end][end_col:]
+
+        input_bytes = b"\n".join(input_bytes_lines) + b"\n"
+
+        return input_bytes
+
+
+    def write_profile_statements_to_bytes(input_bytes: bytes) -> bytes:
+        """Add BL_PROFILE statements to each function in a byte string representing a file
+
+        Note, make sure you run remove_profile_statements_from_bytes first to clean up each function.
+        """
+
+        # match non-empty functions
+        FUNCTION_NAME_QUERY: Query = CPP_LANGUAGE.query( """
+        ((function_definition declarator: (function_declarator declarator: (qualified_identifier) @func_name) body: (compound_statement) @func_body) @func (#not-match? @func_body "{[\\n, ,\\t]*[// *do nothing]*[\\n, ,\\t]*}"))
+        """)
+
+
+        tree: Tree = PARSER.parse(input_bytes)
+
+        # captures contains a list where each even element (0,2,4) is function name
+        # and each odd element is the function body.
+        captures: list[tuple[Node, str]] = FUNCTION_NAME_QUERY.captures(tree.root_node)
+
+        input_bytes_list = input_bytes.splitlines()
+
+        # loop over the captures and add BL_PROFILE statement to each function
+        # loop backward so we don't mess up the byte indices of the captures
+        for i in range(len(captures)-2, 0, -3):
+            func_node: Node = captures[i-1][0]
+            
+            # use the capture of the whole function, check the type and if "AMREX" occurs in the type,
+            # it is most likely a GPU macro which we should skip for now.
+            func_type: List[Node] = func_node.children_by_field_name("type")
+            if len(func_type) != 0 and b"AMREX" in func_type[0].text:
+                continue
+
+            function_name: str = captures[i][0].text.decode("utf8")
+
+            function_body_node: Node = captures[i+1][0]
+
+
+            cursor: TreeCursor = function_body_node.walk()
+            cursor.goto_first_child() # the "{" at the start of the function
+            linenum_start = cursor.node.start_point[0]
+            start_col = cursor.node.start_point[1]
+            cursor.goto_parent()
+
+            cursor.goto_last_child()
+            linenum_end = cursor.node.end_point[0]
+            end_col = cursor.node.end_point[1]
+            cursor.goto_parent()
+            cursor.goto_first_child()
+
+
+            indentation: str = INDENT_SPACES*" "
+
+            # now write the profile statement
+            output = f"\n{indentation}BL_PROFILE(\"{function_name}\");\n".encode("utf8")
+
+            
+            if linenum_start == linenum_end:
+                l = input_bytes_list[linenum_start]
+                pre = l[:start_col] + b"\n{"
+                input_bytes_list[linenum_start] = pre + output + b"\n" + indentation.encode("utf8") + l[start_col+1:end_col-1].strip() + b"\n}\n"
+                continue
+
+            input_bytes_list[linenum_start] = input_bytes_list[linenum_start][:start_col+1] + output + input_bytes_list[linenum_start][start_col+1:]
+
+        return b"\n".join(input_bytes_list) + b"\n"
+
+
+argparser = ArgumentParser(prog="mfp_format",
+                           description="Functions to help with cleaning up this code")
+argparser.add_argument("-v", "--verbose", help="verbosity level (0=quiet, 1=print filenames, 2=print full paths) default=0", action="count", default=0)
+argparser.add_argument("-g", "--do-git", help="Run git add on the files we cleaned", action="store_true")
+argparser.add_argument("-p", "--profiling-statements", help="Clean up profiling statements in matching .cpp files", action="store_true")
+argparser.add_argument("-c", "--clang-format", help="Run clang-format on matching .cpp and .H files", action="store_true")
+argparser.add_argument("-l", "--stylua", help="Run stylua on matching .lua files", action="store_true")
+argparser.add_argument("-r", "--recursive", help="Recurse through all subdirectories of each dir when using -d/--dirs", action="store_true")
+files_or_dirs = argparser.add_mutually_exclusive_group()
+files_or_dirs.add_argument("-f", "--files", help="Files to clean up (space separated)", nargs="+")
+files_or_dirs.add_argument("-d", "--dirs", help="Which directories to apply to (space separated)", nargs="+")
+files_or_dirs.add_argument("-a", "--all", help="Apply to all .cpp/.H files in the Source directory (excluding extern)", action="store_true")
+files_or_dirs.add_argument("-t", "--test", help="run on test file", action="store_true")
+
+if __name__ == "__main__":
+    args = argparser.parse_args()
+    if args.verbose >= 2:
+        logging.root.setLevel("INFO")
+    if args.verbose >= 3:
+        logging.root.setLevel("DEBUG")
+
+    cpp_files: list[str] = []
+    header_files: list[str] = []
+    lua_files: list[str] = []
+    if args.dirs is not None:
+        for dir in args.dirs:
+            cpp_files += glob.glob(f"{dir}/**/*.cpp", recursive=args.recursive)
+            header_files += glob.glob(f"{dir}/**/*.H", recursive=args.recursive)
+            lua_files += glob.glob(f"{dir}/**/*.lua", recursive=args.recursive)
+
+    if args.all:
+        cpp_files += glob.glob(f"{SOURCE_DIR}/*.cpp", recursive=True)
+        header_files += glob.glob(f"{SOURCE_DIR}/*.H", recursive=True)
+        for dir in DEFAULT_SOURCE_DIRS:
+            cpp_files += glob.glob(f"{dir}/**/*.cpp", recursive=True)
+            header_files += glob.glob(f"{dir}/**/*.H", recursive=True)
+        lua_files += glob.glob(f"{TESTS_DIR}/**/*.lua", recursive=True)
+
+    if args.files is not None:
+        for file in args.files:
+            if file.endswith(".cpp"):
+                cpp_files.append(file)
+            elif file.endswith(".H"):
+                header_files.append(file)
+            elif file.endswith(".lua"):
+                lua_files.append(file)
+            else:
+                logging.error(f"{file} is not a recognised filetype.")
+
+    if args.profiling_statements:
+        if HAS_TREE_SITTER:
+            for i,file in enumerate(cpp_files):
+                if file.endswith(".H"): continue
+                if args.verbose >= 1:
+                    filename_pretty: str = file.split("/")[-1]
+                    if args.verbose >= 3:
+                        filename_pretty = file
+                    print(f"[{i+1}/{len(cpp_files)}] Fixing profile statements in {filename_pretty}")
+                with open(file, "r+b") as f:
+                    f_bytes: bytes = f.read()
+
+                f_bytes: bytes = remove_profile_statements_from_bytes(f_bytes)
+                f_bytes = write_profile_statements_to_bytes(f_bytes)
+                with open(file, "wb") as f:
+                    f.write(f_bytes)
+
+    if args.clang_format:
+        if which("clang-format") is not None:
+            clang_format_files = cpp_files + header_files
+            for i,file in enumerate(clang_format_files):
+                if args.verbose >= 1:
+                    filename_pretty: str = file.split("/")[-1]
+                    if args.verbose >= 3:
+                        filename_pretty = file
+                    print(f"[{i+1}/{len(clang_format_files)}] Running clang-format on {filename_pretty}")
+                run(["clang-format", "-i", file])
+        else:
+            logging.error("clang-format executable not found!")
+
+
+    if args.stylua:
+        if which("stylua") is not None:
+            for i,file in enumerate(lua_files):
+                if args.verbose >= 1:
+                    filename_pretty: str = file.split("/")[-1]
+                    if args.verbose >= 3:
+                        filename_pretty = file
+                    print(f"[{i+1}/{len(lua_files)}] Running stylua on {filename_pretty}")
+                run(["stylua", file])
+        else:
+            logging.error("stylua executable not found!")
+
+    if len(cpp_files+header_files) == 0 and not args.test:
+        print("No files to process. Please specify some files or directories.\n")
+        argparser.parse_args(["-h"])
+
+    if not args.profiling_statements and not args.clang_format and not args.test and not args.stylua:
+        print("No action specified. Please specify one of -p/--profiling-statements or -c/--clang-format.\n")
+        argparser.parse_args(["-h"])
+
+    if args.do_git and not args.test:
+        git_files = cpp_files + header_files
+        for i,file in enumerate(git_files):
+            if args.verbose >= 1:
+                filename_pretty: str = file.split("/")[-1]
+                if args.verbose >= 3:
+                    filename_pretty = file
+                print(f"Running git add on {filename_pretty} [{i+1}/{len(git_files)}]")
+            run(["git", "add", file])
+
+
+    if args.test:
+        print("Running test")
+        f_bytes = b""
+        with open(os.path.join(os.path.dirname(os.path.realpath(__file__)),"test.cpp"), "r+b") as f:
+            f_bytes: bytes = f.read()
+
+        f_bytes = remove_profile_statements_from_bytes(f_bytes)
+        f_bytes = write_profile_statements_to_bytes(f_bytes)
+
+        print(f_bytes.decode("utf8"))

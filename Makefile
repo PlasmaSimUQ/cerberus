@@ -13,6 +13,9 @@ BUILDDIR ?= ./tmp_build_dir
 # include the local makefile (ignore if it doesn't exist)
 -include $(TOP)/Make.local
 
+# Make.local in the executing Makefile's directory will always take priority
+-include ./Make.local
+
 DEBUG ?= FALSE
 
 CERBERUS_GIT_NAME := $(shell git branch --show-current)
@@ -185,7 +188,7 @@ endif
 
 
 #=== SYMPLECTIC INTERPOLANT ===
-SYMPLECTIC ?= NONE
+SYMPLECTIC ?= FALSE
 
 ifeq ($(SYMPLECTIC),P8R2)
   DEFINES += -DINTERPOLATION_P8R2 -DWRANGE=2 -DSYMPLECTIC
@@ -193,7 +196,7 @@ ifeq ($(SYMPLECTIC),P8R2)
 else ifeq ($(SYMPLECTIC),PWL)
   DEFINES += -DINTERPOLATION_PWL -DWRANGE=1 -DSYMPLECTIC
   USERSuffix := $(USERSuffix).SYMPLECTIC_PWL
-else ifeq ($(SYMPLECTIC), NONE)
+else ifeq ($(SYMPLECTIC), FALSE)
  # do nothing
 else
   $(error ${RED}(experimental) SYMPLECTIC=$(SYMPLECTIC) is not valid! Must be one of: [PR82, PWL, NONE]${END})

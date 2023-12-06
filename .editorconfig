@@ -6,22 +6,20 @@
 indent_style = space
 # if indent_style is space, this is valid
 indent_size = 2
-# if indent_style is tab, this is valid
-tab_width = 2
 # none/single/double
-quote_style = none
+quote_type = single
 
 # only support number
-continuation_indent_size = 4
+continuation_indent_size = 2
 
-# optional crlf/lf/cr/auto, if it is 'auto', in windows it is crlf other platforms are lf
-end_of_line = auto
+# optional crlf/lf/cr
+end_of_line = lf
 
 detect_end_of_line = false
 
 # this mean utf8 length , if this is 'unset' then the line width is no longer checked
 # this option decides when to chopdown the code
-max_line_length = 120
+max_line_length = 100
 
 # this will check text end with new line
 insert_final_newline = true
@@ -30,7 +28,7 @@ insert_final_newline = true
 
 # function call expression's args will align to first arg
 # optional true/false/only_after_more_indention_statement/only_not_exist_cross_row_expression
-align_call_args = false
+align_call_args = true
 
 # if true, all function define params will align to first param
 align_function_define_params = true
@@ -38,12 +36,12 @@ align_function_define_params = true
 remove_expression_list_finish_comma = true
 
 # keep/remove/remove_table_only/remove_string_only/unambiguous_remove_string_only
-call_arg_parentheses = keep
+call_arg_parentheses = unambiguous_remove_string_only
 
 # [table]
 
 #optional none/comma/semicolon
-table_separator_style = none
+table_separator_style = comma
 
 #optional keep/never/always/smart
 trailing_table_separator = keep
@@ -163,3 +161,4 @@ module_name_define_style = same('m')|same(filename, snake_case)
 require_module_name_style = same(first_param, snake_case)
 
 class_name_define_style = same(filename, snake_case)
+
