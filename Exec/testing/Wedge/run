@@ -11,7 +11,7 @@ INPUTS=*.inputs
 
 rm -r *plt* *chk* mov
 
-mpirun -np 11 ${EXE} ${INPUTS} 2>&1 | tee run_log_${DATE_WITH_TIME}.txt
+mpirun -np 4 ${EXE} ${INPUTS} 2>&1 | tee run_log_${DATE_WITH_TIME}.txt
 
 ../visit.sh .
 

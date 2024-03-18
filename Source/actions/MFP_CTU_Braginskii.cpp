@@ -69,7 +69,9 @@ BraginskiiCTU::BraginskiiCTU(const int idx, const sol::table& def)
     electron_coeffs.forceViscosityValue = def.get_or("force_electron_viscosity", 0.0);
     electron_coeffs.forceViscosity = electron_coeffs.forceViscosityValue > 0.0;
 
-    if (braginskii_anisotropic) {
+    if ((braginskii_anisotropic) and ((ion_coeffs.forceViscosity) or (electron_coeffs.forceViscosity)) ) {
+	    //TODO this needs to be rethought, there shouldn't be an issue setting e.g. fixed electron 
+	    //viscosity with consistently calculate and anisotropic Ion viscosity etc. 
         amrex::Abort("\n\n#========================================================================"
                      "===#\n\t Force viscosity is True -> anisotropic Braginskii "
                      "forbidden\n#================================================================="
@@ -1489,10 +1491,10 @@ void BraginskiiCTU::hall_correction_viscosity(
 {
     BL_PROFILE("BraginskiiCTU::hall_correction_viscosity");
 
-    amrex::Abort("you should not be using this unless you know what you are doing")
+    amrex::Abort("you should not be using this unless you know what you are doing");
 
-        Print()
-      << "hello eta2:\t" << eta2;
+    Print() << "hello eta2:\t" << eta2;
+
     eta2 = eta2 / x_coef / x_coef;
     eta1 = eta1 / x_coef / x_coef;
     eta4 = eta4 / x_coef;

@@ -5,7 +5,7 @@ fpe_trap_overflow=0
 amr.v = 0
 
 # ======== TIME ==========
-max_step  = 2
+max_step  = 1000000
 stop_time = 0.07 #0.3
 
 # ======== DOMAIN ==========
@@ -22,14 +22,14 @@ amr.loadbalance_with_workestimates = 1
 amr.loadbalance_level0_int = 10
 
 # ======== GRID ==========
-amr.max_level       = 0   # maximum level number allowed
-amr.ref_ratio       = 2 2 2 2 2 2 2 # refinement ratio
-amr.regrid_int      = 2 2 2 2 2 2 2 # how often to regrid
+amr.max_level       = 2   		# maximum level number allowed
+amr.ref_ratio       = 2 2 2 2 2 2 2 	# refinement ratio
+amr.regrid_int      = 2 2 2 2 2 2 2 	# how often to regrid
 amr.blocking_factor = 8
 amr.max_grid_size   = 32
-amr.n_error_buf     = 4 4 4 4 4 4 0 # number of buffer cells in error est
-amr.grid_eff        = 0.75     # what constitutes an efficient grid
-amr.subcycling_mode = Auto # time sub-cycling (Auto, None, Manual, Optimal)
+amr.n_error_buf     = 4 4 4 4 4 4 0 	# number of buffer cells in error est
+amr.grid_eff        = 0.75     		# what constitutes an efficient grid
+amr.subcycling_mode = Auto 		# time sub-cycling (Auto, None, Manual, Optimal)
 
 # ======== GEOMETRY ==========
 eb2.geom_type = all_regular
@@ -43,15 +43,15 @@ particles.v = 0
 
 # CHECKPOINT FILES
 amr.checkpoint_files_output = 0
-amr.check_file              = BTRMI.chk    # root name of checkpoint file
-amr.check_int               = 1    # number of timesteps between checkpoints
-amr.check_per               = -0.005
+amr.check_file              = BTRMI.chk # root name of checkpoint file
+amr.check_int               = -1    	# number of timesteps between checkpoints
+amr.check_per               = 0.01	# time interval between outputs  - note only one of "_int" and "_per" can be specified 
 
 # PLOTFILES
 amr.plot_files_output = 1
-amr.plot_file         = BTRMI.plt     # root name of plotfile
-amr.plot_int          = -1      # number of timesteps between plotfiles
-amr.plot_per          = 0.005
+amr.plot_file         = BTRMI.plt	# root name of plotfile
+amr.plot_int          = -1      	# number of timesteps between plotfiles
+amr.plot_per          = 0.01
 
 
 #amr.restart = restart

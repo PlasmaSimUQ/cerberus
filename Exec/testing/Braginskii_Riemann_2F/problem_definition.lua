@@ -1,4 +1,4 @@
-verbosity = 0
+verbosity = 1
 cfl = 0.25
 cfl_viscous = 1.0
 

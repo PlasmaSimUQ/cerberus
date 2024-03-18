@@ -7,7 +7,7 @@ if cmd_folder not in sys.path:
 from get_boxlib import ReadBoxLib, get_files
 
 import numpy as np
-import pylab as plt
+import matplotlib.pyplot as plt
 from matplotlib.image import NonUniformImage
 import matplotlib.ticker as ticker
 import h5py
@@ -16,12 +16,16 @@ import pdb;
 #==============================================================================
 # 
 #==============================================================================
+from matplotlib import rcParams
+#rcParams['text.usetex'] = True
+rcParams['font.family'] = 'sans-serif'
+rcParams['font.size'] = 14
 
-plt.rc("font", family="serif")
-plt.rc("font", size=14)
-plt.rc("mathtext", fontset="cm")
-params= {'text.latex.preamble' : [r'\usepackage{amsmath}']}
-plt.rcParams.update(params)
+#plt.rc("font", family="serif")
+#plt.rc("font", size=14)
+#plt.rc("mathtext", fontset="cm")
+#params= {'text.latex.preamble' : [r'\usepackage{amsmath}']}
+#plt.rcParams.update(params)
 
 
 #==============================================================================

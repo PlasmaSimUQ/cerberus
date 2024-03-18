@@ -1,6 +1,6 @@
 
 import sys
-cmd_folder = "/home/kyriakos/Documents/Code/000_cerberus_dev/refactor-githubRelease-cerberus/cerberus/vis" #"/home/kyriakos/Documents_ubuntu/000_refactor_cerberus/cerberus/vis"
+cmd_folder = "../../../vis" 
 if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
     
@@ -8,17 +8,17 @@ if cmd_folder not in sys.path:
 from get_boxlib import ReadBoxLib as ReadBoxLib_refactor
 from get_boxlib import get_files as get_files_refactor
 
-from get_boxlib_original import ReadBoxLib as ReadBoxLib_original
-from get_boxlib_original import get_files as get_files_original
+#from get_boxlib_original import ReadBoxLib as ReadBoxLib_original
+#from get_boxlib_original import get_files as get_files_original
 
-derived_functions_code_folder = "/home/kyriakos/Documents/Code/000_cerberus_dev/refactor-githubRelease-cerberus/cerberus/vis" #"/home/kyriakos/Documents_ubuntu/000_refactor_cerberus/cerberus/vis"
+derived_functions_code_folder = "../../../vis" 
 
 if derived_functions_code_folder not in sys.path:
   sys.path.insert(0, derived_functions_code_folder)
 import PHM_MFP_Solver_Post_functions_v6 as phmmfp
 
 import numpy as np
-import pylab as plt
+import matplotlib.pyplot as plt
 import pdb   
 # =============================================================================
 # 
