@@ -1,13 +1,21 @@
 #!/usr/bin/env bash
+
+: "${EILMER_SRC:=./gdtk_git}"
+: "${EILMER_URL:=https://github.com/gdtk-uq/gdtk}"
+: "${EILMER_FLAVOUR:=debug}"
+: "${EILMER_HOME:=./gdtkinst}"
+
 if [ -d "${EILMER_SRC}" ]; then
-  git pull
+  echo "eilmer source exists at ${EILMER_SRC}"
 else
   git clone ${EILMER_URL} ${EILMER_SRC}
 fi
 
-(cd ${EILMER_SRC}/src/gas && make build-libgas FLAVOUR=${EILMER_FLAVOUR} MAKEFLAGS=${MF})
+echo $EILMER_FLAVOUR
 
-(cd ${EILMER_SRC}/src/eilmer && make prep-gas prep-chem FLAVOUR=${EILMER_FLAVOUR} MAKEFLAGS=${MF})
+(cd ${EILMER_SRC}/src/gas && make build-prep-gas build-libgas FLAVOUR=${EILMER_FLAVOUR} MAKEFLAGS=${MF})
+
+(cd ${EILMER_SRC}/src/kinetics && make build-prep-chem build-prep-kinetics FLAVOUR=${EILMER_FLAVOUR} MAKEFLAGS=${MF})
 
 mkdir -p ${EILMER_HOME}
 
