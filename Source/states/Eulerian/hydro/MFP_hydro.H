@@ -118,16 +118,16 @@ class HydroState : public EulerianState
 #endif
     ) const;
 
-    virtual void calc_reconstruction(const Box& box,
-                                     FArrayBox& prim,
-                                     Array<FArrayBox, AMREX_SPACEDIM>& rlo,
-                                     Array<FArrayBox, AMREX_SPACEDIM>& rhi
-#ifdef AMREX_USE_EB
-                                     ,
-                                     const EBCellFlagFab& flag,
-                                     const FArrayBox& vfrac
-#endif
-    ) const override;
+    //     virtual void calc_reconstruction(const Box& box,
+    //                                      FArrayBox& prim,
+    //                                      Array<FArrayBox, AMREX_SPACEDIM>& rlo,
+    //                                      Array<FArrayBox, AMREX_SPACEDIM>& rhi
+    // #ifdef AMREX_USE_EB
+    //                                      ,
+    //                                      const EBCellFlagFab& flag,
+    //                                      const FArrayBox& vfrac
+    // #endif
+    //     ) const override;
 
     void calc_diffusion_terms(const FArrayBox& prim,
                               FArrayBox& diff
