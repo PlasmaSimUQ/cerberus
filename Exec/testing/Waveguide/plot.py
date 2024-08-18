@@ -5,7 +5,6 @@ if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
     
 from get_boxlib import ReadBoxLib, get_files
-
 import numpy as np
 import pylab as plt
 from matplotlib.image import NonUniformImage
@@ -41,7 +40,6 @@ for i in range(N):
 
     # plot stuff
 
-
     ax = fig.add_subplot(1,N,i+1)
     pc = ax.pcolormesh(xn, yn, xD)
     ax.contour(xc, yc, vf, [0.5], colors=['k'], linewidths=[0.5])
@@ -55,7 +53,5 @@ for i in range(N):
 fig.tight_layout()
 
 fig.savefig("plot.png", dpi=300)
-# plt.show()
-    
     
 print("DONE")

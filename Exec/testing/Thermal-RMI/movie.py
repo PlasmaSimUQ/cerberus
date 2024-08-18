@@ -117,7 +117,7 @@ if 1:
     q["xy_limits"] = [[-1.25,0], [1.25,1]]
     q["file_include"] = ["TRMI.plt"]
     q["file_exclude"] = []
-    q["cores"] = 8
+    q["cores"] = 1
     q["time_span"] = []  # np.arange(0,1+dt, dt)
     q["force_data"] = True
     q["force_frames"] = True

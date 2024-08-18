@@ -24,7 +24,7 @@ Debye = -1 -- non-dim
 verbosity = 0
 linear_solver_verbosity = 0
 
-cfl = 0.0
+cfl = 0.0 -- Courant-Friedrich-Lewy condition - time step constraint based characteristic speeds of the problem 
 
 -- refine around cutcells
 refine_cutcells = false
@@ -68,7 +68,7 @@ embedded_boundaries = {
       },
       ...
     }, -- boundary conditions for any state
-    boolean_operation=[type of insertion], -- 'or', 'and'
+    boolean_operation=[type of insertion], -- 'or' which adds in the background, 'and' which substracts in the background
     inside=1, -- is this geometry internal or external (allows for inversion of sign)
     -- etc
   }
