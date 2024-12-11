@@ -538,7 +538,7 @@ void EulerianState::calc_reconstruction(const Box& box,
 
     Array4<const EBCellFlag> const& f4 = flag.array();
     // do we need to check our stencil for covered cells?
-    bool check_eb = flag.getType() != FabType::regular;
+    bool check_eb = flag.getType(box) != FabType::regular;
 #endif
 
     Vector<Real> stencil(reconstructor->stencil_length);
@@ -564,7 +564,7 @@ void EulerianState::calc_reconstruction(const Box& box,
         Array4<Real> const& hi4 = rhi[d].array();
 
         // cycle over all components
-        for (int n = 0; n < n_cons(); ++n) {
+        for (int n = 0; n < n_prim(); ++n) {
             for (int k = lo.z; k <= hi.z; ++k) {
                 for (int j = lo.y; j <= hi.y; ++j) {
                     AMREX_PRAGMA_SIMD
@@ -1066,7 +1066,7 @@ void EulerianState::correct_face_prim(const Box& box,
     Array4<const EBCellFlag> const& f4 = flag.array();
 
     // do we need to check our stencil for covered cells?
-    bool check_eb = flag.getType() != FabType::regular;
+    bool check_eb = flag.getType(box) != FabType::regular;
 #endif
 
     // the below loops selects the alternative dimensions to calculate the corrections from
@@ -1682,7 +1682,7 @@ void EulerianState::calc_slope(const Box& box,
 
 #ifdef AMREX_USE_EB
     Array4<const EBCellFlag> const& f4 = flag.array();
-    bool check_eb = flag.getType() != FabType::regular;
+    bool check_eb = flag.getType(box) != FabType::regular;
 
 #endif
 
