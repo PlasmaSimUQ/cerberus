@@ -270,10 +270,10 @@ void Elliptic::solve_static_fields(MFP* mfp, const Real time)
 
                 FArrayBox& field_data = ilevel.get_new_data(field->data_idx)[mfi];
 
-                local_cd.divide(field_data, box, +FieldDef::ConsIdx::ep, 0, 1);
-                local_J.divide(field_data, box, +FieldDef::ConsIdx::mu, 0, 1);
-                local_J.divide(field_data, box, +FieldDef::ConsIdx::mu, 1, 1);
-                local_J.divide(field_data, box, +FieldDef::ConsIdx::mu, 2, 1);
+                local_cd.protected_divide(field_data, box, +FieldDef::ConsIdx::ep, 0, 1);
+                local_J.protected_divide(field_data, box, +FieldDef::ConsIdx::mu, 0, 1);
+                local_J.protected_divide(field_data, box, +FieldDef::ConsIdx::mu, 1, 1);
+                local_J.protected_divide(field_data, box, +FieldDef::ConsIdx::mu, 2, 1);
             }
         }
 
