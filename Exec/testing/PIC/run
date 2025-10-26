@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-(cd ../../local && make -j8 DIM=2 USE_EB=FALSE AMREX_PARTICLES=TRUE SYMPLECTIC=P8R2)
+(cd ../../local && make -j8 DIM=2 USE_EB=TRUE AMREX_PARTICLES=TRUE SYMPLECTIC=P8R2)
 
 EXE=../../local/MFP.2d.gnu.MPI.PARTICLES.SYMPLECTIC_P8R2.ex
 
@@ -9,9 +9,14 @@ INPUTS=PIC.inputs
 rm -r *chk* *plt*
 rm -r mov
 
-mpirun -n 8 ${EXE} ${INPUTS} 2>&1 | tee run_log.txt
+mpirun -n 10 ${EXE} ${INPUTS} 2>&1 | tee run_log.txt
 
 ../visit.sh .
 
-#python3 plot.py
+python3 plot.py
 #python3 movie.py
+
+mkdir static_zero
+mv *plt* static_zero/
+mv movie.visit static_zero/
+

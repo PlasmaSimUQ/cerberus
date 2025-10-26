@@ -363,7 +363,8 @@ void HydroNoSlipWall::solve(Array<Array<Real, 3>, 3>& wall_coord,
             F[1][+HydroDef::ConsIdx::Eden] -= kappa * dTdy;
 
     #if AMREX_SPACEDIM == 3
-            Real dTdz = temp_slope * wall_normal[2] * dxinv[2];
+            // TODO(KYRI) check correct operation in z-dim with temp slope
+            Real dTdz = temp_slope[0] * wall_normal[2] * dxinv[2];
             F[2][+HydroDef::ConsIdx::Eden] -= kappa * dTdz;
     #endif
         }

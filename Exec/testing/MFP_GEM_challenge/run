@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+if false; then 
+	rm -r ../../local/tmp*
+	rm ../../local/MFP.2d.gnu.MPI.ex 
+fi
+
+(cd ../../local && make -j8 DIM=2 USE_EB=TRUE AMREX_PARTICLES=FALSE)
+
+EXE=../../local/MFP.2d.gnu.MPI.EB.ex
+
+INPUTS=*.inputs
+
+
+RESULTS_DIR=/mnt/c/Users/ktap0992/Documents/Results_expendable/mfp_gem_ref_3
+
+rm -r *plt* *chk* mov
+
+mpirun  --use-hwthread-cpus -n 18 ${EXE} ${INPUTS} 2>&1 | tee run_log.txt
+
+../visit.sh .
+
+#python3 plot.py
+#python3 movie.py
+
+if true; then 
+	#rm -r ${RESULTS_DIR}/*.plt*
+	mkdir ${RESULTS_DIR}
+	mv {*.plt*,movie.visit} ${RESULTS_DIR}
+fi
+

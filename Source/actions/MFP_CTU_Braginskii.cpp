@@ -69,9 +69,10 @@ BraginskiiCTU::BraginskiiCTU(const int idx, const sol::table& def)
     electron_coeffs.forceViscosityValue = def.get_or("force_electron_viscosity", 0.0);
     electron_coeffs.forceViscosity = electron_coeffs.forceViscosityValue > 0.0;
 
-    if ((braginskii_anisotropic) and ((ion_coeffs.forceViscosity) or (electron_coeffs.forceViscosity)) ) {
-	    //TODO this needs to be rethought, there shouldn't be an issue setting e.g. fixed electron 
-	    //viscosity with consistently calculate and anisotropic Ion viscosity etc. 
+    if ((braginskii_anisotropic) and
+        ((ion_coeffs.forceViscosity) or (electron_coeffs.forceViscosity))) {
+        // TODO this needs to be rethought, there shouldn't be an issue setting e.g. fixed electron
+        // viscosity with consistently calculate and anisotropic Ion viscosity etc.
         amrex::Abort("\n\n#========================================================================"
                      "===#\n\t Force viscosity is True -> anisotropic Braginskii "
                      "forbidden\n#================================================================="
@@ -1350,7 +1351,7 @@ void BraginskiiCTU::calc_charged_viscous_fluxes(FluxSpecies flux_type,
         for (int j = lo.y; j <= hi.y + 1; ++j) {
             AMREX_PRAGMA_SIMD
             for (int i = lo.x; i <= hi.x; ++i) {
-                if (flux_type == ElectronFlux) {
+                if (flux_type == FluxSpecies::ElectronFlux) {
                     faceCoefficients[iBeta1] =
                       0.5 * (d4(i, j, k, iBeta1) + d4(i, j, k - 1, iBeta1));
                     faceCoefficients[iBeta2] =

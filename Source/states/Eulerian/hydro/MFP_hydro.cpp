@@ -656,9 +656,9 @@ void HydroState::get_plot_output(const Box& box,
     bool load_mass = out.find(mass_name) != out.end();
     if (load_mass) other.push_back(mass_name);
 
-        //    const std::string gamma_name = "gamma-"+name;
-        //    bool load_gamma = out.find(gamma_name) != out.end();
-        //    if (load_gamma) other.push_back(gamma_name);
+    //    const std::string gamma_name = "gamma-"+name;
+    //    bool load_gamma = out.find(gamma_name) != out.end();
+    //    if (load_gamma) other.push_back(gamma_name);
 
 #ifdef AMREX_USE_EB
     const std::string vfrac_name = "vfrac-" + name;
@@ -701,8 +701,8 @@ void HydroState::get_plot_output(const Box& box,
 
                 if (load_charge) out4[charge_name](i, j, k) = gas->get_charge_from_cons(S);
                 if (load_mass) out4[mass_name](i, j, k) = gas->get_mass_from_cons(S);
-                    //                if (load_gamma)  out4[gamma_name](i,j,k)  =
-                    //                get_gamma_from_cons(S);
+                //                if (load_gamma)  out4[gamma_name](i,j,k)  =
+                //                get_gamma_from_cons(S);
 #ifdef AMREX_USE_EB
                 if (load_vfrac) out4[vfrac_name](i, j, k) = vf4(i, j, k);
 #endif
@@ -1167,11 +1167,15 @@ void HydroState::calc_viscous_fluxes(const Box& box,
                        (0.25 * dxinv[1]);
 #endif
 #if AMREX_SPACEDIM == 3
-                dudz = (p4(i, j, k + 1, Xvel) + p4(i - 1, j, k + 1, Xvel) - p4(i, j, k - 1, Xvel) -
-                        p4(i - 1, j, k - 1, Xvel)) *
+                dudz = (p4(i, j, k + 1, +HydroDef::PrimIdx::Xvel) +
+                        p4(i - 1, j, k + 1, +HydroDef::PrimIdx::Xvel) -
+                        p4(i, j, k - 1, +HydroDef::PrimIdx::Xvel) -
+                        p4(i - 1, j, k - 1, +HydroDef::PrimIdx::Xvel)) *
                        (0.25 * dxinv[2]);
-                dwdz = (p4(i, j, k + 1, Zvel) + p4(i - 1, j, k + 1, Zvel) - p4(i, j, k - 1, Zvel) -
-                        p4(i - 1, j, k - 1, Zvel)) *
+                dwdz = (p4(i, j, k + 1, +HydroDef::PrimIdx::Zvel) +
+                        p4(i - 1, j, k + 1, +HydroDef::PrimIdx::Zvel) -
+                        p4(i, j, k - 1, +HydroDef::PrimIdx::Zvel) -
+                        p4(i - 1, j, k - 1, +HydroDef::PrimIdx::Zvel)) *
                        (0.25 * dxinv[2]);
 #endif
                 divu = dudx + dvdy + dwdz;
@@ -1237,11 +1241,15 @@ void HydroState::calc_viscous_fluxes(const Box& box,
                         p4(i - 1, j - 1, k, +HydroDef::PrimIdx::Yvel)) *
                        (0.25 * dxinv[0]);
     #if AMREX_SPACEDIM == 3
-                dvdz = (p4(i, j, k + 1, Yvel) + p4(i, j - 1, k + 1, Yvel) - p4(i, j, k - 1, Yvel) -
-                        p4(i, j - 1, k - 1, Yvel)) *
+                dvdz = (p4(i, j, k + 1, +HydroDef::PrimIdx::Yvel) +
+                        p4(i, j - 1, k + 1, +HydroDef::PrimIdx::Yvel) -
+                        p4(i, j, k - 1, +HydroDef::PrimIdx::Yvel) -
+                        p4(i, j - 1, k - 1, +HydroDef::PrimIdx::Yvel)) *
                        (0.25 * dxinv[2]);
-                dwdz = (p4(i, j, k + 1, Zvel) + p4(i, j - 1, k + 1, Zvel) - p4(i, j, k - 1, Zvel) -
-                        p4(i, j - 1, k - 1, Zvel)) *
+                dwdz = (p4(i, j, k + 1, +HydroDef::PrimIdx::Zvel) +
+                        p4(i, j - 1, k + 1, +HydroDef::PrimIdx::Zvel) -
+                        p4(i, j, k - 1, +HydroDef::PrimIdx::Zvel) -
+                        p4(i, j - 1, k - 1, +HydroDef::PrimIdx::Zvel)) *
                        (0.25 * dxinv[2]);
     #endif
                 divu = dudx + dvdy + dwdz;
@@ -1283,24 +1291,41 @@ void HydroState::calc_viscous_fluxes(const Box& box,
                 if (f4(i, j, k).isCovered()) continue;
     #endif
 
-                dTdz = (d4(i, j, k, iTemp) - d4(i, j, k - 1, iTemp)) * dxinv[2];
-                dudz = (p4(i, j, k, Xvel) - p4(i, j, k - 1, Xvel)) * dxinv[2];
-                dvdz = (p4(i, j, k, Yvel) - p4(i, j, k - 1, Yvel)) * dxinv[2];
-                dwdz = (p4(i, j, k, Zvel) - p4(i, j, k - 1, Zvel)) * dxinv[2];
-                dudx = (p4(i + 1, j, k, Xvel) + p4(i + 1, j, k - 1, Xvel) - p4(i - 1, j, k, Xvel) -
-                        p4(i - 1, j, k - 1, Xvel)) *
+                dTdz = (d4(i, j, k, +HydroViscous::CoeffIdx::Temp) -
+                        d4(i, j, k - 1, +HydroViscous::CoeffIdx::Temp)) *
+                       dxinv[2];
+                dudz = (p4(i, j, k, +HydroDef::PrimIdx::Xvel) -
+                        p4(i, j, k - 1, +HydroDef::PrimIdx::Xvel)) *
+                       dxinv[2];
+                dvdz = (p4(i, j, k, +HydroDef::PrimIdx::Yvel) -
+                        p4(i, j, k - 1, +HydroDef::PrimIdx::Yvel)) *
+                       dxinv[2];
+                dwdz = (p4(i, j, k, +HydroDef::PrimIdx::Zvel) -
+                        p4(i, j, k - 1, +HydroDef::PrimIdx::Zvel)) *
+                       dxinv[2];
+                dudx = (p4(i + 1, j, k, +HydroDef::PrimIdx::Xvel) +
+                        p4(i + 1, j, k - 1, +HydroDef::PrimIdx::Xvel) -
+                        p4(i - 1, j, k, +HydroDef::PrimIdx::Xvel) -
+                        p4(i - 1, j, k - 1, +HydroDef::PrimIdx::Xvel)) *
                        (0.25 * dxinv[0]);
-                dwdx = (p4(i + 1, j, k, Zvel) + p4(i + 1, j, k - 1, Zvel) - p4(i - 1, j, k, Zvel) -
-                        p4(i - 1, j, k - 1, Zvel)) *
+                dwdx = (p4(i + 1, j, k, +HydroDef::PrimIdx::Zvel) +
+                        p4(i + 1, j, k - 1, +HydroDef::PrimIdx::Zvel) -
+                        p4(i - 1, j, k, +HydroDef::PrimIdx::Zvel) -
+                        p4(i - 1, j, k - 1, +HydroDef::PrimIdx::Zvel)) *
                        (0.25 * dxinv[0]);
-                dvdy = (p4(i, j + 1, k, Yvel) + p4(i, j + 1, k - 1, Yvel) - p4(i, j - 1, k, Yvel) -
-                        p4(i, j - 1, k - 1, Yvel)) *
+                dvdy = (p4(i, j + 1, k, +HydroDef::PrimIdx::Yvel) +
+                        p4(i, j + 1, k - 1, +HydroDef::PrimIdx::Yvel) -
+                        p4(i, j - 1, k, +HydroDef::PrimIdx::Yvel) -
+                        p4(i, j - 1, k - 1, +HydroDef::PrimIdx::Yvel)) *
                        (0.25 * dxinv[1]);
-                dwdy = (p4(i, j + 1, k, Zvel) + p4(i, j + 1, k - 1, Zvel) - p4(i, j - 1, k, Zvel) -
-                        p4(i, j - 1, k - 1, Zvel)) *
+                dwdy = (p4(i, j + 1, k, +HydroDef::PrimIdx::Zvel) +
+                        p4(i, j + 1, k - 1, +HydroDef::PrimIdx::Zvel) -
+                        p4(i, j - 1, k, +HydroDef::PrimIdx::Zvel) -
+                        p4(i, j - 1, k - 1, +HydroDef::PrimIdx::Zvel)) *
                        (0.25 * dxinv[1]);
                 divu = dudx + dvdy + dwdz;
-                muf = 0.5 * (d4(i, j, k, iMu) + d4(i, j, k - 1, iMu));
+                muf = 0.5 * (d4(i, j, k, +HydroViscous::CoeffIdx::Mu) +
+                             d4(i, j, k - 1, +HydroViscous::CoeffIdx::Mu));
                 tauxz = muf * (dudz + dwdx);
                 tauyz = muf * (dvdz + dwdy);
                 tauzz = muf * (2. * dwdz - two_thirds * divu);
