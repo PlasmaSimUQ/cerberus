@@ -37,6 +37,9 @@ class Elliptic : public Action
     // projection method?
     int projection;
 
+    // TODO(KYRI) test...added for the MFP_AF_MPD thrustrer test case.
+    bool potential_only;
+
     // relative tolerance
     Real reltol;
 

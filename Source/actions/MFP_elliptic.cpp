@@ -48,6 +48,9 @@ Elliptic::Elliptic(const int idx, const sol::table& def)
     if (field_state_name == "null")
         Abort("Action '" + name + "' requires option 'state' to be defined.");
 
+    // TODO(KYRI) test...added for the MFP_AF_MPD thrustrer test case.
+    potential_only = def.get_or("potential_only", false);
+
     State& istate = MFP::get_state(field_state_name);
 
     select = istate.get_type();
@@ -63,6 +66,22 @@ Elliptic::Elliptic(const int idx, const sol::table& def)
         break;
     default: Abort("An invalid state has been defined for the '" + name + "' action");
     }
+
+    /*
+    TODO(KYRI) Check for potential_only and embedded boundary - if
+    no embedded boundary then crash
+
+    switch (eb_potential) {
+    case State::StateType::Field:
+        field = static_cast<FieldState*>(&istate);
+        state_indexes.push_back(istate.global_idx);
+        break;
+    case State::StateType::MHD:
+        mhd = static_cast<MHDState*>(&istate);
+        state_indexes.push_back(istate.global_idx);
+        break;
+    default: Abort("An invalid state has been defined for the '" + name + "' action");
+    */
 
     return;
 }
@@ -237,43 +256,48 @@ void Elliptic::solve_static_fields(MFP* mfp, const Real time)
             // now calculate the charge and current density
             const size_t num_src = hydro_states.size();
 
-            // iterate over data
-            for (MFIter mfi(ilevel.get_new_data(MFP::Cost_Idx)); mfi.isValid(); ++mfi) {
-                const Box& box = mfi.tilebox();
+            // TODO(KYRI) test...added for the MFP_AF_MPD thrustrer test case.
+            // Dont calculate the current density and charge density if we only want
+            // the scalar and vector potential contributions to the fields.
+            if (!Elliptic::potential_only) {
+                // iterate over data
+                for (MFIter mfi(ilevel.get_new_data(MFP::Cost_Idx)); mfi.isValid(); ++mfi) {
+                    const Box& box = mfi.tilebox();
 
-                FArrayBox& local_cd = defined_charge[ilev][mfi];
-                local_cd.setVal(0.0);
-                FArrayBox& local_J = defined_current[ilev][mfi];
-                local_J.setVal(0.0);
+                    FArrayBox& local_cd = defined_charge[ilev][mfi];
+                    local_cd.setVal(0.0);
+                    FArrayBox& local_J = defined_current[ilev][mfi];
+                    local_J.setVal(0.0);
 
-                // get lists of the data for each state included in the src
-                for (size_t src_idx = 0; src_idx < num_src; ++src_idx) {
-                    HydroState& hydro = *hydro_states[src_idx];
-                    const FArrayBox& cons = ilevel.get_new_data(hydro.data_idx)[mfi];
+                    // get lists of the data for each state included in the src
+                    for (size_t src_idx = 0; src_idx < num_src; ++src_idx) {
+                        HydroState& hydro = *hydro_states[src_idx];
+                        const FArrayBox& cons = ilevel.get_new_data(hydro.data_idx)[mfi];
     #ifdef AMREX_USE_EB
-                    const FArrayBox& vfrac = eb_data[hydro.global_idx].volfrac[mfi];
+                        const FArrayBox& vfrac = eb_data[hydro.global_idx].volfrac[mfi];
     #endif
 
-                    hydro.calc_current_and_charge(box,
-                                                  cons,
-                                                  &local_cd,
-                                                  &local_J
+                        hydro.calc_current_and_charge(box,
+                                                      cons,
+                                                      &local_cd,
+                                                      &local_J
 
     #ifdef AMREX_USE_EB
-                                                  ,
-                                                  vfrac
+                                                      ,
+                                                      vfrac
     #endif
-                    );
+                        );
+                    }
+
+                    // scale by the relative permittivity and permeability
+
+                    FArrayBox& field_data = ilevel.get_new_data(field->data_idx)[mfi];
+
+                    local_cd.protected_divide(field_data, box, +FieldDef::ConsIdx::ep, 0, 1);
+                    local_J.protected_divide(field_data, box, +FieldDef::ConsIdx::mu, 0, 1);
+                    local_J.protected_divide(field_data, box, +FieldDef::ConsIdx::mu, 1, 1);
+                    local_J.protected_divide(field_data, box, +FieldDef::ConsIdx::mu, 2, 1);
                 }
-
-                // scale by the relative permittivity and permeability
-
-                FArrayBox& field_data = ilevel.get_new_data(field->data_idx)[mfi];
-
-                local_cd.protected_divide(field_data, box, +FieldDef::ConsIdx::ep, 0, 1);
-                local_J.protected_divide(field_data, box, +FieldDef::ConsIdx::mu, 0, 1);
-                local_J.protected_divide(field_data, box, +FieldDef::ConsIdx::mu, 1, 1);
-                local_J.protected_divide(field_data, box, +FieldDef::ConsIdx::mu, 2, 1);
             }
         }
 
@@ -353,7 +377,8 @@ void Elliptic::solve_static_fields(MFP* mfp, const Real time)
 
     ParallelDescriptor::Barrier();
 
-    // now that we have the charge density over all levels do the actual solve
+    // now that we have the: charge density; current density; scalar potential;
+    // and vector potential  over all levels, do the actual solve
 
     //---------------------------------------------------------------------------------------
 
