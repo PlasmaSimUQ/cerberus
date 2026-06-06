@@ -1,19 +1,11 @@
-#ifndef READ_GEOM_H
-#define READ_GEOM_H
+#include "AABB.h"
+#include "EBGeometry.hpp"
+#include "MFP_polyspline.H"
+#include "sol.hpp"
 
-#ifdef AMREX_USE_EB
-
-    #include "AABB.h"
-    #include "MFP_polyspline.H"
-
-    #include <AMReX_Array.H>
-    #include <AMReX_REAL.H>
-    #include <AMReX_Vector.H>
-
-    // EBGeometry include.
-    // Adjust this include path if EBGeometry.hpp is not directly visible.
-    #include "EBGeometry.hpp"
-
+#include <AMReX_Array.H>
+#include <AMReX_REAL.H>
+#include <AMReX_Vector.H>
 using namespace amrex;
 
 class ReadSTL
@@ -40,8 +32,6 @@ class ReadSTL
 
     aabb::Tree tree;
 };
-
-//----- added by kyri to use the EBGeomtery package
 
 //=============================================================================
 // EBGeometry-backed STL signed-distance reader
@@ -87,29 +77,4 @@ class ReadEBGeometrySTL
     bool m_flip_sign = false;
 };
 
-    //=====
-
-    #include "rapidxml.hpp"
-    #include "rapidxml_print.hpp"
-
-namespace rxml = rapidxml;
-
-class ReadSVG
-{
-  public:
-    ReadSVG();
-    ReadSVG(const std::string& path, const Real dx);
-
-    std::map<std::string, Vector<Array<RealVect, 4>>>
-      get_elements(rxml::xml_node<>* node, const std::string& parent_name = "");
-
-    Real query(AMREX_D_DECL(Real x, Real y, Real z), std::string layer = "root");
-
-    static void register_with_lua(sol::state& lua);
-
-  private:
-    std::map<std::string, PolySpline> polysplines;
-};
-
-#endif
-#endif  // READSTL_H
+//=====

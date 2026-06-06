@@ -11,6 +11,9 @@ CEXE_sources += MFP_timestep.cpp
 CEXE_sources += MFP_refinement.cpp
 CEXE_sources += MFP_prob.cpp
 
+# CEXE_headers += MFP_kyri_stl.H
+# CEXE_sources += MFP_kyri_stl.cpp
+
 CEXE_headers += MFP_utility.H
 
 CEXE_sources += MFPBld.cpp

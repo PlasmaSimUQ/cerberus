@@ -330,5 +330,5 @@ class BraginskiiCTU : public Action
     static std::string tag;
 };
 
-#endif
+#endif  // EB
 #endif  // CTU_H

@@ -36,7 +36,8 @@ ThermallyPerfectGas::ThermallyPerfectGas(const int global_idx, const sol::table&
     if ((mass.size() != charge.size()) or (mass.size() != gamma.size()) or
         (charge.size() != gamma.size()))
         Abort("State: " + name +
-              "; 'mass', 'charge' and 'gamma' must have the same number of components");
+              "; 'mass', 'charge' and 'gamma' must have the same number of "
+              "components");
 
     // handle the names of the sub components if they haven't been provided
     if (comp_names.empty()) {
@@ -187,7 +188,8 @@ bool ThermallyPerfectGas::cons2prim(Vector<Real>& U, Vector<Real>& Q) const
     Real mz = U[+HydroDef::ConsIdx::Zmom];
     Real ed = U[+HydroDef::ConsIdx::Eden];
 
-    // Print() << "\n" << rho << "\t" << mx <<  "\t" << my << "\t" << mz << "\t" << ed << "\n" ;
+    // Print() << "\n" << rho << "\t" << mx <<  "\t" << my << "\t" << mz << "\t"
+    // << ed << "\n" ;
     // //TODO delete
 
     Real rhoinv = 1 / rho;
@@ -212,6 +214,20 @@ bool ThermallyPerfectGas::cons2prim(Vector<Real>& U, Vector<Real>& Q) const
 
     for (int i = 0; i < n_tracers(); ++i) {
         Q[+HydroDef::PrimIdx::NUM + i] = U[+HydroDef::ConsIdx::NUM + i] * rhoinv;
+    }
+
+    Real effective_zero = 1e-14;
+
+    // TODO(KYRI) hacks for days...
+    if (Q[+HydroDef::PrimIdx::Density] <= 0.0) {
+        Print() << "\nDens floor active..." << Q[+HydroDef::PrimIdx::Density] << std::endl;
+        Q[+HydroDef::PrimIdx::Density] = effective_zero;
+    } else if (Q[+HydroDef::PrimIdx::Prs] <= 0.0) {
+        Print() << "\nPrs floor active..." << Q[+HydroDef::PrimIdx::Prs] << std::endl;
+        Q[+HydroDef::PrimIdx::Prs] = effective_zero;
+    } else if (Q[+HydroDef::PrimIdx::Temp] <= 0.0) {
+        Print() << "\nTemp floor active..." << Q[+HydroDef::PrimIdx::Temp] << std::endl;
+        Q[+HydroDef::PrimIdx::Temp] = effective_zero;
     }
 
     return prim_valid(Q);

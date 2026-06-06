@@ -23,6 +23,9 @@ CERBERUS_GIT_VERSION := $(shell git describe --abbrev --dirty --always --tags)
 
 CHECK_UPDATES ?= FALSE
 
+EBGEOMETRY_HOME :=/home/kyriakos/EBGeometry
+INCLUDE_LOCATIONS += $(EBGEOMETRY_HOME)
+
 AMREX_HOME := $(TOP)/amrex
 UPDATE_AMREX ?= TRUE
 
