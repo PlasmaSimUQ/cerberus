@@ -1,7 +1,7 @@
 #include "MFP.H"
 #include "MFP_action.H"
 #include "MFP_eb_sdf.H"
-// #include "MFP_kyri_stl.H"
+#include "MFP_ebgeometry_stl.H"
 #include "MFP_read_geom.h"
 #include "MFP_state.H"
 #include "MFP_utility.H"
@@ -49,15 +49,17 @@ void MFP::read_config()
                        sol::lib::string,
                        sol::lib::io);
 
-    // TODO(KYRI) to use the ReadSTL outside of EB ...
-    // ReadSTL::register_with_lua(lua);
-    // ReadEBGeometrySTL::register_with_lua(lua);
+    // The EBGeometry-backed STL reader is independent of the AMReX EB
+    // infrastructure, so it is registered unconditionally (e.g. available for
+    // fluid-only USE_EB=FALSE runs). It is only meaningful in 2D/3D.
+#if AMREX_SPACEDIM > 1
+    ReadEBGeometrySTL::register_with_lua(lua);
+#endif
 
 #ifdef AMREX_USE_EB
-    // register geometry stuff
+    // register EB-dependent geometry helpers
     LuaSplineIF::register_with_lua(lua);
     ReadSTL::register_with_lua(lua);
-    ReadEBGeometrySTL::register_with_lua(lua);
 
     #if AMREX_SPACEDIM == 2
     PolySpline::register_with_lua(lua);

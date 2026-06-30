@@ -17,5 +17,8 @@ CEXE_headers += MFP_rk4.H
 include $(TOP)/Source/modules/eb/Make.package
 include $(TOP)/Source/modules/boundary/Make.package
 
+# Standalone EBGeometry STL reader (available even when USE_EB=FALSE)
+include $(TOP)/Source/modules/eb_geometry/Make.package
+
 INCLUDE_LOCATIONS += $(TOP)/Source/modules
 VPATH_LOCATIONS   += $(TOP)/Source/modules
