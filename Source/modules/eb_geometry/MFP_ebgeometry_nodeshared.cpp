@@ -11,6 +11,7 @@
     #include <algorithm>
     #include <cmath>
     #include <cstdint>
+    #include <cstring>
     #include <limits>
     #include <sstream>
 
@@ -420,6 +421,286 @@ void FlatTriMeshSDF::self_test(const std::string& stl_file, int n)
                    << "  flat   time  : " << t_flat << " s  (" << (cnt / t_flat) << " q/s)\n"
                    << "  speed ratio  : " << (t_flat > 0 ? t_gold / t_flat : 0.0)
                    << "x (flat vs golden)\n";
+}
+
+// ===========================================================================
+// NodeSharedTriMeshSDF (Tier 1 step 2: MPI-3 shared-memory window)
+// ===========================================================================
+
+namespace {
+
+#if defined(AMREX_USE_MPI) && (MPI_VERSION >= 3)
+
+inline std::int64_t align16(std::int64_t x)
+{
+    return (x + 15) & ~static_cast<std::int64_t>(15);
+}
+
+// Compute the contiguous window layout: [Header | pad | Nodes | pad | Tris].
+mfp_ebgeom::SharedSDFHeader make_layout(std::int64_t n_nodes, std::int64_t n_tris)
+{
+    mfp_ebgeom::SharedSDFHeader h{};
+    h.magic = mfp_ebgeom::SHARED_SDF_MAGIC;
+    h.n_nodes = n_nodes;
+    h.n_tris = n_tris;
+
+    std::int64_t off = align16(static_cast<std::int64_t>(sizeof(mfp_ebgeom::SharedSDFHeader)));
+    h.nodes_off = off;
+    off += n_nodes * static_cast<std::int64_t>(sizeof(mfp_ebgeom::FlatBVHNode));
+    off = align16(off);
+    h.tris_off = off;
+    off += n_tris * static_cast<std::int64_t>(sizeof(mfp_ebgeom::SdfTriangle));
+    h.total_bytes = off;
+    return h;
+}
+
+// Single-rank-per-node shortcut warning (emitted once, on the IO rank).
+void warn_single_rank_once()
+{
+    static bool warned = false;
+    if (!warned) {
+        warned = true;
+        amrex::Print() << "[NodeSharedTriMeshSDF] Single-rank-per-node: shortcut to the heap "
+                          "path (no shared-memory window to build).\n";
+    }
+}
+
+#endif  // AMREX_USE_MPI && MPI_VERSION >= 3
+
+}  // namespace
+
+void NodeSharedTriMeshSDF::build_heap(const std::string& stl_file)
+{
+    auto soup = mfp_ebgeom::build_triangle_soup(stl_file);
+    if (soup.empty()) {
+        amrex::Abort("NodeSharedTriMeshSDF: no triangles read from STL file '" + stl_file + "'");
+    }
+    mfp_ebgeom::build_flat_bvh(soup, m_nodes_heap, m_tris_heap);
+
+    m_nodes = m_nodes_heap.data();
+    m_tris = m_tris_heap.data();
+    m_n_nodes = static_cast<std::int64_t>(m_nodes_heap.size());
+    m_n_tris = static_cast<std::int64_t>(m_tris_heap.size());
+    m_using_window = false;
+    m_alloc_bytes = m_n_nodes * static_cast<std::int64_t>(sizeof(mfp_ebgeom::FlatBVHNode)) +
+                    m_n_tris * static_cast<std::int64_t>(sizeof(mfp_ebgeom::SdfTriangle));
+}
+
+void NodeSharedTriMeshSDF::build_shared(const std::string& stl_file)
+{
+    BL_PROFILE("NodeSharedTriMeshSDF::build_shared");
+    m_filename = stl_file;
+
+#if defined(AMREX_USE_MPI) && (MPI_VERSION >= 3)
+    // node-local communicator: the ranks that can share physical memory
+    MPI_Comm_split_type(amrex::ParallelDescriptor::Communicator(),
+                        MPI_COMM_TYPE_SHARED,
+                        0,
+                        MPI_INFO_NULL,
+                        &m_node_comm);
+    MPI_Comm_rank(m_node_comm, &m_node_rank);
+    MPI_Comm_size(m_node_comm, &m_node_size);
+
+    if (m_node_size <= 1) {
+        // Single rank on this node: a window would share with nobody. Shortcut to
+        // a private heap copy (see Decision 1) and warn once.
+        warn_single_rank_once();
+        MPI_Comm_free(&m_node_comm);
+        m_node_comm = MPI_COMM_NULL;
+        build_heap(stl_file);
+        return;
+    }
+
+    // (1) lead builds the flat arrays; peers idle (build is paid once per node)
+    std::vector<mfp_ebgeom::FlatBVHNode> nodes;
+    std::vector<mfp_ebgeom::SdfTriangle> tris;
+    mfp_ebgeom::SharedSDFHeader hdr{};
+    if (m_node_rank == 0) {
+        auto soup = mfp_ebgeom::build_triangle_soup(stl_file);
+        if (soup.empty()) {
+            amrex::Abort("NodeSharedTriMeshSDF: no triangles read from STL file '" + stl_file +
+                         "'");
+        }
+        mfp_ebgeom::build_flat_bvh(soup, nodes, tris);
+        hdr = make_layout(static_cast<std::int64_t>(nodes.size()),
+                          static_cast<std::int64_t>(tris.size()));
+    }
+
+    // (2) allocate the shared window: lead requests all bytes, peers request 0
+    const MPI_Aint bytes = (m_node_rank == 0) ? static_cast<MPI_Aint>(hdr.total_bytes) : 0;
+    MPI_Win_allocate_shared(bytes, 1, MPI_INFO_NULL, m_node_comm, &m_base, &m_win);
+    MPI_Win_lock_all(MPI_MODE_NOCHECK, m_win);  // passive epoch for the window's life
+
+    // (3) everyone maps the lead's segment (same physical bytes, per-rank address)
+    MPI_Aint qsize = 0;
+    int qdisp = 0;
+    MPI_Win_shared_query(m_win, 0, &qsize, &qdisp, &m_base);
+
+    // (4) lead writes header + arrays via direct store into the mapped buffer
+    if (m_node_rank == 0) {
+        auto* H = reinterpret_cast<mfp_ebgeom::SharedSDFHeader*>(m_base);
+        *H = hdr;
+        std::memcpy(m_base + hdr.nodes_off,
+                    nodes.data(),
+                    static_cast<std::size_t>(hdr.n_nodes) * sizeof(mfp_ebgeom::FlatBVHNode));
+        std::memcpy(m_base + hdr.tris_off,
+                    tris.data(),
+                    static_cast<std::size_t>(hdr.n_tris) * sizeof(mfp_ebgeom::SdfTriangle));
+    }
+    // lead's heap arrays (nodes/tris) freed here; only the window copy remains
+
+    // (5) publish: make the lead's stores visible to all readers
+    MPI_Win_sync(m_win);
+    MPI_Barrier(m_node_comm);
+    MPI_Win_sync(m_win);
+
+    // (6) all ranks set query pointers from the now-visible header
+    const auto* H = reinterpret_cast<const mfp_ebgeom::SharedSDFHeader*>(m_base);
+    if (H->magic != mfp_ebgeom::SHARED_SDF_MAGIC) {
+        amrex::Abort(
+          "NodeSharedTriMeshSDF: shared header magic mismatch (memory-model / sync error)");
+    }
+    m_n_nodes = H->n_nodes;
+    m_n_tris = H->n_tris;
+    m_nodes = reinterpret_cast<const mfp_ebgeom::FlatBVHNode*>(m_base + H->nodes_off);
+    m_tris = reinterpret_cast<const mfp_ebgeom::SdfTriangle*>(m_base + H->tris_off);
+    m_using_window = true;
+    m_alloc_bytes = (m_node_rank == 0) ? hdr.total_bytes : 0;
+#else
+    // No MPI-3 available: private heap copy per process.
+    build_heap(stl_file);
+#endif
+}
+
+void NodeSharedTriMeshSDF::free_shared()
+{
+#if defined(AMREX_USE_MPI) && (MPI_VERSION >= 3)
+    if (m_win != MPI_WIN_NULL) {
+        MPI_Barrier(m_node_comm);
+        MPI_Win_unlock_all(m_win);
+        MPI_Win_free(&m_win);  // sets m_win = MPI_WIN_NULL
+        m_base = nullptr;
+    }
+    if (m_node_comm != MPI_COMM_NULL) {
+        MPI_Comm_free(&m_node_comm);  // sets m_node_comm = MPI_COMM_NULL
+    }
+#endif
+    m_nodes = nullptr;
+    m_tris = nullptr;
+    m_n_nodes = 0;
+    m_n_tris = 0;
+    m_using_window = false;
+    m_nodes_heap.clear();
+    m_nodes_heap.shrink_to_fit();
+    m_tris_heap.clear();
+    m_tris_heap.shrink_to_fit();
+}
+
+NodeSharedTriMeshSDF::~NodeSharedTriMeshSDF() { free_shared(); }
+
+Real NodeSharedTriMeshSDF::query(AMREX_D_DECL(Real x, Real y, Real z)) const
+{
+    BL_PROFILE("NodeSharedTriMeshSDF::query");
+
+    if (m_nodes == nullptr) {
+        amrex::Abort("NodeSharedTriMeshSDF::query called before build_shared()");
+    }
+
+    const mfp_ebgeom::SdfT px = static_cast<mfp_ebgeom::SdfT>(x);
+    const mfp_ebgeom::SdfT py = static_cast<mfp_ebgeom::SdfT>(y);
+    #if AMREX_SPACEDIM == 3
+    const mfp_ebgeom::SdfT pz = static_cast<mfp_ebgeom::SdfT>(z);
+    #else
+    const mfp_ebgeom::SdfT pz = static_cast<mfp_ebgeom::SdfT>(0);
+    #endif
+    const mfp_ebgeom::SdfVec3 p(px, py, pz);
+
+    return static_cast<Real>(mfp_ebgeom::flat_query(m_nodes, m_n_nodes, m_tris, p));
+}
+
+void NodeSharedTriMeshSDF::register_with_lua(sol::state& lua)
+{
+    BL_PROFILE("NodeSharedTriMeshSDF::register_with_lua");
+    lua.set_function("node_shared_self_test", &NodeSharedTriMeshSDF::self_test);
+}
+
+void NodeSharedTriMeshSDF::self_test(const std::string& stl_file, int n)
+{
+    BL_PROFILE("NodeSharedTriMeshSDF::self_test");
+
+    const int N = std::max(2, n);
+
+    amrex::Print() << "[NodeSharedTriMeshSDF::self_test] file='" << stl_file << "' grid=" << N << "^"
+                   << AMREX_SPACEDIM << "\n";
+
+    NodeSharedTriMeshSDF shared;
+    shared.build_shared(stl_file);  // collective
+
+    // Sample box = padded mesh bounding box (root node AABB; identical on all ranks).
+    const mfp_ebgeom::FlatBVHNode& root = shared.m_nodes[0];
+    double lo[3], hi[3];
+    for (int d = 0; d < 3; ++d) {
+        const double L = root.lo[d];
+        const double H = root.hi[d];
+        const double pad = 0.25 * (H - L) + 1e-6;
+        lo[d] = L - pad;
+        hi[d] = H + pad;
+    }
+
+    const int NK = (AMREX_SPACEDIM == 3) ? N : 1;
+    auto coord = [&](int i, int d) { return lo[d] + (i + 0.5) * (hi[d] - lo[d]) / N; };
+
+    // (1) value correctness on the global IO rank vs a Step-1 FlatTriMeshSDF.
+    // Expect EXACTLY 0: the lead built the same arrays via the same build_flat_bvh.
+    double max_err = 0.0;
+    if (amrex::ParallelDescriptor::IOProcessor()) {
+        FlatTriMeshSDF flat(stl_file);
+        for (int k = 0; k < NK; ++k) {
+            const double z = (AMREX_SPACEDIM == 3) ? coord(k, 2) : 0.0;
+            amrex::ignore_unused(z);
+            for (int j = 0; j < N; ++j) {
+                const double y = coord(j, 1);
+                for (int i = 0; i < N; ++i) {
+                    const double x = coord(i, 0);
+                    const double a = flat.query(AMREX_D_DECL(x, y, z));
+                    const double b = shared.query(AMREX_D_DECL(x, y, z));
+                    max_err = std::max(max_err, std::abs(a - b));
+                }
+            }
+        }
+    }
+
+    // (2) cross-rank agreement: every rank's query checksum must match.
+    double checksum = 0.0;
+    for (int k = 0; k < NK; ++k) {
+        const double z = (AMREX_SPACEDIM == 3) ? coord(k, 2) : 0.0;
+        amrex::ignore_unused(z);
+        for (int j = 0; j < N; ++j) {
+            const double y = coord(j, 1);
+            for (int i = 0; i < N; ++i) checksum += shared.query(AMREX_D_DECL(coord(i, 0), y, z));
+        }
+    }
+    double cmin = checksum, cmax = checksum;
+    amrex::ParallelDescriptor::ReduceRealMin(cmin);
+    amrex::ParallelDescriptor::ReduceRealMax(cmax);
+
+    // (3) memory: per-node-lead allocation and world sum (peers contribute 0).
+    double alloc_sum = static_cast<double>(shared.m_alloc_bytes);
+    double alloc_max = static_cast<double>(shared.m_alloc_bytes);
+    amrex::ParallelDescriptor::ReduceRealSum(alloc_sum);
+    amrex::ParallelDescriptor::ReduceRealMax(alloc_max);
+
+    amrex::Print() << "  using_window : " << shared.m_using_window
+                   << ", node_size : " << shared.m_node_size << "\n"
+                   << "  triangles    : " << shared.m_n_tris << ", nodes : " << shared.m_n_nodes
+                   << "\n"
+                   << "  max |err| vs FlatTriMeshSDF (IO rank) : " << max_err << "\n"
+                   << "  cross-rank checksum spread            : " << (cmax - cmin) << "\n"
+                   << "  alloc bytes (per node-lead)           : " << alloc_max << "\n"
+                   << "  alloc bytes (world sum)               : " << alloc_sum
+                   << "  [= per-lead * num_nodes; peers = 0]\n";
+
+    shared.free_shared();  // collective free at a collective point
 }
 
 #endif  // AMREX_SPACEDIM > 1
