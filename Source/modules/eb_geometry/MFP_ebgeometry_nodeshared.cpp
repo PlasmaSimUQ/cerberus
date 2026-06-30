@@ -334,9 +334,12 @@ void FlatTriMeshSDF::register_with_lua(sol::state& lua)
                                      "str",
                                      &FlatTriMeshSDF::str);
 
+#ifdef AMREX_DEBUG
     lua.set_function("flat_trimesh_self_test", &FlatTriMeshSDF::self_test);
+#endif
 }
 
+#ifdef AMREX_DEBUG
 void FlatTriMeshSDF::self_test(const std::string& stl_file, int n)
 {
     BL_PROFILE("FlatTriMeshSDF::self_test");
@@ -422,6 +425,7 @@ void FlatTriMeshSDF::self_test(const std::string& stl_file, int n)
                    << "  speed ratio  : " << (t_flat > 0 ? t_gold / t_flat : 0.0)
                    << "x (flat vs golden)\n";
 }
+#endif  // AMREX_DEBUG
 
 // ===========================================================================
 // NodeSharedTriMeshSDF (Tier 1 step 2: MPI-3 shared-memory window)
@@ -493,19 +497,19 @@ void NodeSharedTriMeshSDF::build_shared(const std::string& stl_file)
 
 #if defined(AMREX_USE_MPI) && (MPI_VERSION >= 3)
     // node-local communicator: the ranks that can share physical memory
-    MPI_Comm_split_type(amrex::ParallelDescriptor::Communicator(),
-                        MPI_COMM_TYPE_SHARED,
-                        0,
-                        MPI_INFO_NULL,
-                        &m_node_comm);
-    MPI_Comm_rank(m_node_comm, &m_node_rank);
-    MPI_Comm_size(m_node_comm, &m_node_size);
+    BL_MPI_REQUIRE(MPI_Comm_split_type(amrex::ParallelDescriptor::Communicator(),
+                                       MPI_COMM_TYPE_SHARED,
+                                       0,
+                                       MPI_INFO_NULL,
+                                       &m_node_comm));
+    BL_MPI_REQUIRE(MPI_Comm_rank(m_node_comm, &m_node_rank));
+    BL_MPI_REQUIRE(MPI_Comm_size(m_node_comm, &m_node_size));
 
     if (m_node_size <= 1) {
         // Single rank on this node: a window would share with nobody. Shortcut to
         // a private heap copy (see Decision 1) and warn once.
         warn_single_rank_once();
-        MPI_Comm_free(&m_node_comm);
+        BL_MPI_REQUIRE(MPI_Comm_free(&m_node_comm));
         m_node_comm = MPI_COMM_NULL;
         build_heap(stl_file);
         return;
@@ -528,13 +532,14 @@ void NodeSharedTriMeshSDF::build_shared(const std::string& stl_file)
 
     // (2) allocate the shared window: lead requests all bytes, peers request 0
     const MPI_Aint bytes = (m_node_rank == 0) ? static_cast<MPI_Aint>(hdr.total_bytes) : 0;
-    MPI_Win_allocate_shared(bytes, 1, MPI_INFO_NULL, m_node_comm, &m_base, &m_win);
-    MPI_Win_lock_all(MPI_MODE_NOCHECK, m_win);  // passive epoch for the window's life
+    BL_MPI_REQUIRE(MPI_Win_allocate_shared(bytes, 1, MPI_INFO_NULL, m_node_comm, &m_base, &m_win));
+    BL_MPI_REQUIRE(
+      MPI_Win_lock_all(MPI_MODE_NOCHECK, m_win));  // passive epoch for the window's life
 
     // (3) everyone maps the lead's segment (same physical bytes, per-rank address)
     MPI_Aint qsize = 0;
     int qdisp = 0;
-    MPI_Win_shared_query(m_win, 0, &qsize, &qdisp, &m_base);
+    BL_MPI_REQUIRE(MPI_Win_shared_query(m_win, 0, &qsize, &qdisp, &m_base));
 
     // (4) lead writes header + arrays via direct store into the mapped buffer
     if (m_node_rank == 0) {
@@ -550,9 +555,9 @@ void NodeSharedTriMeshSDF::build_shared(const std::string& stl_file)
     // lead's heap arrays (nodes/tris) freed here; only the window copy remains
 
     // (5) publish: make the lead's stores visible to all readers
-    MPI_Win_sync(m_win);
-    MPI_Barrier(m_node_comm);
-    MPI_Win_sync(m_win);
+    BL_MPI_REQUIRE(MPI_Win_sync(m_win));
+    BL_MPI_REQUIRE(MPI_Barrier(m_node_comm));
+    BL_MPI_REQUIRE(MPI_Win_sync(m_win));
 
     // (6) all ranks set query pointers from the now-visible header
     const auto* H = reinterpret_cast<const mfp_ebgeom::SharedSDFHeader*>(m_base);
@@ -576,13 +581,13 @@ void NodeSharedTriMeshSDF::free_shared()
 {
 #if defined(AMREX_USE_MPI) && (MPI_VERSION >= 3)
     if (m_win != MPI_WIN_NULL) {
-        MPI_Barrier(m_node_comm);
-        MPI_Win_unlock_all(m_win);
-        MPI_Win_free(&m_win);  // sets m_win = MPI_WIN_NULL
+        BL_MPI_REQUIRE(MPI_Barrier(m_node_comm));
+        BL_MPI_REQUIRE(MPI_Win_unlock_all(m_win));
+        BL_MPI_REQUIRE(MPI_Win_free(&m_win));  // sets m_win = MPI_WIN_NULL
         m_base = nullptr;
     }
     if (m_node_comm != MPI_COMM_NULL) {
-        MPI_Comm_free(&m_node_comm);  // sets m_node_comm = MPI_COMM_NULL
+        BL_MPI_REQUIRE(MPI_Comm_free(&m_node_comm));  // sets m_node_comm = MPI_COMM_NULL
     }
 #endif
     m_nodes = nullptr;
@@ -618,12 +623,47 @@ Real NodeSharedTriMeshSDF::query(AMREX_D_DECL(Real x, Real y, Real z)) const
     return static_cast<Real>(mfp_ebgeom::flat_query(m_nodes, m_n_nodes, m_tris, p));
 }
 
+// --- filename-keyed registry (step 3) --------------------------------------
+
+std::map<std::string, std::shared_ptr<NodeSharedTriMeshSDF>> NodeSharedTriMeshSDF::s_registry;
+
+std::shared_ptr<NodeSharedTriMeshSDF>
+NodeSharedTriMeshSDF::get_or_create(const std::string& stl_file)
+{
+    BL_PROFILE("NodeSharedTriMeshSDF::get_or_create");
+
+    auto it = s_registry.find(stl_file);
+    if (it != s_registry.end()) return it->second;  // dedup; no MPI call on a hit
+
+    auto res = std::make_shared<NodeSharedTriMeshSDF>();
+    res->build_shared(stl_file);  // COLLECTIVE on first use
+    s_registry.emplace(stl_file, res);
+    return res;
+}
+
+void NodeSharedTriMeshSDF::clear_all()
+{
+    BL_PROFILE("NodeSharedTriMeshSDF::clear_all");
+
+    // std::map iterates in sorted (filename) order, identical on every rank, so
+    // the collective free_shared() calls line up across ranks.
+    for (auto& kv : s_registry) {
+        if (kv.second) kv.second->free_shared();
+    }
+    s_registry.clear();
+}
+
 void NodeSharedTriMeshSDF::register_with_lua(sol::state& lua)
 {
     BL_PROFILE("NodeSharedTriMeshSDF::register_with_lua");
+#ifdef AMREX_DEBUG
     lua.set_function("node_shared_self_test", &NodeSharedTriMeshSDF::self_test);
+#else
+    amrex::ignore_unused(lua);
+#endif
 }
 
+#ifdef AMREX_DEBUG
 void NodeSharedTriMeshSDF::self_test(const std::string& stl_file, int n)
 {
     BL_PROFILE("NodeSharedTriMeshSDF::self_test");
@@ -701,6 +741,78 @@ void NodeSharedTriMeshSDF::self_test(const std::string& stl_file, int n)
                    << "  [= per-lead * num_nodes; peers = 0]\n";
 
     shared.free_shared();  // collective free at a collective point
+}
+#endif  // AMREX_DEBUG
+
+// ===========================================================================
+// ReadEBGeometrySTL_TriMesh_NodeShared (Tier 1 step 3: user-facing Lua handle)
+// ===========================================================================
+
+ReadEBGeometrySTL_TriMesh_NodeShared::ReadEBGeometrySTL_TriMesh_NodeShared() {}
+
+ReadEBGeometrySTL_TriMesh_NodeShared::ReadEBGeometrySTL_TriMesh_NodeShared(
+  const std::string& stl_file) :
+    m_filename(stl_file)
+{
+    BL_PROFILE("ReadEBGeometrySTL_TriMesh_NodeShared::ctor");
+    m_res = NodeSharedTriMeshSDF::get_or_create(stl_file);  // COLLECTIVE on first use
+}
+
+ReadEBGeometrySTL_TriMesh_NodeShared::ReadEBGeometrySTL_TriMesh_NodeShared(
+  const std::string& stl_file, bool flip_sign) :
+    m_filename(stl_file), m_flip_sign(flip_sign)
+{
+    BL_PROFILE("ReadEBGeometrySTL_TriMesh_NodeShared::ctor");
+    m_res = NodeSharedTriMeshSDF::get_or_create(stl_file);  // COLLECTIVE on first use
+}
+
+Real ReadEBGeometrySTL_TriMesh_NodeShared::query(AMREX_D_DECL(Real x, Real y, Real z)) const
+{
+    BL_PROFILE("ReadEBGeometrySTL_TriMesh_NodeShared::query");
+
+    if (!m_res) {
+        amrex::Abort("ReadEBGeometrySTL_TriMesh_NodeShared::query before a file was loaded");
+    }
+    // Backend returns the canonical signed distance; flip is applied per handle.
+    const Real d = m_res->query(AMREX_D_DECL(x, y, z));
+    return m_flip_sign ? -d : d;
+}
+
+const std::string ReadEBGeometrySTL_TriMesh_NodeShared::str() const
+{
+    BL_PROFILE("ReadEBGeometrySTL_TriMesh_NodeShared::str");
+
+    std::stringstream ss;
+    ss << "ReadEBGeometrySTL_TriMesh_NodeShared\n";
+    ss << "  filename  : " << m_filename << "\n";
+    ss << "  has_sdf   : " << static_cast<bool>(m_res) << "\n";
+    ss << "  flip_sign : " << m_flip_sign << "\n";
+    return ss.str();
+}
+
+void ReadEBGeometrySTL_TriMesh_NodeShared::set_flip_sign(bool flip_sign)
+{
+    m_flip_sign = flip_sign;
+}
+
+bool ReadEBGeometrySTL_TriMesh_NodeShared::get_flip_sign() const { return m_flip_sign; }
+
+void ReadEBGeometrySTL_TriMesh_NodeShared::register_with_lua(sol::state& lua)
+{
+    BL_PROFILE("ReadEBGeometrySTL_TriMesh_NodeShared::register_with_lua");
+
+    lua.new_usertype<ReadEBGeometrySTL_TriMesh_NodeShared>(
+      "ReadEBGeometrySTL_TriMesh_NodeShared",
+      sol::constructors<ReadEBGeometrySTL_TriMesh_NodeShared(const std::string&),
+                        ReadEBGeometrySTL_TriMesh_NodeShared(const std::string&, bool)>(),
+      "query",
+      &ReadEBGeometrySTL_TriMesh_NodeShared::query,
+      "set_flip_sign",
+      &ReadEBGeometrySTL_TriMesh_NodeShared::set_flip_sign,
+      "get_flip_sign",
+      &ReadEBGeometrySTL_TriMesh_NodeShared::get_flip_sign,
+      "str",
+      &ReadEBGeometrySTL_TriMesh_NodeShared::str);
 }
 
 #endif  // AMREX_SPACEDIM > 1

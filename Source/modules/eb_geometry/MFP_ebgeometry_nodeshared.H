@@ -24,6 +24,8 @@
     #include "EBGeometry.hpp"
 
     #include <cstdint>
+    #include <map>
+    #include <memory>
     #include <string>
     #include <vector>
 
@@ -125,9 +127,12 @@ class FlatTriMeshSDF
 
     static void register_with_lua(sol::state& lua);
 
+#ifdef AMREX_DEBUG
     // Correctness + speed check vs ReadEBGeometrySTL_TriMesh on an n^3 grid over
     // the (padded) mesh bounding box. Prints max/mean |error| and query timings.
+    // Debug-build only (registered as Lua "flat_trimesh_self_test").
     static void self_test(const std::string& stl_file, int n);
+#endif
 
   private:
     std::vector<mfp_ebgeom::FlatBVHNode> m_nodes;
@@ -170,12 +175,28 @@ class NodeSharedTriMeshSDF
 
     static void register_with_lua(sol::state& lua);
 
+    // --- filename-keyed registry (step 3) -----------------------------------
+    // Return the shared SDF for a file, building it (collectively) on first use
+    // and reusing it for later requests of the same file (dedup). COLLECTIVE on a
+    // cache miss; all ranks must request the same files in the same order (true
+    // under SPMD read_config, where readers are constructed at lua top level).
+    static std::shared_ptr<NodeSharedTriMeshSDF> get_or_create(const std::string& stl_file);
+
+    // Collective. Free every registered window and clear the registry. Must run
+    // before amrex::Finalize() (hooked into MFP::variableCleanUp).
+    static void clear_all();
+
+#ifdef AMREX_DEBUG
     // Collective validation: correctness vs FlatTriMeshSDF (IO rank), cross-rank
-    // agreement (Allreduce), and a per-node allocation report.
+    // agreement (Allreduce), and a per-node allocation report. Debug-build only
+    // (registered as Lua "node_shared_self_test").
     static void self_test(const std::string& stl_file, int n);
+#endif
 
   private:
     void build_heap(const std::string& stl_file);  // private-copy path
+
+    static std::map<std::string, std::shared_ptr<NodeSharedTriMeshSDF>> s_registry;
 
     const mfp_ebgeom::FlatBVHNode* m_nodes = nullptr;
     const mfp_ebgeom::SdfTriangle* m_tris = nullptr;
@@ -197,6 +218,40 @@ class NodeSharedTriMeshSDF
     MPI_Comm m_node_comm = MPI_COMM_NULL;
     MPI_Win m_win = MPI_WIN_NULL;
 #endif
+};
+
+// ---------------------------------------------------------------------------
+// Tier 1 step 3: user-facing Lua reader handle for the node-shared SDF.
+//
+// Thin handle: holds a shared_ptr to the (dedup'd, filename-keyed) backend
+// resource plus its own flip flag. Same Lua API as the other three readers
+// (new / query / set_flip_sign / get_flip_sign / str), so a problem .lua can
+// switch to it by name only. The heavy SDF data lives in the C++ backend (one
+// copy per node), not in the Lua state.
+//
+// Must be constructed at a COLLECTIVE point (lua top level under SPMD
+// read_config) because a first-use construction builds the shared window.
+// ---------------------------------------------------------------------------
+class ReadEBGeometrySTL_TriMesh_NodeShared
+{
+  public:
+    ReadEBGeometrySTL_TriMesh_NodeShared();
+    explicit ReadEBGeometrySTL_TriMesh_NodeShared(const std::string& stl_file);
+    ReadEBGeometrySTL_TriMesh_NodeShared(const std::string& stl_file, bool flip_sign);
+
+    Real query(AMREX_D_DECL(Real x, Real y, Real z)) const;
+
+    const std::string str() const;
+
+    void set_flip_sign(bool flip_sign);
+    bool get_flip_sign() const;
+
+    static void register_with_lua(sol::state& lua);
+
+  private:
+    std::shared_ptr<NodeSharedTriMeshSDF> m_res;  // shared backend (dedup by filename)
+    std::string m_filename;
+    bool m_flip_sign = false;
 };
 
 #endif  // AMREX_SPACEDIM > 1

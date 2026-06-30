@@ -58,6 +58,7 @@ void MFP::read_config()
     ReadEBGeometrySTL_TriMesh::register_with_lua(lua);
     FlatTriMeshSDF::register_with_lua(lua);  // Tier 1 step 1: flat-BVH reader + self-test
     NodeSharedTriMeshSDF::register_with_lua(lua);  // Tier 1 step 2: node-shared SDF self-test
+    ReadEBGeometrySTL_TriMesh_NodeShared::register_with_lua(lua);  // Tier 1 step 3: node-shared reader
 #endif
 
 #ifdef AMREX_USE_EB

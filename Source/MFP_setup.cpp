@@ -1,5 +1,6 @@
 #include "MFP.H"
 #include "MFP_bc.H"
+#include "MFP_ebgeometry_nodeshared.H"
 #include "MFP_state.H"
 
 #include <AMReX_ParmParse.H>
@@ -49,6 +50,12 @@ void MFP::variableCleanUp()
     for (auto& state : states) { state.reset(); }
 
     states.clear();
+
+#if AMREX_SPACEDIM > 1
+    // Free node-shared SDF windows collectively, before amrex::Finalize() /
+    // MPI_Finalize (variableCleanUp runs in Amr::~Amr, ahead of Finalize).
+    NodeSharedTriMeshSDF::clear_all();
+#endif
 
 #ifdef AMREX_USE_EB
     eb_data.clear();
