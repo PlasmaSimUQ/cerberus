@@ -1,0 +1,10 @@
+# Standalone EBGeometry-backed STL reader.
+# Included unconditionally (independent of USE_EB) so the STL signed-distance
+# reader is available in fluid-only builds. The translation unit guards its
+# body on AMREX_SPACEDIM > 1 and compiles to empty in 1D.
+
+CEXE_headers += MFP_ebgeometry_stl.H
+CEXE_sources += MFP_ebgeometry_stl.cpp
+
+INCLUDE_LOCATIONS += $(TOP)/Source/modules/eb_geometry
+VPATH_LOCATIONS   += $(TOP)/Source/modules/eb_geometry

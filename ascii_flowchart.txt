@@ -1,0 +1,328 @@
+================================================================================
+ CERBERUS (MFP) — CODE STRUCTURE FLOW CHART
+ A finite-volume multi-fluid plasma solver built on the AMReX AMR framework.
+ Generated from Source/ + Makefile.  Scope: the Cerberus code (Source/extern/
+ third-party libs — AMReX, Eigen, Lua, sol2, json, Eilmer, EBGeometry — omitted).
+================================================================================
+NOTE this was generated with Claude Code 4.8 on 2026/06/30
+================================================================================
+
+LEGEND
+  [ ]  class / object          ( )  function / method          -->  calls / flows to
+  ===  major phase boundary     |    composition / ownership    *   plug-in (factory)
+  "tag" = the string a user writes in the Lua config to select a plug-in.
+
+
+================================================================================
+ 0. BUILD-TIME PICTURE  (Makefile)
+================================================================================
+
+  Makefile  (GNU make, wraps AMReX's Make.defs/Make.rules)
+    | DIM = 1|2|3                     (spatial dimensions; EB & particles need DIM>=2)
+    | USE_MPI=TRUE  USE_EB=TRUE  AMREX_PARTICLES=TRUE   (defaults)
+    | Optional feature flags -> -D defines, change the executable suffix:
+    |     EILMER_GAS  -> real-gas thermochemistry (else bundled Lua used)
+    |     SYMPLECTIC=P8R2|PWL -> symplectic PIC integrator
+    |     PYTHON_PLOT -> in-line matplotlib diagnostics (-DPYTHON)
+    |     PPROF / TINY_PROFILE -> profiling
+    | Pulls in AMReX submodule (amrex/) + EBGeometry; includes per-dir Make.package
+    v
+  Executable:  MFP.<DIM>d.<COMP>.<MPI>.<features>.ex   (e.g. MFP.2d.gnu.MPI.EB.PARTICLES.ex)
+
+
+================================================================================
+ 1. PROGRAM LIFECYCLE  (who drives whom)
+================================================================================
+
+  Source/main.cpp :: main()
+    |
+    |-- amrex::Initialize()
+    |-- read max_step / strt_time / stop_time   (ParmParse, from inputs file)
+    |-- Amr amr( getLevelBld() )  ............... getLevelBld() returns &MFP_bld
+    |        ^                                      (Source/MFPBld.cpp)
+    |        |                                     [MFPBld : amrex::LevelBld]
+    |        |                                       (factory AMReX uses to make
+    |        |                                        per-level solver objects)
+    |-- (EB) initialize_EB2(amr, n_grow)  ....... build embedded-boundary geometry
+    |-- amr.init(strt_time, stop_time)  ......... triggers setup + initData (Sec 2/3)
+    |
+    |-- while ( okToContinue && step<max_step && time<stop_time ):
+    |        amr.coarseTimeStep(stop_time)  ..... AMReX recursively sub-cycles levels,
+    |                                              calling MFP::advance() per level (Sec 4)
+    |
+    `-- write final checkpoint + plotfile, Finalize()
+
+  AMReX owns the AMR hierarchy & time loop; CERBERUS supplies the per-level
+  class [MFP : amrex::AmrLevel] (Source/MFP.H) and its callbacks:
+       variableSetUp / initData / advance / estTimeStep / errorEst /
+       computeNewDt / post_timestep / post_init / writePlotFile / checkPoint ...
+
+
+================================================================================
+ 2. ONE-TIME SETUP  (Lua config  -->  live C++ objects)   [the registration core]
+================================================================================
+
+  MFPBld::variableSetUp()  -->  MFP::variableSetUp()        (Source/MFP_setup.cpp)
+    |
+    |-- read_params()                 (MFP_config.cpp) reads "mfp.lua" path via ParmParse
+    |-- set_lua_script()              concatenate:  default.lua  +  user script  + preprocess()
+    |-- read_config()                 (MFP_config.cpp) -- THE TRANSLATOR --
+    |       |  MFP::lua  =  single global  sol::state   (sol2 binding of Lua)
+    |       |  lua.script(lua_script)  executes the whole problem definition, filling
+    |       |  global Lua tables:  states{}  actions{}  embedded_boundaries{}
+    |       |                      refine_boxes{}  plot{}  + reference params
+    |       |
+    |       |-- update_ref()              derive non-dimensional plasma refs
+    |       |                             (x_ref,n_ref,m_ref,... lightspeed,beta,
+    |       |                              skin_depth,Larmor,Debye)
+    |       |
+    |       |-- for name in states{}:     type = lua["states"][name].type
+    |       |       GetStateFactory().Build(type, def) ............ * STATE FACTORY
+    |       |       -> push into MFP::states[]  ;  state->init_from_lua()
+    |       |       classify -> eulerian_states[] / lagrangian_states[]
+    |       |
+    |       |-- for eb in embedded_boundaries{}:  build [DataEB] (SDF geom_func,
+    |       |       boolean op, inside flag) ; wire EB <-> states (set_eb_bc)
+    |       |
+    |       |-- for name in actions{}:    type = lua["actions"][name].type
+    |       |       GetActionFactory().Build(type, def) ........... * ACTION FACTORY
+    |       |       -> push into MFP::actions[] ; action ctor binds its states
+    |       |          (state.associated_actions  <-->  action.state_indexes)
+    |       |
+    |       `-- parse plot{} -> plot_variables / plot_functions
+    |
+    |-- per state: state->variable_setup(periodic)
+    |       registers an AMReX StateDescriptor in MFP::desc_lst (the DATA STORE,
+    |       Sec 5) and its FillBC/BoundaryState boundary handlers
+    |-- add "Cost" StateDescriptor (Cost_Idx) for load balancing
+    `-- (EB) build_eb(): per-level [EBData] = {ebfactory, flags, volfrac,
+            bndry centroid/normal, area/face frac, bndryidx}
+
+
+  ------------------------------------------------------------------------------
+  THE FACTORY / SELF-REGISTRATION PATTERN   (Source/modules/MFP_factory.H)
+  ------------------------------------------------------------------------------
+  template<class T> class ClassFactory {                       // T = State | Action | PDF | ...
+      std::multimap<std::string /*tag*/, Builder> ;            // Builder: sol::table -> unique_ptr<T>
+      Register(tag, builder) ;   Build(tag, def) -> unique_ptr<T> ;
+  }
+
+  Global singletons:   GetStateFactory()   GetActionFactory()   GetPDFFactory()
+                       GetReconstructionFactory()  GetHydro/MHD/FieldRiemannSolverFactory()
+                       GetHydroViscousFactory()  GetHydroGasFactory()  Get*RefinementFactory()
+                       GetParticleDistributionFactory() ...
+
+  Each concrete class self-registers at LINK/STATIC-INIT time, BEFORE main():
+      std::string  HydroState::tag        = "hydro";
+      bool         HydroState::registered = GetStateFactory().Register(tag, StateBuilder<HydroState>);
+      StateBuilder<D>(def):  return (def["type"]==D::tag) ? new D(def) : nullptr;
+
+  => The orchestrator never names a concrete class. A Lua "type"/"tag" string is the
+     only coupling between user config and the C++ object that gets built.
+
+
+================================================================================
+ 3. CLASS HIERARCHY  (the plug-ins the factories build)
+================================================================================
+
+  [State]  (states/MFP_state.H/.cpp)  -- abstract; holds METADATA + algorithm objects,
+   |        NOT the bulk field arrays.   name, global_idx, data_idx, boundary_conditions,
+   |        |Refinement* refine, EB indices, associated_actions[]
+   |
+   |== [EulerianState] (states/Eulerian/) -- finite-volume grid states; adds:
+   |    |   num_grow, reflux, effective_zero,
+   |    |   |RiemannSolver* flux_solver  *      |ShockDetector* shock_detector *
+   |    |   |Reconstruction* reconstructor *    EB wall BCs[] *   Lua IC/BC functions
+   |    |
+   |    |-- [HydroState] "hydro"  compressible (Euler/Navier-Stokes) multi-fluid.
+   |    |        cons = {rho, Xmom,Ymom,Zmom, Eden, +n_tracers};  can emit charge/current.
+   |    |        adds  |HydroGas* gas (EOS) *    |HydroViscous* viscous *
+   |    |-- [MHDState] "mhd"   ideal MHD.  cons = {rho, mom, Eden, Bx,By,Bz, psi(div-clean)}
+   |    `-- [FieldState] "field"  Maxwell EM.  cons = {Dx,Dy,Dz, Bx,By,Bz, phi,psi, mu,ep};
+   |             is_static, fastest_speed (~c, sets dt), divergence cleaning.
+   |
+   `== [LagrangianState] (states/Lagrangian/) -- particles (#ifdef AMREX_PARTICLES);
+        |   OWNS its data: |AmrParticleContainer particles
+        |-- [TracerParticle]   "tracer"  passive markers advected by a host fluid's velocity
+        `-- [ChargedParticle]  "charged_particle"  {Mass,Charge,V}; pushed by E/B,
+                feeds source terms;  |ParticleDistribution * (sampling)
+
+  PER-STATE PLUG-IN MENUS (selected by tag in Lua):
+     Reconstruction *  : null|constant|minmod|vanLeer|MC|centre|O6|WENO  (sets ghost width)
+     Hydro Riemann  *  : HLLC | HLLE | AUSMDV | hybrid_hll   (+ pressure_jump shock detector)
+     MHD   Riemann  *  : HLLE                                (+ pressure_jump shock detector)
+     Field Riemann  *  : HLLE | RankineHugoniot
+     Hydro Viscous  *  : Sutherland | PowerLaw | UserDefined
+     Hydro Gas/EOS  *  : thermally_perfect | eilmer
+     Refinement     *  : hydro_gradient | mhd_gradient | field_gradient | field_value
+     EB wall BC     *  : slip/no_slip/dirichlet/multi_state (hydro), conductor/potential/
+                         surface_charge/current (field), ...
+
+  ............................................................................
+
+  [Action]  (actions/MFP_action.H/.cpp)  -- a PHYSICS OPERATOR that advances states.
+   |  Decoupled from data:  State holds data, Action computes the change (dU).
+   |  Binds to states via state_indexes[];  interface (the "action contract"):
+   |     get_data()              fill working copy U (+ghosts) from state, zero dU
+   |     calc_time_derivative()  dU += point-local source terms        (accumulating)
+   |     calc_spatial_derivative dU += flux divergence (+ flux registers, accumulating)
+   |     apply_time/spatial_derivative()  one-shot OVERWRITE of new data (no accumulate)
+   |     apply_change()          end-of-step hook (elliptic/symplectic solves)
+   |     get_allowed_time_step() action's CFL/stability limit
+   |
+   |-- "CTU"                HydroCTU      Corner-Transport-Upwind hydro/MHD flux update
+   |-- "BraginskiiCTU"      BraginskiiCTU anisotropic 2-fluid viscosity + heat conduction
+   |-- "acceleration"       Acceleration  body force / gravity
+   |-- "current"            Current       imposed external current into Maxwell field
+   |-- "damp_divergence_mhd"DampDivergenceMHD  hyperbolic div(B) cleaning
+   |-- "elliptic"           Elliptic      projection / Poisson solves   (in apply_change)
+   |-- "gas_kinetics"       GasKinetics   finite-rate thermochemistry (Eilmer)
+   |-- "hydro_tracer"       HydroTracer   advect tracer particles with fluid velocity
+   |-- "Lorentz"            Lorentz       Lorentz force / charge-current fluid<->EM coupling
+   |-- "plasma5"            Plasma5       5-moment 2-fluid source coupling (expl/impl Euler)
+   |-- "user"              UserDefined    arbitrary Lua source terms
+   |-- reactions/ "collisions_rambo"  CollisionsRambo  inter-species collisions (base Collisions)
+   `-- sPIC/ "symplectic"  Symplectic   symplectic PIC pusher (Theta_B/E/R split) (#ifdef SYMPLECTIC)
+
+
+================================================================================
+ 4. THE TIME-ADVANCE LOOP  (heart of the solver)   Source/MFP_advance.cpp
+================================================================================
+
+  MFP::advance(time, dt, iteration, ncycle)              [called per level by AMReX]
+    |
+    |-- for each state:  allocOldData(); swapTimeLevels(dt)   (old <- new)
+    |-- copy old -> new for every Eulerian state ; reset flux registers
+    |
+    |-- switch (time_integration_scheme):                (MFP::TimeIntegrator)
+    |       RungeKutta      -> advance_RK()
+    |       StrangSplitting -> advance_strang()
+    |       Symplectic      -> (no-op here; all work in apply_change)
+    |
+    |-- for each action:  apply_change(this,time,dt)     <-- Elliptic projection,
+    |                                                        Symplectic PIC run here
+    `-- Lua garbage collect
+
+  -- advance_RK (SSP-RK, the canonical pattern) -------------------------------
+     Vector<UpdateData> RK_step  (one slot per Eulerian state, keyed by data_idx)
+          struct UpdateData { MultiFab U; MultiFab dU; Status U_status, dU_status; }
+                              ^^^^^^^^^^^^^^^^^^^^^^^^  <-- THE per-step working
+                                                            data object (Sec 5)
+     STAGE 1 (RK1 / Euler):
+        for each action:  get_data        -> fill U (FillPatch w/ ghosts), zero dU
+                          calc_time_derivative      -> dU += sources(U)
+                          calc_spatial_derivative   -> dU += -div(flux)  (+flux regs)
+        new = old + dU                                (per state with dU "Changed")
+     STAGE 2 (if nsteps>=2):
+        re-get_data at time+dt (refills ghosts) ; recompute dU
+        new = 0.5*old + 0.5*(U1 + dt*dU1)             (SSP-RK2 combine)
+     ONE-SHOT:
+        for each action:  apply_time_derivative ; apply_spatial_derivative
+                          (e.g. tracer particle push -> writes new data directly)
+
+  -- advance_strang  ----------------------------------------------------------
+     Operator splitting:  half-dt SOURCES  ->  full-dt FLUX/TRANSPORT  ->  half-dt SOURCES
+     (same get_data/calc_*/apply_* calls, reordered around the flux sub-step).
+
+  -- Per-EulerianState flux machinery invoked inside calc_spatial_derivative ---
+     get_new_data(data_idx)  [conserved MultiFab]
+        -> calc_primitives  -> update_boundary_cells
+        -> reconstructor.calc_reconstruction (slopes, ghost width = num_grow)
+        -> update_face_prim / face_bc
+        -> flux_solver.calc_fluxes (Riemann) [+ shock_detector] [+ viscous fluxes]
+        -> (EB) calc_wall_fluxes, calc_eb_divergence, merge small cut cells
+        -> divergence -> dU
+
+  TIMESTEP (MFP_timestep.cpp):
+     estTimeStep() = cfl * min( all state->get_allowed_time_step(),
+                                all action->get_allowed_time_step() )    [reduced over MPI]
+     computeInitialDt / computeNewDt feed AMReX's sub-cycling.
+
+  POST-STEP (MFP.cpp):
+     post_timestep -> reflux (flux registers) + avgDown (fine->coarse) + particle redistribute
+     errorEst (MFP_refinement.cpp) -> each state->get_refinement_tags + user refine_boxes -> AMR regrid
+
+
+================================================================================
+ 5. WHERE THE DATA LIVES  (memory model)
+================================================================================
+
+  THERE ARE TWO DISTINCT "DATA OBJECTS":
+
+  (A) PERSISTENT solution state  -- owned by AMReX, NOT by the State classes.
+      [MFP : AmrLevel]  registers descriptors in  static DescriptorList desc_lst.
+      Each EulerianState's  data_idx  indexes AMReX StateData, holding old & new
+      MultiFabs, fetched via  get_old_data(data_idx) / get_new_data(data_idx).
+      Lagrangian states instead own  AmrParticleContainer particles  directly.
+            State object = descriptor + numerics (small).
+            AmrLevel     = the bulk grid data store (large), keyed by data_idx.
+
+  (B) TRANSIENT per-step working set  --  Vector<UpdateData>  in advance_RK/strang.
+      struct UpdateData { MultiFab U; MultiFab dU; Status ...; }   (actions/MFP_action.H)
+      One {U,dU} pair PER Eulerian state, allocated fresh each advance() call,
+      filled by get_data (U = state + ghost cells), accumulated into by every action,
+      then folded back into new_data.   <-- This allocate-per-step, per-state working
+      buffer is the data object whose memory handling is to be improved.
+
+  Supporting per-level memory:  EBData (EB geometry arrays), flux_reg[] (flux
+  registers for refluxing), level_mask (iMultiFab), Cost (load-balance MultiFab).
+
+
+================================================================================
+ 6. SOURCE DIRECTORY MAP
+================================================================================
+
+  Source/
+   |- main.cpp .................. entry point; drives AMReX Amr
+   |- MFP.H / MFP.cpp .......... [MFP:AmrLevel] core class: state vectors, lifecycle
+   |- MFPBld.cpp ............... [MFPBld:LevelBld] AMReX factory -> getLevelBld()
+   |- MFP_advance.cpp ......... advance / advance_RK / advance_strang  (Sec 4)
+   |- MFP_timestep.cpp ........ estTimeStep / computeNewDt
+   |- MFP_setup.cpp ........... variableSetUp / variableCleanUp / build_eb
+   |- MFP_config.cpp .......... read_config: Lua tables -> factory Build -> objects
+   |- MFP_io.cpp .............. plotfile / checkpoint / JSON info / archive(tar)
+   |- MFP_refinement.cpp ...... errorEst (AMR tagging)
+   |- MFP_prob.cpp ............ amrex_probinit stub (problem is all in Lua)
+   |- MFP_kyri_stl.* .......... EBGeometry-backed STL/SDF reader (newer/parallel)
+   |
+   |- config/ ................. sol2 Lua glue (MFP_lua.H, LuaContext.cpp) + default.lua schema
+   |- modules/
+   |    |- MFP_factory.H ...... ClassFactory<T> — the registration core (Sec 2)
+   |    |- MFP_refine.* ....... [Refinement] base for AMR tagging
+   |    |- MFP_optional_func.* . [Optional3D1VFunction] value-or-Lua-callback container
+   |    |- MFP_transforms.* ... vector rotation to/from face-local frames
+   |    |- MFP_rk4.H, MFP_pdf.* . ODE integrators ; [PDF] Maxwellian sampling
+   |    |- eb/ ................ embedded boundary: EBData/DataEB structs, SDF (FunctionIF,
+   |    |                        LuaSplineIF), initialize_EB2, STL/SVG readers, polyspline
+   |    |- boundary/ .......... MFP_bc (phys->component BC map), MFP_fillbc (FillBC/BoundaryState)
+   |    `- source/ ........... [Lorentz : Plasma5] stiff source RHS/Jacobian
+   |
+   |- states/ ................. State hierarchy (Sec 3)
+   |    |- MFP_state.* ........ [State] base + GetStateFactory
+   |    |- Eulerian/ .......... [EulerianState], MFP_reconstruction, riemann base, eb bc base
+   |    |    |- hydro/ ........ [HydroState] + riemann/ viscous/ gas/ refine/ bc/
+   |    |    |- mhd/ .......... [MHDState]  + riemann/ refine/ bc/
+   |    |    `- field/ ........ [FieldState]+ riemann/ refine/ bc/
+   |    `- Lagrangian/ ........ [LagrangianState] -> [TracerParticle],[ChargedParticle], distribution
+   |
+   |- actions/ ............... Action hierarchy (Sec 3/4)
+   |    |- MFP_action.* ...... [Action] base + UpdateData + GetActionFactory
+   |    |- (CTU_hydro, CTU_Braginskii, acceleration, current, damp_div_mhd, elliptic,
+   |    |   gas_kinetics, hydro_tracer, lorentz, plasma5, udf)
+   |    |- reactions/ ........ [Collisions] -> [CollisionsRambo]
+   |    `- sPIC/ ............. [Symplectic] PIC: symplectic, interpolation, theta, poly
+   |
+   |- diagnostics/ ........... MFP_diagnostics (matplotlibcpp debug plots, #ifdef PYTHON)
+   `- extern/ ................ third-party (AMReX via submodule, Eigen, Lua, sol2, json,
+                               Eilmer, autodiff, delaunator, rapidxml, AABB)   [not Cerberus code]
+
+
+================================================================================
+ 7. ONE-LINE MENTAL MODEL
+================================================================================
+   Lua problem file  --(factories)-->  States (own descriptors/numerics) +
+   Actions (own physics).  AMReX owns the AMR grids, sub-cycling time loop, and the
+   persistent solution MultiFabs (keyed by data_idx).  Each step, advance() builds a
+   transient Vector<UpdateData>{U,dU} working set, every Action accumulates its dU,
+   and the result is folded back into the new MultiFab.
+================================================================================
