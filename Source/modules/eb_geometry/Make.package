@@ -6,5 +6,9 @@
 CEXE_headers += MFP_ebgeometry_stl.H
 CEXE_sources += MFP_ebgeometry_stl.cpp
 
+# Node-shared SDF support (Tier 1). Step 1: flat BVH + traversal (no MPI yet).
+CEXE_headers += MFP_ebgeometry_nodeshared.H
+CEXE_sources += MFP_ebgeometry_nodeshared.cpp
+
 INCLUDE_LOCATIONS += $(TOP)/Source/modules/eb_geometry
 VPATH_LOCATIONS   += $(TOP)/Source/modules/eb_geometry

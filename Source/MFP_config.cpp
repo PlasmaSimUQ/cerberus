@@ -1,6 +1,7 @@
 #include "MFP.H"
 #include "MFP_action.H"
 #include "MFP_eb_sdf.H"
+#include "MFP_ebgeometry_nodeshared.H"
 #include "MFP_ebgeometry_stl.H"
 #include "MFP_read_geom.h"
 #include "MFP_state.H"
@@ -55,6 +56,7 @@ void MFP::read_config()
 #if AMREX_SPACEDIM > 1
     ReadEBGeometrySTL::register_with_lua(lua);
     ReadEBGeometrySTL_TriMesh::register_with_lua(lua);
+    FlatTriMeshSDF::register_with_lua(lua);  // Tier 1 step 1: flat-BVH reader + self-test
 #endif
 
 #ifdef AMREX_USE_EB
