@@ -54,6 +54,7 @@ void MFP::read_config()
     // fluid-only USE_EB=FALSE runs). It is only meaningful in 2D/3D.
 #if AMREX_SPACEDIM > 1
     ReadEBGeometrySTL::register_with_lua(lua);
+    ReadEBGeometrySTL_TriMesh::register_with_lua(lua);
 #endif
 
 #ifdef AMREX_USE_EB
