@@ -23,7 +23,11 @@ CERBERUS_GIT_VERSION := $(shell git describe --abbrev --dirty --always --tags)
 
 CHECK_UPDATES ?= FALSE
 
-EBGEOMETRY_HOME :=/home/kyriakos/EBGeometry
+# Location of the (header-only) EBGeometry library, used for STL/SDF geometry.
+# Set this in Make.local (see Make.local.template) as it is machine-specific.
+ifeq ($(strip $(EBGEOMETRY_HOME)),)
+  $(error ${RED}EBGEOMETRY_HOME is not set. Copy Make.local.template to Make.local and set EBGEOMETRY_HOME to your EBGeometry checkout.${END})
+endif
 INCLUDE_LOCATIONS += $(EBGEOMETRY_HOME)
 
 AMREX_HOME := $(TOP)/amrex

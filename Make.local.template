@@ -5,6 +5,10 @@
 # enable for code development as it enables more checks, such as array out of bounds
 # DEBUG = FALSE
 
+# Location of the (header-only) EBGeometry library checkout, used for STL/SDF geometry.
+# This is machine-specific and has no default; set it to your local checkout.
+# EBGEOMETRY_HOME = /path/to/EBGeometry
+
 # Dimensionality (1, 2 or 3)
 # DIM = 2
 

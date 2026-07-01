@@ -222,10 +222,12 @@ bool ThermallyPerfectGas::cons2prim(Vector<Real>& U, Vector<Real>& Q) const
     if (Q[+HydroDef::PrimIdx::Density] <= 0.0) {
         Print() << "\nDens floor active..." << Q[+HydroDef::PrimIdx::Density] << std::endl;
         Q[+HydroDef::PrimIdx::Density] = effective_zero;
-    } else if (Q[+HydroDef::PrimIdx::Prs] <= 0.0) {
+    }
+    if (Q[+HydroDef::PrimIdx::Prs] <= 0.0) {
         Print() << "\nPrs floor active..." << Q[+HydroDef::PrimIdx::Prs] << std::endl;
         Q[+HydroDef::PrimIdx::Prs] = effective_zero;
-    } else if (Q[+HydroDef::PrimIdx::Temp] <= 0.0) {
+    }
+    if (Q[+HydroDef::PrimIdx::Temp] <= 0.0) {
         Print() << "\nTemp floor active..." << Q[+HydroDef::PrimIdx::Temp] << std::endl;
         Q[+HydroDef::PrimIdx::Temp] = effective_zero;
     }
