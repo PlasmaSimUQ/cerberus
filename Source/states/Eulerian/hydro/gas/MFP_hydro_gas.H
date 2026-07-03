@@ -82,10 +82,35 @@ class HydroGas
     virtual std::string get_tag() const { return ""; }
     virtual void write_info(nlohmann::json& js) const;
 
+    // clamp face density/pressure ahead of a Riemann solve; returns the
+    // number of components that were clamped (all hydro gases share the
+    // HydroDef primitive layout so this lives on the base)
+    int apply_prim_floor(Vector<Real>& Q) const
+    {
+#ifdef MFP_PRIM_FLOOR
+        int n = 0;
+        if (Q[+HydroDef::PrimIdx::Density] < effective_zero) {
+            Q[+HydroDef::PrimIdx::Density] = effective_zero;
+            n += 1;
+        }
+        if (Q[+HydroDef::PrimIdx::Prs] < effective_zero) {
+            Q[+HydroDef::PrimIdx::Prs] = effective_zero;
+            n += 1;
+        }
+        return n;
+#else
+        return 0;
+#endif
+    }
+
     int idx;
     bool mass_const, charge_const;
     Vector<Real> mass, charge;
     Vector<std::string> comp_names;
+
+    // single source of truth for the positivity floor, mirroring the state's
+    // Lua-configurable EulerianState::effective_zero (set by HydroGasBuilder)
+    Real effective_zero = 1e-14;
 };
 
 template <typename D> std::unique_ptr<HydroGas> HydroGasBuilder(const sol::table& def)
@@ -97,7 +122,11 @@ template <typename D> std::unique_ptr<HydroGas> HydroGasBuilder(const sol::table
         // load the diffusion coefficients
 
         if (gas["type"] == D::tag) {
-            return std::unique_ptr<D>(new D(global_idx, gas));
+            std::unique_ptr<D> obj(new D(global_idx, gas));
+            // the ctor only sees the 'gas' sub-table; the floor threshold is a
+            // state-level key so it is picked up here for every gas type
+            obj->effective_zero = def["effective_zero"].get_or(1e-14);
+            return obj;
         } else {
             return nullptr;
         }

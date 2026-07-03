@@ -62,6 +62,11 @@ class HydroState : public EulerianState
         return out;
     }
 
+    virtual int apply_prim_floor(Vector<Real>& Q) const override
+    {
+        return gas->apply_prim_floor(Q);
+    }
+
     virtual const Vector<int> get_cons_vector_idx() const override
     {
         return arr2vec(cons_vector_idx);

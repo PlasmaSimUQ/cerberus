@@ -29,6 +29,11 @@
 # Set the location of the D-lang libraries
 # DLANG_LIB = /usr/lib
 
+# Density/pressure floors (cons2prim, wave-speed calc, pre-Riemann face clamp).
+# Disable to let FPE traps fire at the true origin of a negative state when
+# debugging. The floor threshold is the per-state Lua key 'effective_zero'.
+# USE_PRIM_FLOOR = TRUE
+
 # A simple timing table at the end of a simulation run
 # TINY_PROFILE = FALSE
 

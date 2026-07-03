@@ -216,21 +216,19 @@ bool ThermallyPerfectGas::cons2prim(Vector<Real>& U, Vector<Real>& Q) const
         Q[+HydroDef::PrimIdx::NUM + i] = U[+HydroDef::ConsIdx::NUM + i] * rhoinv;
     }
 
-    Real effective_zero = 1e-14;
-
-    // TODO(KYRI) hacks for days...
-    if (Q[+HydroDef::PrimIdx::Density] <= 0.0) {
-        Print() << "\nDens floor active..." << Q[+HydroDef::PrimIdx::Density] << std::endl;
+#ifdef MFP_PRIM_FLOOR
+    // lift sub-floor values as well as negatives: a tiny positive pressure
+    // gives an enormous sound speed and a collapsing time step
+    if (Q[+HydroDef::PrimIdx::Density] < effective_zero) {
         Q[+HydroDef::PrimIdx::Density] = effective_zero;
     }
-    if (Q[+HydroDef::PrimIdx::Prs] <= 0.0) {
-        Print() << "\nPrs floor active..." << Q[+HydroDef::PrimIdx::Prs] << std::endl;
+    if (Q[+HydroDef::PrimIdx::Prs] < effective_zero) {
         Q[+HydroDef::PrimIdx::Prs] = effective_zero;
     }
-    if (Q[+HydroDef::PrimIdx::Temp] <= 0.0) {
-        Print() << "\nTemp floor active..." << Q[+HydroDef::PrimIdx::Temp] << std::endl;
+    if (Q[+HydroDef::PrimIdx::Temp] < effective_zero) {
         Q[+HydroDef::PrimIdx::Temp] = effective_zero;
     }
+#endif
 
     return prim_valid(Q);
 }
@@ -319,6 +317,12 @@ RealArray ThermallyPerfectGas::get_speed_from_cons(const Vector<Real>& U) const
     Real mz = U[+HydroDef::ConsIdx::Zmom];
     Real ed = U[+HydroDef::ConsIdx::Eden];
 
+#ifdef MFP_PRIM_FLOOR
+    // this feeds the time step calculation with raw conserved data that has
+    // not passed through the cons2prim floors
+    rho = std::max(rho, effective_zero);
+#endif
+
     Real rhoinv = 1 / rho;
     Real u = mx * rhoinv;
     Real v = my * rhoinv;
@@ -326,6 +330,10 @@ RealArray ThermallyPerfectGas::get_speed_from_cons(const Vector<Real>& U) const
     Real ke = 0.5 * rho * (u * u + v * v + w * w);
     Real g = get_gamma_from_cons(U);
     Real p = (ed - ke) * (g - 1);
+
+#ifdef MFP_PRIM_FLOOR
+    p = std::max(p, effective_zero);
+#endif
 
     Real a = std::sqrt(g * p * rhoinv);
 
@@ -340,7 +348,15 @@ RealArray ThermallyPerfectGas::get_speed_from_prim(const Vector<Real>& Q) const
 
     Real g = get_gamma_from_prim(Q);
 
-    Real a = std::sqrt(g * Q[+HydroDef::PrimIdx::Prs] / Q[+HydroDef::PrimIdx::Density]);
+#ifdef MFP_PRIM_FLOOR
+    const Real rho = std::max(Q[+HydroDef::PrimIdx::Density], effective_zero);
+    const Real p = std::max(Q[+HydroDef::PrimIdx::Prs], effective_zero);
+#else
+    const Real rho = Q[+HydroDef::PrimIdx::Density];
+    const Real p = Q[+HydroDef::PrimIdx::Prs];
+#endif
+
+    Real a = std::sqrt(g * p / rho);
 
     RealArray s = {AMREX_D_DECL(a + std::abs(Q[+HydroDef::PrimIdx::Xvel]),
                                 a + std::abs(Q[+HydroDef::PrimIdx::Yvel]),

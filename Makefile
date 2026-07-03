@@ -124,6 +124,20 @@ ifeq ($(AMREX_PARTICLES), TRUE)
 endif
 
 
+#=== PRIM FLOOR ===
+# density/pressure floors in cons2prim, the wave-speed (timestep) calculation
+# and the pre-Riemann-solve face clamp. Disable to let FPE traps fire at the
+# true origin of a negative state when debugging.
+
+USE_PRIM_FLOOR ?= TRUE
+ifeq ($(USE_PRIM_FLOOR), TRUE)
+  DEFINES += -DMFP_PRIM_FLOOR
+else
+  fc_PRIM_FLOOR_OFF = TRUE
+  USERSuffix := $(USERSuffix).NOFLOOR
+endif
+
+
 #=== EILMER GAS ===
 
 ifndef EILMER_GAS

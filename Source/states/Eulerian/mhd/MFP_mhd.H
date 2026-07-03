@@ -45,6 +45,24 @@ class MHDState : public EulerianState
                 {+MHDDef::PrimIdx::Prs, effective_zero}};
     }
 
+    virtual int apply_prim_floor(Vector<Real>& Q) const override
+    {
+#ifdef MFP_PRIM_FLOOR
+        int n = 0;
+        if (Q[+MHDDef::PrimIdx::Density] < effective_zero) {
+            Q[+MHDDef::PrimIdx::Density] = effective_zero;
+            n += 1;
+        }
+        if (Q[+MHDDef::PrimIdx::Prs] < effective_zero) {
+            Q[+MHDDef::PrimIdx::Prs] = effective_zero;
+            n += 1;
+        }
+        return n;
+#else
+        return 0;
+#endif
+    }
+
     virtual const Vector<int> get_cons_vector_idx() const override
     {
         return arr2vec(cons_vector_idx);

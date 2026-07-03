@@ -80,6 +80,10 @@ class EulerianState : public State
     // primitive components that must not drop below a floor after reconstruction,
     // as (component index, minimum allowed face value) pairs
     virtual Vector<std::pair<int, Real>> get_positive_prim() const { return {}; }
+
+    // last line of defense: clamp a primitive face state immediately before a
+    // Riemann solve; returns the number of components that were clamped
+    virtual int apply_prim_floor(Vector<Real>& Q) const { return 0; }
     virtual int get_num_grow() const = 0;
     virtual void set_num_grow(int n) = 0;
 

@@ -1057,6 +1057,8 @@ void EulerianState::calc_fluxes(const Box& box,
     Vector<int> prim_vector_idx = get_prim_vector_idx();
     Vector<int> cons_vector_idx = get_cons_vector_idx();
 
+    long n_floor_hits = 0;
+
     // cycle over dimensions
     for (int d = 0; d < AMREX_SPACEDIM; ++d) {
         FArrayBox& flux = fluxes[d];
@@ -1093,6 +1095,11 @@ void EulerianState::calc_fluxes(const Box& box,
                         R[n] = lo4(i, j, k, n);
                     }
 
+                    // guard the solver against non-positive density/pressure
+                    // from any face source (reconstruction, CTU corrections)
+                    n_floor_hits += apply_prim_floor(L);
+                    n_floor_hits += apply_prim_floor(R);
+
                     // rotate the vectors
                     transform_global2local(L, d, prim_vector_idx);
                     transform_global2local(R, d, prim_vector_idx);
@@ -1115,6 +1122,11 @@ void EulerianState::calc_fluxes(const Box& box,
                 }
             }
         }
+    }
+
+    if ((n_floor_hits > 0) && (MFP::verbosity >= 2)) {
+        Print() << "[" << name << "] prim floor applied to " << n_floor_hits
+                << " face components\n";
     }
 
     return;

@@ -5,6 +5,7 @@ export fc_EB_NO_USER_WRONG_DIM fc_EB_NO_USER fc_EB_WRONG_DIM
 export fc_PARTICLES_NO_USER fc_PARTICLES_WRONG_DIM
 export fc_EILMER_NO_USER EILMER_GAS
 export SYMPLECTIC
+export USE_PRIM_FLOOR fc_PRIM_FLOOR_OFF
 
 # store the executable name
 EXEC_PATH:=$(.DEFAULT_GOAL)
@@ -82,6 +83,9 @@ build_flags_check:
     fi; \
     if [ "$(fc_EILMER_NO_USER)" = TRUE ]; then \
       echo "${YELLOW}EILMER_GAS not set by user. Defaulting to FALSE${END}"; \
+    fi; \
+    if [ "$(fc_PRIM_FLOOR_OFF)" = TRUE ]; then \
+      echo "${RED}USE_PRIM_FLOOR=FALSE: density/pressure floors disabled - FPE traps will fire on negative states${END}"; \
     fi; \
     if [ "$(TINY_PROFILE)" = TRUE ]; then \
       echo "${YELLOW}TINY_PROFILE=TRUE. A timing table will be output at the end of each simulation${END}"; \
