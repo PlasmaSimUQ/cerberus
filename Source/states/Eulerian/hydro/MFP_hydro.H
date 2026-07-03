@@ -53,6 +53,15 @@ class HydroState : public EulerianState
     virtual size_t n_cons() const override { return +HydroDef::ConsIdx::NUM + n_tracers; }
     virtual size_t n_prim() const override { return +HydroDef::PrimIdx::NUM + n_tracers; }
 
+    virtual Vector<std::pair<int, Real>> get_positive_prim() const override
+    {
+        Vector<std::pair<int, Real>> out = {{+HydroDef::PrimIdx::Density, effective_zero},
+                                            {+HydroDef::PrimIdx::Prs, effective_zero}};
+        // tracer mass fractions may legitimately be exactly zero
+        for (int i = 0; i < n_tracers; ++i) { out.push_back({+HydroDef::PrimIdx::NUM + i, 0.0}); }
+        return out;
+    }
+
     virtual const Vector<int> get_cons_vector_idx() const override
     {
         return arr2vec(cons_vector_idx);

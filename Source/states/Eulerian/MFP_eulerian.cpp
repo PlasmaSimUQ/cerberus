@@ -35,6 +35,32 @@ void EulerianState::set_reconstruction()
         Abort("Invalid reconstruction option '" + rec + "'. Options are " +
               vec2str(rfact.getKeys()));
 
+    // optional positivity fallback, enabled by the presence of the key
+    std::string fb = state_def["reconstruction_fallback"].get_or<std::string>("");
+
+    if (!fb.empty()) {
+        if (fb == "null")
+            Abort("reconstruction_fallback for state '" + name + "' cannot be 'null'");
+
+        // the reconstruction builders only read the "reconstruction" entry, so hand
+        // them a single-entry table rather than modifying the shared state definition
+        sol::table fb_def = MFP::lua.create_table();
+        fb_def["reconstruction"] = fb;
+
+        fallback_reconstructor = rfact.Build(fb, fb_def);
+
+        if (!fallback_reconstructor)
+            Abort("Invalid reconstruction_fallback option '" + fb + "'. Options are " +
+                  vec2str(rfact.getKeys()));
+
+        // the fallback stencil must fit inside the primary's so that troubled faces
+        // can be redone from the already gathered data without extra ghost cells
+        if (fallback_reconstructor->stencil_length > reconstructor->stencil_length)
+            Abort("reconstruction_fallback '" + fb + "' for state '" + name +
+                  "' has a wider stencil than reconstruction '" + rec +
+                  "' - the fallback must be a lower order scheme");
+    }
+
     int ng = reconstructor->get_num_grow();
     set_num_grow(ng);
 
@@ -546,6 +572,27 @@ void EulerianState::calc_reconstruction(const Box& box,
     Array<int, 3> stencil_index;
     Real lo_face, hi_face;
 
+    // positivity fallback set-up, hoisted out of the loops
+    const bool has_fallback = (fallback_reconstructor != nullptr);
+    Vector<int> guard(n_prim(), 0);
+    Vector<Real> guard_min(n_prim(), 0.0);
+    Vector<Real> fb_stencil;
+    int fb_len = 0;
+    int fb_shift = 0;
+    long n_fallback_hits = 0;
+
+    if (has_fallback) {
+        for (const auto& gp : get_positive_prim()) {
+            guard[gp.first] = 1;
+            guard_min[gp.first] = gp.second;
+        }
+        // the fallback stencil is a centred subset of the primary's
+        // (enforced in set_reconstruction)
+        fb_len = fallback_reconstructor->stencil_length;
+        fb_shift = offset - fb_len / 2;
+        fb_stencil.resize(fb_len);
+    }
+
     // cycle over dimensions
     for (int d = 0; d < AMREX_SPACEDIM; ++d) {
         // make sure our arrays for putting lo and hi reconstructed values into
@@ -565,6 +612,9 @@ void EulerianState::calc_reconstruction(const Box& box,
 
         // cycle over all components
         for (int n = 0; n < n_prim(); ++n) {
+            const bool guarded = has_fallback && (guard[n] != 0);
+            const Real face_min = guard_min[n];
+
             for (int k = lo.z; k <= hi.z; ++k) {
                 for (int j = lo.y; j <= hi.y; ++j) {
                     AMREX_PRAGMA_SIMD
@@ -595,12 +645,38 @@ void EulerianState::calc_reconstruction(const Box& box,
                         // perform reconstruction
                         reconstructor->get_face_values(stencil, lo_face, hi_face);
 
+                        if (guarded && ((lo_face < face_min) || (hi_face < face_min))) {
+                            // redo this face with the lower order scheme, fed from
+                            // the centre of the stencil that is already in hand
+                            for (int s = 0; s < fb_len; ++s) {
+                                fb_stencil[s] = stencil[s + fb_shift];
+                            }
+
+                            fallback_reconstructor->get_face_values(fb_stencil,
+                                                                    lo_face,
+                                                                    hi_face);
+
+                            // a non-TVD fallback can itself overshoot - as a last
+                            // resort drop to the cell centre value (first order)
+                            if ((lo_face < face_min) || (hi_face < face_min)) {
+                                lo_face = src4(i, j, k, n);
+                                hi_face = lo_face;
+                            }
+
+                            ++n_fallback_hits;
+                        }
+
                         lo4(i, j, k, n) = lo_face;
                         hi4(i, j, k, n) = hi_face;
                     }
                 }
             }
         }
+    }
+
+    if ((n_fallback_hits > 0) && (MFP::verbosity >= 2)) {
+        Print() << "[" << name << "] reconstruction fallback applied to " << n_fallback_hits
+                << " faces\n";
     }
 
     return;

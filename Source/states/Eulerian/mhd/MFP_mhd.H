@@ -39,6 +39,12 @@ class MHDState : public EulerianState
     virtual size_t n_cons() const override { return +MHDDef::ConsIdx::NUM; }
     virtual size_t n_prim() const override { return +MHDDef::PrimIdx::NUM; }
 
+    virtual Vector<std::pair<int, Real>> get_positive_prim() const override
+    {
+        return {{+MHDDef::PrimIdx::Density, effective_zero},
+                {+MHDDef::PrimIdx::Prs, effective_zero}};
+    }
+
     virtual const Vector<int> get_cons_vector_idx() const override
     {
         return arr2vec(cons_vector_idx);

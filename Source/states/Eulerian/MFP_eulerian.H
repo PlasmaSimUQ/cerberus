@@ -55,6 +55,10 @@ class EulerianState : public State
 
     std::unique_ptr<Reconstruction> reconstructor;
 
+    // optional lower-order scheme used to redo face values that violate positivity;
+    // null unless the state defines 'reconstruction_fallback'
+    std::unique_ptr<Reconstruction> fallback_reconstructor;
+
     virtual StateClassification get_classification() const override
     {
         return StateClassification::Eulerian;
@@ -72,6 +76,10 @@ class EulerianState : public State
 
     virtual void set_reflux();
     virtual void set_reconstruction();
+
+    // primitive components that must not drop below a floor after reconstruction,
+    // as (component index, minimum allowed face value) pairs
+    virtual Vector<std::pair<int, Real>> get_positive_prim() const { return {}; }
     virtual int get_num_grow() const = 0;
     virtual void set_num_grow(int n) = 0;
 
