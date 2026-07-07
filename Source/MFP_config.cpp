@@ -4,6 +4,7 @@
 #include "MFP_ebgeometry_nodeshared.H"
 #include "MFP_eos_table.H"
 #include "MFP_ebgeometry_stl.H"
+#include "MFP_hydro.H"
 #include "MFP_read_geom.h"
 #include "MFP_state.H"
 #include "MFP_utility.H"
@@ -162,6 +163,27 @@ void MFP::read_config()
     //
 
     for (auto& istate : states) { istate->init_from_lua(); }
+
+    // tabulated-EOS / MHD incompatibility guard (plan W14): the MHD state
+    // hard-codes a constant-gamma ideal gas (see MFP_mhd.H at the `gamma`
+    // member), so running it alongside a tabulated-gas hydro state would
+    // silently mix inconsistent physics. Abort at config time instead.
+    // Lifting path: doc/eos_implementation_plan.md section 6.
+    {
+        std::string mhd_name, tab_name;
+        for (auto& istate : states) {
+            if (istate->get_type() == State::StateType::MHD) mhd_name = istate->name;
+            if (istate->get_type() == State::StateType::Hydro) {
+                auto& hydro = static_cast<HydroState&>(*istate);
+                if (hydro.gas && hydro.gas->get_tag() == "tabulated") tab_name = istate->name;
+            }
+        }
+        if (!mhd_name.empty() && !tab_name.empty()) {
+            Abort("MHD state '" + mhd_name + "' cannot be combined with hydro state '" + tab_name +
+                  "' using gas={type='tabulated'}: MHD assumes a constant-gamma ideal gas "
+                  "(see MFP_mhd.H and doc/eos_implementation_plan.md section 6)");
+        }
+    }
 
     //
     // forced refinement

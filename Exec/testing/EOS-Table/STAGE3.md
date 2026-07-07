@@ -196,18 +196,43 @@ Design — **twin-run comparison**, the sharpest cheap gate available:
 
 ## Stage-3 deliverables checklist
 
-- [ ] Verification reads done (define_rho_p_T convention, cons2prim-`false`
+- [x] Verification reads done (define_rho_p_T convention, cons2prim-`false`
       contract, `MFP_PRIM_FLOOR` build gating) — before coding W6
-- [ ] `MFP_tabulated_gas.{H,cpp}` + factory registration
-- [ ] Reference-quantity ordering verified/asserted before table load
-- [ ] Flux-mode defaults: tabulated → existing solver with γₑ slot
+- [x] `MFP_tabulated_gas.{H,cpp}` + factory registration
+- [x] Reference-quantity ordering verified/asserted before table load
+- [x] Flux-mode defaults: tabulated → existing solver with γₑ slot
       (`effective_gamma` semantics), `flux` override honoured,
       `HLLC_general_eos` still aborts
-- [ ] `Exec/testing/EOS-Sod-Ideal/` twin-run case green (vs TPG and vs
+- [x] `Exec/testing/EOS-Sod-Ideal/` twin-run case green (vs TPG and vs
       analytic; guessed tolerances replaced by committed measured ones),
       conservation clean
-- [ ] Twin-run wall-time ratio (tabulated/TPG) measured, ≤ budget (≤ 3×
-      placeholder until measured)
-- [ ] MHD header comments + config-time abort (message pointing at plan §6),
+- [x] Twin-run wall-time ratio (tabulated/TPG) measured, ≤ budget
+- [x] MHD header comments + config-time abort (message pointing at plan §6),
       negative test observed
-- [ ] Full suite matches `baseline/` (verdict-identity)
+- [x] Full suite matches `baseline/` (verdict-identity)
+
+### Stage-3 results notes (2026-07-08)
+
+- **Verification-read findings.** (1) `define_rho_p_T`: positivity = given,
+  priority (rho,p)→T then (p,T)→rho then (rho,T)→p — mirrored exactly.
+  (2) `cons2prim`'s `return prim_valid(Q)` is NOT a graceful failure
+  channel: `prim_valid` **aborts** on non-positive rho/p/T, and with
+  `MFP_PRIM_FLOOR` (make flag `USE_PRIM_FLOOR`, default TRUE) the floors lift
+  values first, so the bool is effectively always true. Inversion
+  non-convergence therefore floors + proceeds rather than returning false.
+  (3) Ordering confirmed in code: `MFP::update_ref()` (MFP_config.cpp:114)
+  runs before state `init_from_lua()` (:164) — the ctor asserts anyway.
+- **Units.** The `.eostab` file is CGS, Cerberus references are SI: the
+  ctor converts refs to CGS before `nondimensionalise` (rho ×1e-3,
+  u ×1e2, p ×10).
+- **Twin-run measured numbers** (2048 cells, minmod/HLLC, 4 ranks): twin L1
+  per field 1.5e-4 (rho) … 4.1e-4 (T) — committed tol 1e-3; vs exact
+  Riemann: tabulated 1.804e-3 vs TPG 1.818e-3 (tabulated marginally
+  *closer*); mass/energy drift 0; **advance-time ratio 2.67** (1.27 s vs
+  0.48 s) vs budget 3× — the granular-getter inversion cost is real but
+  bounded, thanks to the inverse-map seeds; the dedup design stays parked.
+- The Sod case needed an explicit `actions = {fluxes = {type='CTU', ...}}`
+  block — states define data, actions apply physics; a state without an
+  action advances time but never changes (caught on first smoke run).
+- W14 negative test observed: two-state config aborts with the message
+  naming both states and pointing at plan §6.

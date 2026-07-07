@@ -1,0 +1,5 @@
+data/
+*plt*
+run_log_*.txt
+plot.png
+Backtrace.*

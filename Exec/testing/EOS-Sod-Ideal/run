@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+# Twin-run Sod shock tube: thermally_perfect vs tabulated on a synthetic
+# gamma=1.4 table (Stage 3, W9 — see problem_definition.lua). Release build:
+# this is a physics + wall-time comparison, not a debug harness.
+(cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE)
+
+EXE=../../local/MFP.1d.gnu.MPI.ex
+
+# fine synthetic table (256x256 keeps interpolation error ~1e-4-level);
+# ~10 MB so it is generated here rather than committed
+mkdir -p data
+[ -f data/sod_synthetic.eostab ] || \
+    python3 ../../python_analysis/eos_table_prep.py synthetic \
+        --out data/sod_synthetic.eostab --n-rho 256 --n-T 256
+
+rm -rf *plt* chk*
+
+mpirun -n 4 ${EXE} Sod-ideal.inputs     2>&1 | tee run_log_ideal.txt
+mpirun -n 4 ${EXE} Sod-tabulated.inputs 2>&1 | tee run_log_tabulated.txt
+
+python3 check.py

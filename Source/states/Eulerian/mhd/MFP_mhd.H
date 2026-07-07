@@ -30,6 +30,14 @@ class MHDState : public EulerianState
     static std::map<std::string, int> bc_names;
     static Vector<set_bc> bc_set;
 
+    // NOTE (tabulated-EOS incompatibility, plan W14): the MHD state assumes
+    // a CONSTANT-gamma ideal gas throughout — this single gamma is baked
+    // into cons2prim/prim2cons and the wave speeds (MFP_mhd.cpp:327,360,
+    // 403,411,434) and the HLLE flux (mhd/riemann/MFP_mhd_hlle.cpp). It is
+    // therefore physically inconsistent with hydro states using
+    // gas = {type='tabulated'}; read_config aborts that combination. The
+    // lifting path (general-EOS MHD, Athena++ pattern) is planned in
+    // doc/eos_implementation_plan.md section 6.
     Real gamma;
 
     Real div_transport;

@@ -253,7 +253,58 @@ becomes load-bearing in the solver.
 
 ## 9. How it is used in the code today
 
-Exactly one live entry point: **the debug self-test hook**.
+Two live entry points: the `TabulatedEOS` gas model (§9a) and the debug
+self-test hook (§9b).
+
+### 9a. The `TabulatedEOS` gas model (Stage 3, W6)
+
+`Source/states/Eulerian/hydro/gas/MFP_tabulated_gas.{H,cpp}` is a `HydroGas`
+backend (the same plug-in interface the ideal-gas and Eilmer models
+implement) built on `EosTable`. Configured per state in Lua:
+
+```lua
+gas = {
+    type   = 'tabulated',
+    table  = 'data/D_fpeos.eostab',  -- path relative to the run directory
+    mass   = 1.0,                    -- code units, TPG array conventions
+    charge = 0.0,
+    -- optional: names, ttol (default 1e-10), max_newton (default 100)
+}
+```
+
+How the interface maps onto the reader:
+
+- **`cons2prim`** (conserved → primitive, every cell every step): subtract
+  kinetic energy, `invert_T_from_e`, then `eval_rt` fills pressure and
+  temperature. The `Gamma` slot gets the energy-consistent effective gamma
+  γₑ = 1 + p/(ρe), so the **unchanged** Riemann solvers reconstruct the
+  exact face energy from p/(γₑ−1); the `SpHeat` slot carries cp from the
+  general-EOS identity cp = cv + (T/ρ²)(∂p/∂T)²/(∂p/∂ρ). Floors mirror the
+  ideal-gas model (`MFP_PRIM_FLOOR`).
+- **`prim2cons`**: `invert_T_from_p` then `eval_rt` for e; total energy =
+  ρe + kinetic.
+- **`define_rho_p_T`** (initial conditions): same "positive means given"
+  convention as the ideal model — (ρ,p) given → invert for T; (p,T) given →
+  `invert_rho_from_p`; (ρ,T) given → direct `eval_rt`.
+- **`get_speed_from_cons/prim`** (CFL time step): the **true table sound
+  speed** — exact even though the flux mode is `effective_gamma`.
+- **Units**: the constructor calls `nondimensionalise` with the `MFP`
+  reference quantities converted from SI to the table's CGS (ρ ×10⁻³,
+  u ×10², p ×10), after asserting the references are set.
+- **Tracers are thermodynamically passive** (one table closes the state);
+  mass/charge arrays exist so the plasma source terms work unchanged.
+- **MHD is guarded**: combining an MHD state (hard-coded constant γ) with a
+  tabulated hydro state aborts at configuration time with a message pointing
+  at the lifting plan.
+
+Validation: `Exec/testing/EOS-Sod-Ideal/` runs the same Sod shock tube with
+the ideal-gas model and with the tabulated model on a synthetic γ=1.4 table;
+the two agree to 1.5–4×10⁻⁴ per field (table-interpolation level), both sit
+equally close to the exact Riemann solution, conservation is exact, and the
+tabulated run costs 2.7× the ideal run's stepping time (inversions are
+cheap because of the inverse-map seeds).
+
+### 9b. The debug self-test hook (Stage 2, W5)
 `EosTable::register_with_lua` (called from `MFP::read_config`,
 `Source/MFP_config.cpp`) registers the Lua function
 
@@ -292,14 +343,6 @@ python3 ../../python_analysis/eos_table_prep.py fpeos \
 
 ## 10. *(future)* How the solver will use it
 
-- **Stage 3 (W6):** a `TabulatedEOS` gas model (`gas = {type='tabulated',
-  table='D_fpeos.eostab', ...}` in Lua) implements the existing `HydroGas`
-  interface on top of `EosTable`: `cons2prim` becomes an `invert_T_from_e`
-  call, `prim2cons` an `invert_T_from_p` call, initial conditions use
-  `invert_rho_from_p`. The constructor calls `nondimensionalise` with the
-  `MFP` reference quantities. Existing gas models and solvers are untouched;
-  the `Gamma` slot carries the energy-consistent effective gamma so the
-  standard Riemann solvers work unchanged (`effective_gamma` mode, plan D2).
 - **Stage 5 (W10):** a separate Riemann solver `HLLC_general_eos`
   (Athena++'s pattern) evaluates face energies and sound speeds directly
   from the table through two new `HydroGas` virtuals; until it lands, the
