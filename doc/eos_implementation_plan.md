@@ -4,6 +4,8 @@ Status: planning (2026-07-05; revised 2026-07-07 after a critical review of
 the stage plans and a study of Athena++'s general-EOS implementation —
 `src/eos/general/` in PrincetonUniversity/athena — which informs D2, D5, D8,
 W10 and the new §6 MHD plan). Companion documents:
+- `doc/eos_table_reader.md` — standalone documentation of the `EosTable`
+  reader and how the code uses it (kept current as stages land)
 - `Cerberus_TabularEOS_Implementation_Plan.txt` — physics/2T design study (FLASH/Microphysics provenance)
 - `MFP_eos_tab2T.H` — annotated draft header for the eventual two-temperature design
 - `EOS_Summary.txt`, `EOS_OpenSource_Port.txt` — background and data-supply notes

@@ -1,0 +1,309 @@
+# The tabulated-EOS reader (`EosTable`)
+
+Standalone documentation for the EOS table reader and how it is used in the
+code. Status: covers the machinery as of Stage 2 of
+`doc/eos_implementation_plan.md`; sections marked *(future)* describe how
+later stages will consume it, and this document is updated as they land.
+
+Related documents:
+- `doc/eos_implementation_plan.md` — the engineering plan (design decisions
+  referenced here as D1–D10, work items W1–W15).
+- `Exec/testing/EOS-Table/README.md` — the frozen `.eostab` file-format
+  specification and the Stage-1 data-conditioning results.
+
+---
+
+## 1. What it is, in one paragraph
+
+Cerberus normally closes the fluid equations with an ideal-gas law
+(p = (γ−1)ρe, one line of algebra). For warm-dense-matter problems the real
+material behaviour is only available as *data* — a table of pressure and
+energy over a grid of density and temperature, produced offline from
+first-principles simulation results. `EosTable` is the class that reads such
+a table from disk, holds it in memory, and answers the two kinds of question
+a hydro code asks an equation of state:
+
+1. **Forward:** "at this density and temperature, what are p, e, the sound
+   speed, and the thermodynamic derivatives?" — one interpolation.
+2. **Inverse:** "I know the density and the internal energy (or pressure) —
+   what temperature is the material at?" — a small root-finding problem
+   (finding where a curve crosses a target value), because the table is
+   stored with temperature as an input, not an output.
+
+## 2. Where the pieces live
+
+| Piece | Location |
+|---|---|
+| Reader/evaluator (C++) | `Source/states/Eulerian/hydro/gas/MFP_eos_table.{H,cpp}` |
+| Table *maker* (Python, offline) | `Exec/python_analysis/eos_table_prep.py` |
+| Format spec + conditioned tables | `Exec/testing/EOS-Table/` (`README.md`, `data/*.eostab`) |
+| Self-test harness | `Exec/testing/EOS-Table/{problem_definition.lua, onezone.inputs, run, check.py}` |
+| Lua registration | `Source/MFP_config.cpp` (`EosTable::register_with_lua`) |
+
+The division of labour is deliberate (plan D4): **all data curation happens
+offline in Python** — regridding scattered source points, smoothing
+derivatives, flooring cv, building inverse maps — where it can be inspected,
+plotted and version-controlled. The C++ reader parses exactly one canonical
+format and does *no* conditioning; if a file is malformed it stops the run
+immediately rather than computing with suspect data.
+
+## 3. The `.eostab` file (what the reader reads)
+
+A plain-text file (ASCII — human-readable, diff-able in git; tables are only
+~1 MB). Authoritative spec: `Exec/testing/EOS-Table/README.md` §W2, mirrored
+in the docstring of `eos_table_prep.py`. Structure:
+
+```
+EOSTAB 1                       <- magic line (file-type check) + version
+material: D                    <- free-form provenance key/value lines
+source: FPEOS ...                 (where the data came from, when, how)
+units: cgs
+e_shift: 1.23e+12              <- constant added to e so it is positive
+conditioning: cv_floor=...     <- record of what the offline tool changed
+grid: n_rho=96 n_T=96          <- grid dimensions
+lrho: -2.7 3.2                 <- log10 axis ranges (axes are reconstructed
+lT: 4.19 7.81                     from range+count, never stored as arrays)
+le: ... n_e=96                 <- axes for the inverse maps
+lp: ... n_p=96
+block: p                       <- then the data blocks, each a header line
+1.29e+09 4.71e+09 ...             followed by n_rho*n_T numbers
+block: e
+...
+```
+
+Nine blocks, all on the same (density, temperature) grid unless noted:
+
+| Block | Meaning | Used for |
+|---|---|---|
+| `p`, `e` | pressure, specific internal energy | the value surfaces everything interpolates |
+| `dpdT`, `dpdrho`, `cv`, `dedrho` | pre-smoothed derivative tables | sound speed and the other derivative outputs — **outputs only, never the Newton slope** (see §6) |
+| `T_of_e`, `T_of_p` | pre-inverted maps T(ρ,e), T(ρ,p) on their own energy/pressure axes | starting guesses ("seeds") for the inversions |
+| `hull` | 1.0 = real source data here, 0.0 = cell filled by the tool | flagging queries that land outside the trustworthy region |
+
+Two format details worth understanding:
+
+- **Everything is stored in ordinary CGS units** (grams, centimetres,
+  Kelvin). Cerberus works internally in nondimensional units (all quantities
+  scaled by reference values so they are O(1) numbers); the conversion
+  happens **once at load time** (§5), so no evaluation ever multiplies by a
+  unit factor.
+- **The hull** exists because real source data is ragged: the FPEOS dataset
+  has 5–16 temperature points per density, so when the tool regrids onto a
+  rectangle, ~23% of cells have no data behind them. Those cells hold
+  copies of the nearest real value (so arithmetic never sees garbage) and a
+  0 in the hull mask (so the reader can *tell you* the answer is
+  extrapolated).
+
+## 4. The C++ objects and their lifecycle
+
+Three small types (all in `MFP_eos_table.H`):
+
+- **`EosTable`** — the owner. Holds the data in `std::vector<Real>` arrays
+  (plain resizable memory on the CPU — plan D6 is CPU-only for v1). You
+  `load()` it once, optionally `nondimensionalise()` once, then ask it for a
+  view.
+- **`EosTableView`** — a small struct of raw pointers + grid constants
+  (POD, "plain old data": something that can be copied byte-for-byte with no
+  hidden machinery). It does not own anything; it is the cheap handle that
+  evaluation functions take. This owner/view split is the structure a future
+  GPU port needs — a view can be copied to a device kernel wholesale —
+  without any GPU code existing today.
+- **`EosEval`** — the result of one evaluation: ρ, T, p, e, sound speed
+  `cs`, `gam1` (Γ₁ = ρc²/p, the "effective gamma" the wave-speed estimates
+  want), the derivative combinations the Riemann solvers need (`dpde`,
+  `dpdr_e`), the raw derivatives, and a `clamped` flag (§7).
+
+Typical use (this is exactly what the self-test does):
+
+```c++
+EosTable tab;
+tab.load("data/D_fpeos.eostab");     // parse + validate; aborts on bad input
+// tab.nondimensionalise(rho_ref, T_ref, prs_ref, u_ref);  // Stage 3 does this
+EosTableView v = tab.view();
+
+EosEval out;
+EosTable::eval_rt(v, rho, T, out);   // forward: (rho, T) -> everything
+
+EosInvertStats st;
+Real T2 = EosTable::invert_T_from_e( // inverse: (rho, e) -> T
+    v, rho, e_target, /*T_guess=*/-1.0, tab.ttol, tab.max_newton, st);
+```
+
+The evaluation functions are `static` (they belong to the class but need no
+particular object — they act only on the view you pass them), which keeps
+them free of hidden state and trivially testable.
+
+## 5. Loading and units
+
+`load(path)` parses the header, reads every block, and **hard-validates**:
+magic line, grid dimensions > 1, every value finite, cv > 0 everywhere, hull
+values exactly 0 or 1, required blocks present and full-length. Any failure
+calls `amrex::Abort` (immediate stop of the whole run) with the file name
+and the offending item — the philosophy is that a bad table should be
+impossible to run with, not a warning you can scroll past. On success it
+prints a short load report echoing the provenance lines (`material`,
+`source`, `e_shift`, `conditioning`), so the log records exactly which data
+produced the results.
+
+Every MPI rank (each parallel process of the simulation) reads the file
+independently — consistent with how Cerberus runs its Lua configuration on
+every rank (plan D9). At ~1 MB per table this is harmless; a shared-memory
+scheme like the STL/SDF work is a drop-in later if tables grow.
+
+`nondimensionalise(rho_ref, T_ref, prs_ref, u_ref)` divides every block by
+the appropriate combination of reference quantities and shifts the
+logarithmic axes (dividing a quantity by a constant is a constant *shift* in
+log space, so the uniform grid stays uniform). It may be called exactly once
+— a second call aborts, which prevents double-scaling bugs. Note the
+self-test never calls it: it runs in "dimensional mode" because it executes
+during configuration reading, before the reference quantities are
+guaranteed to exist.
+
+One subtlety recorded in the file itself: **`e_shift`**. First-principles
+energies are negative at low temperature (bound states), but much of the
+hydro machinery implicitly prefers e > 0. The zero point of internal energy
+is physically arbitrary, so the offline tool adds a constant to make the
+whole table positive and records that constant in the header. It cancels
+identically in anything the dynamics depends on — *provided every quantity
+comes from the same table*, which is why the shift lives in the table file
+and not in user configuration.
+
+## 6. Forward evaluation: `eval_rt`
+
+Interpolation is **bilinear in (log₁₀ρ, log₁₀T)** — the four grid values
+surrounding the query point are blended linearly in each direction. Log
+axes because the data spans ~6 decades in density; bilinear because it is
+cheap, monotone within a cell (it cannot invent new maxima), and its slope
+is available in closed form (needed by the inversions). The known trade-off
+is that the interpolated surface is C⁰ (continuous values but slightly
+kinked slopes at cell edges); a smoother bicubic scheme is a possible later
+upgrade on the same file format.
+
+After interpolating the six stored surfaces, the Riemann-contract outputs
+are combined algebraically (plan D5):
+
+```
+dpde   = dpdT / cv                        (pressure response to energy)
+dpdr_e = dpdrho − dpde · dedrho           (pressure response to density at fixed e)
+cs²    = max(dpdrho + (T/ρ²)·dpdT²/cv, 0) (sound speed; floored at zero so a
+                                           badly-conditioned corner degrades
+                                           accuracy rather than producing an
+                                           imaginary wave speed)
+gam1   = ρ·cs²/p
+```
+
+## 7. Inverse evaluation: the guarded, seeded Newton
+
+`invert_T_from_e` / `invert_T_from_p` (recover T along a fixed-density line)
+and `invert_rho_from_p` (recover ρ along a fixed-temperature line — used for
+initial conditions specified as "this pressure at this temperature") all run
+the same driver:
+
+1. **Seed.** Look up the pre-inverted map (`T_of_e`/`T_of_p`) — one
+   bilinear read that lands within interpolation error of the answer. This
+   is the idea adopted from Athena++'s EOS tables, and it is why inversions
+   cost ~2–3 iterations in practice instead of ~tens. Without a map, the
+   caller's guess or the axis midpoint is used.
+2. **Bracket.** The root is confined to the table's temperature (or
+   density) range. If the target value is not attainable anywhere on that
+   line, there is no root: the driver returns the nearer endpoint and sets
+   `flag = 1` — the caller decides what a clamped answer means.
+3. **Newton iteration** (root refinement using the local slope), where the
+   slope is the **analytic derivative of the bilinear interpolant itself**,
+   *not* the smoothed `cv`/`dpdT` blocks. This matters: the smoothed blocks
+   were conditioned offline and disagree slightly with the value surface by
+   construction, so iterating with them can stall just above the tolerance;
+   the interpolant's own slope is exactly consistent with the values being
+   matched.
+4. **Safeguards.** Any Newton step that would leave the bracket becomes a
+   bisection step (halving the bracket — slow but unconditionally safe), and
+   the step is size-checked *before* the division (`|f| ≤ |slope|·(hi−lo)`)
+   so a near-zero slope can never cause a floating-point overflow — with
+   `amrex.fpe_trap_*` enabled (a debugging option that turns floating-point
+   anomalies into immediate crashes) that overflow would abort the run.
+   This guard was added after the real FPEOS table triggered exactly that
+   at a filled-cell boundary.
+5. **Convergence is declared on the residual in e (or p)** — the quantity
+   the conservative update actually conserves — **not** on the temperature
+   increment. In degenerate matter cv → small means many temperatures give
+   nearly the same energy: T is genuinely ill-determined there, but the
+   energy residual can still be driven to tolerance, which is what the
+   dynamics needs.
+6. **Failure is a flag, never an abort.** `flag = 2` after `max_newton`
+   iterations returns the best bracketed value; mid-timestep the correct
+   response is a floor and a diagnostic, not a crash (plan D5). The
+   `EosInvertStats` struct reports iterations, bisection count, whether the
+   seed was used, and the flag — the self-test aggregates these into its
+   pass/fail lines.
+
+Measured behaviour (Stage-2 harness, see `EOS-Table/STAGE2.md`): synthetic
+ideal-gas table — 2–3 iterations, residuals ≤ 2.3e-15; FPEOS deuterium —
+worst case 10 iterations with 16–19 bisection fallbacks near the ragged hull
+edge, zero non-convergences over 1759 in-hull points per mode.
+
+## 8. The `clamped` flag and the hull
+
+`eval_rt` sets `out.clamped = true` in two situations: the query point lies
+outside the table's (ρ,T) rectangle (coordinates are clamped to the edge —
+the table never extrapolates, plan D5), or the containing cell is marked 0
+in the hull mask (the value returned is arithmetic on *filled* placeholder
+data, not physics). Today the flag is informational and exercised by the
+self-test; Stage 4 (hull-aware positivity floors, W8/D10) is where it
+becomes load-bearing in the solver.
+
+## 9. How it is used in the code today
+
+Exactly one live entry point: **the debug self-test hook**.
+`EosTable::register_with_lua` (called from `MFP::read_config`,
+`Source/MFP_config.cpp`) registers the Lua function
+
+```lua
+eos_table_self_test('data/ideal_synthetic.eostab', 48)
+```
+
+**only in DEBUG builds** (`#ifdef AMREX_DEBUG` — same pattern as the SDF
+geometry self-tests; in a release executable the function simply does not
+exist and calling it is a Lua error). It loads the named table and runs five
+checks — reader integrity, e- and p-round-trips over the hull, derivative
+identities, hull/out-of-range behaviour, degenerate-corner stress — printing
+one `EOSTAB-SELFTEST[...] PASS/FAIL` line each, which
+`Exec/testing/EOS-Table/check.py` parses. The `EOS-Table` case runs in the
+standard test suite (`run_tests.py`) like any other.
+
+To run it by hand:
+
+```sh
+cd Exec/testing/EOS-Table
+sh run          # builds DIM=1 DEBUG, runs the one-zone case, checks the log
+```
+
+To build a fresh table (details in `EOS-Table/README.md`):
+
+```sh
+# synthetic ideal gas (closed-form truth, used as the test gate)
+python3 ../../python_analysis/eos_table_prep.py synthetic \
+    --out data/ideal_synthetic.eostab
+# condition the FPEOS source into a deuterium table + QA plots
+python3 ../../python_analysis/eos_table_prep.py fpeos \
+    --src data/raw/FPEOS/H_EOS_09-18-20.txt \
+    --out data/D_fpeos.eostab --qa qa \
+    --hug-ref data/raw/hugoniot_MC2000_PRL85_1890.txt
+```
+
+## 10. *(future)* How the solver will use it
+
+- **Stage 3 (W6):** a `TabulatedEOS` gas model (`gas = {type='tabulated',
+  table='D_fpeos.eostab', ...}` in Lua) implements the existing `HydroGas`
+  interface on top of `EosTable`: `cons2prim` becomes an `invert_T_from_e`
+  call, `prim2cons` an `invert_T_from_p` call, initial conditions use
+  `invert_rho_from_p`. The constructor calls `nondimensionalise` with the
+  `MFP` reference quantities. Existing gas models and solvers are untouched;
+  the `Gamma` slot carries the energy-consistent effective gamma so the
+  standard Riemann solvers work unchanged (`effective_gamma` mode, plan D2).
+- **Stage 5 (W10):** a separate Riemann solver `HLLC_general_eos`
+  (Athena++'s pattern) evaluates face energies and sound speeds directly
+  from the table through two new `HydroGas` virtuals; until it lands, the
+  reserved `flux = 'HLLC_general_eos'` name aborts at configuration time
+  with a pointer to the plan.
+- **Stage 6:** two-temperature (separate ion/electron tables) extends the
+  file format and this reader; the design memo is W12.
