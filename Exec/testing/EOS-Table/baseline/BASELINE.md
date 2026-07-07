@@ -23,16 +23,27 @@
 
 `run_tests.py`: "Completed with 0 failed tests" in both runs.
 
-## Determinism verdict
+## Determinism verdict (corrected 2026-07-08)
 
-Final-plotfile sha256 checksums (`run{1,2}_plotfile_checksums.txt`)
-**differ between the two runs for all three cases** → the suite is NOT
-bit-reproducible run-to-run under multi-rank MPI (reduction/atomic order).
-Consequence, as anticipated by the plan amendment: **all later regression
-gates are verdict-identity gates**; plotfile bit-comparison is only
-meaningful if a single-rank case is added to the suite (candidate: the
-Stage-2 one-zone EOS-Table case, which runs `mpirun -n 1` — but it has no
-plotfiles; a bit-compare gate would need a dedicated 1-rank hydro case).
+Final-plotfile sha256 checksums (`run{1,2}_plotfile_checksums.txt`) differ
+between the two runs for all three cases — but a follow-up probe
+(Double-Rarefaction run twice, plotfiles compared with AMReX `fcompare`,
+built in `amrex/Tools/Plotfile` via `make`) shows **every physical field is
+bit-identical (absolute error 0 on all 17 fields)**. The raw-byte checksum
+differences come from exactly two benign sources:
+1. the `cost` field — a load-balancing diagnostic storing wall-clock time
+   per cell, i.e. timing noise by construction;
+2. rank-to-file packing (`Cell_H` / `Cell_D_*` layout), which permutes
+   identical numbers between files.
+
+Consequence for later gates: the bulk regression gate is still
+**verdict-identity** (cheap, covers everything), but **field-level
+bit-identity via `fcompare` is available and should be used as the
+spot-check** — gate = all fields except `cost` show zero error. Whole-file
+checksums are NOT a usable gate; do not resurrect them.
+
+Caveat: verified on Double-Rarefaction (3D, 10 ranks); assumed for the
+other cases until an fcompare spot-check says otherwise.
 
 ## Files
 

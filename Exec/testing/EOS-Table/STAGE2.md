@@ -18,9 +18,12 @@ Exit criteria (from the main plan, amended after review):
 2. derivative outputs (cs, dpde, dpdr_e) match centred finite differences
    of the interpolated surface;
 3. the full existing test suite matches the W1 baseline
-   **verdict-for-verdict** (bit-compare only on the case W1 proved
-   deterministic) with the Stage-2 code merged — which now touches no
-   existing solver files (see W7), so this gate should be trivially clean.
+   **verdict-for-verdict**, plus an `fcompare` field-data comparison on one
+   case (W1's corrected finding: all physical fields ARE bit-reproducible
+   run-to-run; only the `cost` load-balance diagnostic and rank-to-file
+   packing differ — so the fcompare gate is "zero error on every field
+   except `cost`"). Stage-2 code touches no existing solver files (see
+   W7), so this gate should be trivially clean.
 
 ---
 
@@ -46,6 +49,9 @@ struct EosTableView {              // POD, passed by value, non-owning
     const Real *T_of_p = nullptr;  // T(rho, p) on (lrho x lp) grid
     Real le_min, dle; int n_e;
     Real lp_min, dlp; int n_p;
+    const Real *hull;              // REQUIRED block (frozen spec): 1.0 =
+                                   // inside source hull, 0.0 = filled cell
+                                   // (FPEOS-D: 23% filled — ragged source)
     int idx(int i, int j) const { return i * n_T + j; }   // i=rho, j=T
 };
 
@@ -64,11 +70,13 @@ class EosTable {                   // owner: load, condition-check, nondim
 
 ### Functions
 
-- `load(path)` — parse `.eostab` per the W2 spec (README.md), including the
-  optional inverse-map blocks + their `le:`/`lp:` axes. Validate hard:
-  magic/version, dims > 1, finite values everywhere, cv > 0, block sizes.
-  Malformed input → `amrex::Abort` with file+line context. Every rank reads
-  (plan D9).
+- `load(path)` — parse `.eostab` per the frozen W2 spec (README.md),
+  including the inverse-map blocks + their `le:`/`lp:` axes and the
+  **required `hull` block**. Validate hard: magic/version, dims > 1, finite
+  values everywhere, cv > 0, block sizes, hull values ∈ {0,1}, hull
+  non-empty. Echo the `e_shift` and `conditioning` provenance lines into
+  the load report. Malformed input → `amrex::Abort` with file+line
+  context. Every rank reads (plan D9).
 - `nondimensionalise()` — divide once at load by the Cerberus reference
   quantities (`MFP::rho_ref`, `T_ref`, `prs_ref`, `u_ref` — `MFP.H:224`):
   rho/rho_ref, T/T_ref, P/prs_ref, e/u_ref², cv·T_ref/u_ref². Assert the
@@ -123,8 +131,12 @@ set: the Stage-3 twin run.
 
 Checks performed by the hook:
 1. **Reader integrity** — echo dims/grid/provenance; per-block min/max.
-2. **Round trips** — rt→re→rt and rt→rp→rt on an n_sweep × n_sweep grid
-   strictly inside the hull plus the hull edges and corners. Pass criterion:
+2. **Round trips** — rt→re→rt and rt→rp→rt on an n_sweep × n_sweep grid of
+   cells with `hull == 1` plus the hull *boundary* cells. "Hull" means the
+   **mask block**, not the grid rectangle — the FPEOS source is ragged and
+   23% of grid cells are nearest-value fill (where e is constant along T,
+   so re inversion is degenerate by construction; those cells are exercised
+   by check 4 instead). Pass criterion:
    max relative **e/p residual** ≤ `ttol`. Also reported: max relative T
    error (monitored, not gated), Newton iteration histogram **with a
    committed ceiling** (commit a hard number the first time the harness runs
@@ -135,7 +147,9 @@ Checks performed by the hook:
 3. **Derivative identities** — cs², dpde, dpdr_e vs centred finite
    differences of the *interpolated* surface at cell centres; gam1
    consistency.
-4. **Hull behavior** — out-of-hull queries clamp and flag; no NaN/inf ever.
+4. **Hull behavior** — queries outside the grid rectangle AND queries in
+   masked (`hull == 0`) filled cells clamp and flag; no NaN/inf ever. The
+   FPEOS tier exercises this naturally (76.9% coverage).
 5. **Degenerate-corner stress** — dense sweep of the high-rho/low-T corner
    (small cv → ill-conditioned re inversion). Pass/fail is on the **e
    residual**; T-recovery error is recorded but unbounded by design there
@@ -151,8 +165,11 @@ Checks performed by the hook:
   must pass without FPEOS data existing, so Stage 2 never blocks on data
   acquisition.
 - **Tier 2 (informative): conditioned FPEOS deuterium table** from Stage 1
-  (`data/D_fpeos.eostab`), consistency-only checks (round trips, identities,
-  no non-convergence). Skipped with a notice if the file is absent.
+  (`data/D_fpeos.eostab` — **exists, committed**, so this tier is enabled
+  from day one): consistency-only checks (round trips on hull cells,
+  identities, no non-convergence in-hull). Known stats to expect: 76.9%
+  hull coverage; cv is floored in 51 hull cells (0.7%) and every filled
+  cell; e spans ~6 decades after the recorded `e_shift`.
 
 ### Harness files (added to `EOS-Table/` at the end of this stage)
 
@@ -198,10 +215,14 @@ What remains in Stage 2 is small:
 ### Regression gate (retained)
 
 Rebuild the standard (non-DEBUG) exe, rerun `run_tests.py`, and compare
-every case's `check.py` **verdict** against the W1 baseline; bit-compare
-(AMReX `fcompare` or checksum) only the case W1 established as
-deterministic. Since Stage 2 adds only new files plus the abort above, any
-deviation is a genuine accident — fix before proceeding.
+every case's `check.py` **verdict** against the W1 baseline. Spot-check
+with AMReX `fcompare` (`amrex/Tools/Plotfile`, built with plain `make`
+there) on at least Double-Rarefaction: **zero error required on every
+field except `cost`** (the load-balance timing diagnostic — the one field
+that legitimately differs run-to-run; W1 corrected finding). Do NOT use
+whole-file checksums — rank-to-file packing permutes identical data.
+Since Stage 2 adds only new files plus the abort above, any deviation is a
+genuine accident — fix before proceeding.
 
 ---
 

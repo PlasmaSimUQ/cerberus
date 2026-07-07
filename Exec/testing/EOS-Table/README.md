@@ -181,8 +181,11 @@ python3 ../../python_analysis/eos_table_prep.py fpeos \
 `tar xzf fpeos_10-26-25.tar.gz` in `data/raw/` first.)
 
 - **W1**: 3-case suite (Couette, Double-Rarefaction, Viscous-Vortex), all
-  PASS twice; **NOT bit-deterministic run-to-run** (all plotfile checksums
-  differ under 8–10-rank MPI) → all later gates are verdict-identity. See
+  PASS twice. Determinism (corrected 2026-07-08): whole-file checksums
+  differ run-to-run, but `fcompare` shows **all physical fields
+  bit-identical** — only the `cost` load-balance diagnostic and
+  rank-to-file packing differ. Gates: verdict-identity in bulk +
+  `fcompare` field-identity (excluding `cost`) as the spot-check. See
   `baseline/BASELINE.md`.
 - **W2**: spec v1 frozen above; mirrored in the `eos_table_prep.py`
   docstring.

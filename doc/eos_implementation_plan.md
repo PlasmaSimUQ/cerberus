@@ -246,9 +246,10 @@ Table code exercised by one-zone tests only; W7 config plumbing lands with
 whole hull measured as the **residual in e/p** (the conserved quantities; the
 T error is monitored but unbounded where cv→0 makes T ill-posed given e),
 derivative identities match finite differences, **and** the full existing
-test suite matches the W1 baseline verdict-for-verdict (bit-compare only on
-the case W1 proved deterministic) — proving the additions inert before new
-physics is reachable.
+test suite matches the W1 baseline verdict-for-verdict, plus an `fcompare`
+field-identity spot-check (W1 finding: all physical fields are
+bit-reproducible run-to-run; only the `cost` load-balance diagnostic
+differs) — proving the additions inert before new physics is reachable.
 
 **Stage 3 — First plasma: `effective_gamma` mode** *(medium; W6, W9-Sod, W14)*
 Detailed Stage-3 plan: `Exec/testing/EOS-Table/STAGE3.md`.
