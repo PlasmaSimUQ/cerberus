@@ -243,6 +243,12 @@ void HydroState::set_flux()
         Abort("Flux option required for state '" + name + "'. Options are " +
               vec2str(rfact.getKeys()));
 
+    // planned general-EOS solver (tabulated-EOS work, Stage 5 / W10):
+    // reserved name, clean abort until it lands
+    if (flux == "HLLC_general_eos")
+        Abort("flux='HLLC_general_eos' is not implemented yet; see "
+              "doc/eos_implementation_plan.md (W10, Stage 5)");
+
     flux_solver = rfact.Build(flux, state_def);
 
     if (!flux_solver)

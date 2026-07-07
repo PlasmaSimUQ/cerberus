@@ -2,6 +2,7 @@
 #include "MFP_action.H"
 #include "MFP_eb_sdf.H"
 #include "MFP_ebgeometry_nodeshared.H"
+#include "MFP_eos_table.H"
 #include "MFP_ebgeometry_stl.H"
 #include "MFP_read_geom.h"
 #include "MFP_state.H"
@@ -49,6 +50,10 @@ void MFP::read_config()
                        sol::lib::table,
                        sol::lib::string,
                        sol::lib::io);
+
+    // Tabulated-EOS table hooks (dimension-independent; the self-test
+    // function only exists in DEBUG builds — SDF self-test pattern)
+    EosTable::register_with_lua(lua);
 
     // The EBGeometry-backed STL reader is independent of the AMReX EB
     // infrastructure, so it is registered unconditionally (e.g. available for

@@ -7,5 +7,8 @@ CEXE_sources += MFP_thermally_perfect_gas.cpp
 CEXE_headers += MFP_eilmer_gas_model.H
 CEXE_sources += MFP_eilmer_gas_model.cpp
 
+CEXE_headers += MFP_eos_table.H
+CEXE_sources += MFP_eos_table.cpp
+
 INCLUDE_LOCATIONS += $(TOP)/Source/states/Eulerian/hydro/gas
 VPATH_LOCATIONS   += $(TOP)/Source/states/Eulerian/hydro/gas

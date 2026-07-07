@@ -1,0 +1,44 @@
+#======== AMREX ==========
+amrex.fpe_trap_invalid=1
+amrex.fpe_trap_zero=1
+fpe_trap_overflow=1
+amr.v = 0
+
+# ======== TIME ==========
+# init + config-time self-test only; no time stepping
+max_step  = 0
+stop_time = 1.0
+
+# ======== DOMAIN ==========
+geometry.is_periodic = 1
+geometry.coord_sys   = 0
+geometry.prob_lo     = -1.0
+geometry.prob_hi     =  1.0
+amr.n_cell           = 4
+
+# ======== GRID ==========
+amr.max_level       = 0
+amr.ref_ratio       = 2
+amr.regrid_int      = 2
+amr.blocking_factor = 2
+amr.max_grid_size   = 32
+amr.n_error_buf     = 0
+amr.grid_eff        = 0.99
+amr.subcycling_mode = None
+
+# ======== GEOMETRY ==========
+eb2.geom_type = all_regular
+
+# ======== PARTICLES ==========
+particles.do_particles = 0
+
+# ======== OUTPUT ==========
+amr.checkpoint_files_output = 0
+amr.check_int               = -1
+amr.plot_files_output = 0
+amr.plot_int          = -1
+
+# ======== PROBLEM ==========
+mfp.lua = "
+dofile('problem_definition.lua')
+"

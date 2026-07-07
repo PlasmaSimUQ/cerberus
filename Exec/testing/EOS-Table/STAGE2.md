@@ -240,13 +240,35 @@ genuine accident — fix before proceeding.
 
 ## Stage-2 deliverables checklist
 
-- [ ] `MFP_eos_table.{H,cpp}` — view (incl. inverse-map members), owner,
+- [x] `MFP_eos_table.{H,cpp}` — view (incl. inverse-map members), owner,
       reader, eval, 3 seeded inversions
-- [ ] `eos_table_self_test` debug hook (SDF pattern; dimensional mode)
-- [ ] Synthetic ideal-gas `.eostab` generation path in `eos_table_prep.py`
+- [x] `eos_table_self_test` debug hook (SDF pattern; dimensional mode)
+- [x] Synthetic ideal-gas `.eostab` generation path in `eos_table_prep.py`
       (incl. inverse-map blocks)
-- [ ] `problem_definition.lua`, `onezone.inputs`, `run`, `check.py` here
-- [ ] Tier-1 self-test green (e/p-residual round trips ≤ ttol, identities ≤
-      interp tol, 0 non-convergences in-hull, iteration ceiling committed)
-- [ ] `flux='HLLC_general_eos'` config-time abort (no existing-solver edits)
-- [ ] Full suite verdict-diff vs `baseline/` clean with Stage-2 code merged
+- [x] `problem_definition.lua`, `onezone.inputs`, `run`, `check.py` here
+- [x] Tier-1 self-test green (2026-07-08: round trips ≤ 2.3e-15, identities
+      ≤ 5e-16, fd-vs-blocks 3.3e-10, 0 non-convergences; iteration ceiling
+      committed at 60 in check.py — observed max 2–3 on tier 1, 10 on
+      tier 2)
+- [x] `flux='HLLC_general_eos'` config-time abort (no existing-solver edits)
+- [x] Full suite verdict-diff vs `baseline/` clean with Stage-2 code merged
+      (+ fcompare field-identity on Double-Rarefaction vs a pre-Stage-2
+      plotfile)
+
+### Stage-2 results notes (2026-07-08)
+
+- Tier 2 (FPEOS): all gated checks pass — 1759 in-hull round trips per
+  mode, max residual 1.5e-15, worst case 10 iterations, 16–19 bisection
+  fallbacks near the ragged hull edge, 0 non-convergences.
+  `fd-vs-blocks` reports up to ~1.06 relative difference (PCHIP-conditioned
+  slopes vs value-surface secants at fill-boundary cells) — reported, not
+  gated, by design; revisit only if Stage-4 robustness work points here.
+- Known soft spot: the FPEOS **degenerate-corner sweep finds 0 in-hull
+  cells** (the high-rho/low-T corner of that table is entirely filled), so
+  the corner stress currently bites only on tables whose hull reaches the
+  corner. If a future table has an in-hull degenerate corner, the check
+  arms itself automatically; no action needed now.
+- The Newton driver's step guard (`|f| <= |slope|*(hi-lo)` before dividing)
+  exists because `amrex.fpe_trap_*` turns the overflow from a
+  denormal-slope division into a hard abort — found by the tier-2 FPEOS
+  table on first run, invisible on synthetic data.

@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+# One-zone tabulated-EOS self-test (Stage 2, W5).
+# DEBUG build: the eos_table_self_test Lua hook is compiled only with
+# AMREX_DEBUG (SDF self-test pattern). DIM=1 keeps the build cheapest; the
+# EOS code is dimension-independent.
+(cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE DEBUG=TRUE)
+
+EXE=../../local/MFP.1d.gnu.DEBUG.MPI.ex
+
+INPUTS=onezone.inputs
+
+# the synthetic tier-1 table is committed; regenerate only if missing
+[ -f data/ideal_synthetic.eostab ] || \
+    python3 ../../python_analysis/eos_table_prep.py synthetic \
+        --out data/ideal_synthetic.eostab
+
+rm -rf plt* chk*
+
+mpirun -n 1 ${EXE} ${INPUTS} 2>&1 | tee run_log.txt
+
+python3 check.py
