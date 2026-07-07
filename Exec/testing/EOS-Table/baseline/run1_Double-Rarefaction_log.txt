@@ -1,0 +1,367 @@
+MPI initialized with 10 MPI processes
+MPI initialized with thread support level 0
+AMReX (22.06) initialized
+
+===Simulation Reference parameters===
+  Mechanical
+  x_ref = 1.0000000000e+00
+  rho_ref = 1.0000000000e+00
+  m_ref = 1.6726219000e-27
+  T_ref = 1.0000000000e+05
+  n_ref = 5.9786374912e+26
+  n0_ref = 5.9786374912e+26
+  t_ref = 3.4806257078e-05
+
+  Electromagnetic
+  c_ref = 2.9979245800e+08
+  B_ref = 4.5547296699e+01
+  E_ref = 1.3654736033e+10
+
+  NonDimensional c = -1.0000000000e+00
+  NonDimensional beta = 1.0000000000e+00
+  NonDimensional skin_depth = 1.0000000000e+00
+  NonDimensional Larmor = 7.0710678119e-01
+  NonDimensional Debye = 9.5834520341e-05
+[fluid] reconstruction fallback applied to 648 faces
+[fluid] reconstruction fallback applied to 2592 faces
+[MFP] : step = 1, time = 0.0017874184846961062
+[fluid] reconstruction fallback applied to 2592 faces
+[fluid] reconstruction fallback applied to 2592 faces
+[MFP] : step = 2, time = 0.0035278167213795629
+[fluid] reconstruction fallback applied to 2592 faces
+[fluid] reconstruction fallback applied to 3240 faces
+[MFP] : step = 3, time = 0.0052767680072875857
+[fluid] reconstruction fallback applied to 2592 faces
+[fluid] reconstruction fallback applied to 3240 faces
+[MFP] : step = 4, time = 0.0070482421528915056
+[fluid] reconstruction fallback applied to 3240 faces
+[fluid] reconstruction fallback applied to 3240 faces
+[MFP] : step = 5, time = 0.008814252559244987
+[fluid] reconstruction fallback applied to 3240 faces
+[fluid] reconstruction fallback applied to 3240 faces
+[MFP] : step = 6, time = 0.010575065672715827
+[fluid] reconstruction fallback applied to 3240 faces
+[fluid] reconstruction fallback applied to 3240 faces
+[MFP] : step = 7, time = 0.012331720710012165
+[fluid] reconstruction fallback applied to 3240 faces
+[fluid] reconstruction fallback applied to 3240 faces
+[MFP] : step = 8, time = 0.01408648420859273
+[fluid] reconstruction fallback applied to 3240 faces
+[fluid] reconstruction fallback applied to 3240 faces
+[MFP] : step = 9, time = 0.015843102134842156
+[fluid] reconstruction fallback applied to 3240 faces
+[fluid] reconstruction fallback applied to 3240 faces
+[MFP] : step = 10, time = 0.017606779470374378
+[fluid] reconstruction fallback applied to 3240 faces
+[fluid] reconstruction fallback applied to 3240 faces
+[MFP] : step = 11, time = 0.019390734008936057
+[fluid] reconstruction fallback applied to 3240 faces
+[fluid] reconstruction fallback applied to 3240 faces
+[MFP] : step = 12, time = 0.021175749385659415
+[fluid] reconstruction fallback applied to 3240 faces
+[fluid] reconstruction fallback applied to 3240 faces
+[MFP] : step = 13, time = 0.022952795263553909
+[fluid] reconstruction fallback applied to 3240 faces
+[fluid] reconstruction fallback applied to 2592 faces
+[MFP] : step = 14, time = 0.024722245074282109
+[fluid] reconstruction fallback applied to 2592 faces
+[fluid] reconstruction fallback applied to 4536 faces
+[MFP] : step = 15, time = 0.026487264414707615
+[fluid] reconstruction fallback applied to 4536 faces
+[fluid] reconstruction fallback applied to 4536 faces
+[MFP] : step = 16, time = 0.028253360432077223
+[fluid] reconstruction fallback applied to 4536 faces
+[fluid] reconstruction fallback applied to 5184 faces
+[MFP] : step = 17, time = 0.030031237339472307
+[fluid] reconstruction fallback applied to 4536 faces
+[fluid] reconstruction fallback applied to 5184 faces
+[MFP] : step = 18, time = 0.031817851734203727
+[fluid] reconstruction fallback applied to 5184 faces
+[fluid] reconstruction fallback applied to 5184 faces
+[MFP] : step = 19, time = 0.033597447594406721
+[fluid] reconstruction fallback applied to 5184 faces
+[fluid] reconstruction fallback applied to 5184 faces
+[MFP] : step = 20, time = 0.0353695255086897
+[fluid] reconstruction fallback applied to 5184 faces
+[fluid] reconstruction fallback applied to 5832 faces
+[MFP] : step = 21, time = 0.037136296009217674
+[fluid] reconstruction fallback applied to 5832 faces
+[fluid] reconstruction fallback applied to 5832 faces
+[MFP] : step = 22, time = 0.03890239981039538
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 23, time = 0.040675846321167185
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 24, time = 0.042462442554698214
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 25, time = 0.044244015884331599
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 26, time = 0.046018016363460167
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 27, time = 0.047785947531777249
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 28, time = 0.049551854802473323
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 29, time = 0.051321968314535837
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 30, time = 0.053108278176549083
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 31, time = 0.054891596600855366
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 32, time = 0.056667325049398982
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 33, time = 0.058436352011923889
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 34, time = 0.060202115718339673
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 35, time = 0.061970297735673342
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 36, time = 0.06375353451951192
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 37, time = 0.06553877052330162
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 38, time = 0.067316609757782184
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 39, time = 0.069087282817902482
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 40, time = 0.070853521175913606
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 41, time = 0.072620411259668685
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 42, time = 0.074397704313877336
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 43, time = 0.076184587706223703
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 44, time = 0.077964606647576443
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 45, time = 0.07973718154287153
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 46, time = 0.081504303706102219
+[fluid] reconstruction fallback applied to 6480 faces
+[fluid] reconstruction fallback applied to 6480 faces
+[MFP] : step = 47, time = 0.083270408834746512
+[fluid] reconstruction fallback applied to 7452 faces
+[fluid] reconstruction fallback applied to 7452 faces
+[MFP] : step = 48, time = 0.085042700018507181
+[fluid] reconstruction fallback applied to 7452 faces
+[fluid] reconstruction fallback applied to 7452 faces
+[MFP] : step = 49, time = 0.086829193838789911
+[fluid] reconstruction fallback applied to 7452 faces
+[fluid] reconstruction fallback applied to 7452 faces
+[MFP] : step = 50, time = 0.088611395967179971
+[fluid] reconstruction fallback applied to 7452 faces
+[fluid] reconstruction fallback applied to 7452 faces
+[MFP] : step = 51, time = 0.090386052181635881
+[fluid] reconstruction fallback applied to 7452 faces
+[fluid] reconstruction fallback applied to 7452 faces
+[MFP] : step = 52, time = 0.092154406663047791
+[fluid] reconstruction fallback applied to 7452 faces
+[fluid] reconstruction fallback applied to 7452 faces
+[MFP] : step = 53, time = 0.093920198947904363
+[fluid] reconstruction fallback applied to 7452 faces
+[fluid] reconstruction fallback applied to 7452 faces
+[MFP] : step = 54, time = 0.095689308672284104
+[fluid] reconstruction fallback applied to 8424 faces
+[fluid] reconstruction fallback applied to 8424 faces
+[MFP] : step = 55, time = 0.097475468489309658
+[fluid] reconstruction fallback applied to 8424 faces
+[fluid] reconstruction fallback applied to 8424 faces
+[MFP] : step = 56, time = 0.099259837142003413
+[fluid] reconstruction fallback applied to 8424 faces
+[fluid] reconstruction fallback applied to 8424 faces
+[MFP] : step = 57, time = 0.10103674142921247
+[fluid] reconstruction fallback applied to 8424 faces
+[fluid] reconstruction fallback applied to 8424 faces
+[MFP] : step = 58, time = 0.10280669704405261
+[fluid] reconstruction fallback applied to 8424 faces
+[fluid] reconstruction fallback applied to 8424 faces
+[MFP] : step = 59, time = 0.10457271502389008
+[fluid] reconstruction fallback applied to 8424 faces
+[fluid] reconstruction fallback applied to 8424 faces
+[MFP] : step = 60, time = 0.10634009049342059
+[fluid] reconstruction fallback applied to 9396 faces
+[fluid] reconstruction fallback applied to 9396 faces
+[MFP] : step = 61, time = 0.10811957172046222
+[fluid] reconstruction fallback applied to 9396 faces
+[fluid] reconstruction fallback applied to 9396 faces
+[MFP] : step = 62, time = 0.10990595018131753
+[fluid] reconstruction fallback applied to 9396 faces
+[fluid] reconstruction fallback applied to 9396 faces
+[MFP] : step = 63, time = 0.11168516020182689
+[fluid] reconstruction fallback applied to 9396 faces
+[fluid] reconstruction fallback applied to 9396 faces
+[MFP] : step = 64, time = 0.11345702340027707
+[fluid] reconstruction fallback applied to 9396 faces
+[fluid] reconstruction fallback applied to 9396 faces
+[MFP] : step = 65, time = 0.11522379272500795
+[fluid] reconstruction fallback applied to 9396 faces
+[fluid] reconstruction fallback applied to 9396 faces
+[MFP] : step = 66, time = 0.11699012795420041
+[fluid] reconstruction fallback applied to 10368 faces
+[fluid] reconstruction fallback applied to 10368 faces
+[MFP] : step = 67, time = 0.11876405971284504
+[fluid] reconstruction fallback applied to 10368 faces
+[fluid] reconstruction fallback applied to 10368 faces
+[MFP] : step = 68, time = 0.12055068300480073
+[fluid] reconstruction fallback applied to 10368 faces
+[fluid] reconstruction fallback applied to 10368 faces
+[MFP] : step = 69, time = 0.12233213524263001
+[fluid] reconstruction fallback applied to 10368 faces
+[fluid] reconstruction fallback applied to 10368 faces
+[MFP] : step = 70, time = 0.12410606292660724
+[fluid] reconstruction fallback applied to 10368 faces
+[fluid] reconstruction fallback applied to 10368 faces
+[MFP] : step = 71, time = 0.12587396195118825
+[fluid] reconstruction fallback applied to 10368 faces
+[fluid] reconstruction fallback applied to 10368 faces
+[MFP] : step = 72, time = 0.12763980987946583
+[fluid] reconstruction fallback applied to 10368 faces
+[fluid] reconstruction fallback applied to 10368 faces
+[MFP] : step = 73, time = 0.12940968815417755
+[fluid] reconstruction fallback applied to 11340 faces
+[fluid] reconstruction fallback applied to 11340 faces
+[MFP] : step = 74, time = 0.13119595436401613
+[fluid] reconstruction fallback applied to 11340 faces
+[fluid] reconstruction fallback applied to 11340 faces
+[MFP] : step = 75, time = 0.13297958671101437
+[fluid] reconstruction fallback applied to 11340 faces
+[fluid] reconstruction fallback applied to 11340 faces
+[MFP] : step = 76, time = 0.13475570075453219
+[fluid] reconstruction fallback applied to 11340 faces
+[fluid] reconstruction fallback applied to 11340 faces
+[MFP] : step = 77, time = 0.13652505878262658
+[fluid] reconstruction fallback applied to 11340 faces
+[fluid] reconstruction fallback applied to 11340 faces
+[MFP] : step = 78, time = 0.13829092742709895
+[fluid] reconstruction fallback applied to 11340 faces
+[fluid] reconstruction fallback applied to 11340 faces
+[MFP] : step = 79, time = 0.14005880678919927
+[fluid] reconstruction fallback applied to 12312 faces
+[fluid] reconstruction fallback applied to 12312 faces
+[MFP] : step = 80, time = 0.14184048983547337
+[fluid] reconstruction fallback applied to 12312 faces
+[fluid] reconstruction fallback applied to 12312 faces
+[MFP] : step = 81, time = 0.14362620171050922
+[fluid] reconstruction fallback applied to 12312 faces
+[fluid] reconstruction fallback applied to 12312 faces
+[MFP] : step = 82, time = 0.14540462274538632
+[fluid] reconstruction fallback applied to 12312 faces
+[fluid] reconstruction fallback applied to 12312 faces
+[MFP] : step = 83, time = 0.14717580750363318
+[fluid] reconstruction fallback applied to 12312 faces
+[fluid] reconstruction fallback applied to 12312 faces
+[MFP] : step = 84, time = 0.14894227210004049
+[fluid] reconstruction fallback applied to 12312 faces
+[fluid] reconstruction fallback applied to 12312 faces
+[MFP] : step = 85, time = 0.15070890284863134
+[fluid] reconstruction fallback applied to 13284 faces
+[fluid] reconstruction fallback applied to 13284 faces
+[MFP] : step = 86, time = 0.15248462479921393
+[fluid] reconstruction fallback applied to 13284 faces
+[fluid] reconstruction fallback applied to 13284 faces
+[MFP] : step = 87, time = 0.15427138663657666
+[fluid] reconstruction fallback applied to 13284 faces
+[fluid] reconstruction fallback applied to 13284 faces
+[MFP] : step = 88, time = 0.1560520673805541
+[fluid] reconstruction fallback applied to 13284 faces
+[fluid] reconstruction fallback applied to 13284 faces
+[MFP] : step = 89, time = 0.15782526359239496
+[fluid] reconstruction fallback applied to 13284 faces
+[fluid] reconstruction fallback applied to 13284 faces
+[MFP] : step = 90, time = 0.15959273269620475
+[fluid] reconstruction fallback applied to 13284 faces
+[fluid] reconstruction fallback applied to 13284 faces
+[MFP] : step = 91, time = 0.16135869303330044
+[fluid] reconstruction fallback applied to 13284 faces
+[fluid] reconstruction fallback applied to 13284 faces
+[MFP] : step = 92, time = 0.16312962704058739
+[fluid] reconstruction fallback applied to 13932 faces
+[fluid] reconstruction fallback applied to 13932 faces
+[MFP] : step = 93, time = 0.16491602250602255
+[fluid] reconstruction fallback applied to 13932 faces
+[fluid] reconstruction fallback applied to 13932 faces
+[MFP] : step = 94, time = 0.16669891057603714
+[fluid] reconstruction fallback applied to 13932 faces
+[fluid] reconstruction fallback applied to 13932 faces
+[MFP] : step = 95, time = 0.16847425984067649
+[fluid] reconstruction fallback applied to 13932 faces
+[fluid] reconstruction fallback applied to 13932 faces
+[MFP] : step = 96, time = 0.17024308990908044
+[fluid] reconstruction fallback applied to 13932 faces
+[fluid] reconstruction fallback applied to 13932 faces
+[MFP] : step = 97, time = 0.17200892636129964
+[fluid] reconstruction fallback applied to 13932 faces
+[fluid] reconstruction fallback applied to 13932 faces
+[MFP] : step = 98, time = 0.17377748118713562
+[fluid] reconstruction fallback applied to 14580 faces
+[fluid] reconstruction fallback applied to 14580 faces
+[MFP] : step = 99, time = 0.17556166394281839
+[fluid] reconstruction fallback applied to 14580 faces
+[fluid] reconstruction fallback applied to 14580 faces
+[MFP] : step = 100, time = 0.17734707138276393
+[fluid] reconstruction fallback applied to 14580 faces
+[fluid] reconstruction fallback applied to 14580 faces
+[MFP] : step = 101, time = 0.17912525009535218
+[fluid] reconstruction fallback applied to 14580 faces
+[fluid] reconstruction fallback applied to 14580 faces
+[MFP] : step = 102, time = 0.1808965504037148
+[fluid] reconstruction fallback applied to 14580 faces
+[fluid] reconstruction fallback applied to 14580 faces
+[MFP] : step = 103, time = 0.18266383083267621
+[fluid] reconstruction fallback applied to 14580 faces
+[fluid] reconstruction fallback applied to 14580 faces
+[MFP] : step = 104, time = 0.18443231673196622
+[fluid] reconstruction fallback applied to 15228 faces
+[fluid] reconstruction fallback applied to 15228 faces
+[MFP] : step = 105, time = 0.1862121750119492
+[fluid] reconstruction fallback applied to 15228 faces
+[fluid] reconstruction fallback applied to 15228 faces
+[MFP] : step = 106, time = 0.18800339012312503
+[fluid] reconstruction fallback applied to 15228 faces
+[fluid] reconstruction fallback applied to 15228 faces
+[MFP] : step = 107, time = 0.18978860269305192
+[fluid] reconstruction fallback applied to 15228 faces
+[fluid] reconstruction fallback applied to 15228 faces
+[MFP] : step = 108, time = 0.19156764695656053
+[fluid] reconstruction fallback applied to 15228 faces
+[fluid] reconstruction fallback applied to 15228 faces
+[MFP] : step = 109, time = 0.1933428728018779
+[fluid] reconstruction fallback applied to 15228 faces
+[fluid] reconstruction fallback applied to 15228 faces
+[MFP] : step = 110, time = 0.19511922877471394
+[fluid] reconstruction fallback applied to 15228 faces
+[fluid] reconstruction fallback applied to 15228 faces
+[MFP] : step = 111, time = 0.19690553771769292
+[fluid] reconstruction fallback applied to 15228 faces
+[fluid] reconstruction fallback applied to 15228 faces
+[MFP] : step = 112, time = 0.19871461480196168
+[fluid] reconstruction fallback applied to 15228 faces
+[fluid] reconstruction fallback applied to 15228 faces
+[MFP] : step = 113, time = 0.20000000000000001
+Run Time total        = 3.494646358
+Run Time init         = 0.032736506
+Run Time advance      = 3.461860148
+AMReX (22.06) finalized

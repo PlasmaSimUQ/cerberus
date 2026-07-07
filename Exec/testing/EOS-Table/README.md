@@ -54,7 +54,12 @@ later stage re-runs the suite and diffs against this record.
 ## W2 — Canonical `.eostab` format specification  (effort: S)
 
 One self-describing ASCII format; the C++ reader (Stage 2) parses only this.
-Draft spec — to be frozen when the writer lands:
+**Spec v1 — FROZEN 2026-07-07**, informed by the FPEOS source
+characterisation (`data/raw/README.md`): the source is *ragged* (isochores
+carry 5–16 T points), so the hull-mask block is **required**, and the
+conditioned rectangular grid is clamped to the source hull with
+nearest-hull-value fill outside it (marked 0 in the mask; runtime treats
+those cells as clamp+flag territory from Stage 4 on).
 
 ```
 EOSTAB 1                                # magic + format version
@@ -88,7 +93,8 @@ block: dedrho     # (de/drho)|T      -- smoothed
 # computed offline by scanning the forward surface):
 block: T_of_e     # T(rho, e)  -- seeds the re inversion (cons2prim)
 block: T_of_p     # T(rho, p)  -- seeds the rp inversion + face evals (W10)
-# other optional blocks: zbar, entropy, hull-mask
+block: hull       # REQUIRED: 1.0 = inside source-data hull, 0.0 = filled
+# other optional blocks: zbar, entropy
 ```
 
 Decisions encoded: ASCII for inspectability/diff-ability (tables are small);
@@ -156,6 +162,48 @@ QA plots committed in `qa/`, Hugoniot overlay agrees with published points
 (eyeball first; commit a numeric threshold into the QA script the first time
 it passes, so later regenerations are gated mechanically — review amendment),
 generating command recorded in this README.
+
+## Stage-1 results (2026-07-07)
+
+Stage 1 executed; all three work items closed. Generating commands (from
+this directory):
+
+```sh
+python3 ../../python_analysis/eos_table_prep.py synthetic \
+    --out data/ideal_synthetic.eostab --qa qa
+python3 ../../python_analysis/eos_table_prep.py fpeos \
+    --src data/raw/FPEOS/H_EOS_09-18-20.txt \
+    --out data/D_fpeos.eostab --qa qa \
+    --hug-ref data/raw/hugoniot_MC2000_PRL85_1890.txt
+```
+
+(`data/raw/FPEOS/` is the untracked extraction of the committed archive —
+`tar xzf fpeos_10-26-25.tar.gz` in `data/raw/` first.)
+
+- **W1**: 3-case suite (Couette, Double-Rarefaction, Viscous-Vortex), all
+  PASS twice; **NOT bit-deterministic run-to-run** (all plotfile checksums
+  differ under 8–10-rank MPI) → all later gates are verdict-identity. See
+  `baseline/BASELINE.md`.
+- **W2**: spec v1 frozen above; mirrored in the `eos_table_prep.py`
+  docstring.
+- **W3**: `data/D_fpeos.eostab` (96×96, deuterium via isotope scaling of
+  the FPEOS-2021 H table): hull coverage 76.9% (source is ragged); cv
+  flooring hit 51/7083 hull cells (0.7%; all 2133 filled cells floored by
+  construction); `maxwell: none-needed` (zero dP/drho<0 pre-monotonise);
+  leave-one-out regrid error P median 0.23% / max 10.5%, e (span-normed)
+  median 0.08% / max 4.3%.
+- **Hugoniot gate**: table-computed locus vs published PIMC points
+  (Militzer–Ceperley PRL 85 1890, same rho0=0.171 g/cc): +0.08…+0.26%
+  compression error for T ≥ 125 kK (pure-PIMC in both datasets);
+  +1.0…+4.4% at 31–62 kK, the region FPEOS-2011/2021 deliberately revised
+  with DFT-MD (peak compression ≈4.5 vs MC2000's ≈4.29) — a dataset
+  difference, not a conditioning error. Locus points below ~94 GPa fall
+  under the table's T floor (1.35 eV) by construction.
+- **Committed numeric threshold** (replacing "eyeball", per review
+  amendment): regenerations must reproduce the published compressions to
+  **≤0.5% for the T ≥ 125 kK points** (and the ≤5% low-T deviation is
+  expected — investigate if it *shrinks*, since that would mean the
+  conditioning is reverting toward MC2000).
 
 ## Stage-1 execution order
 

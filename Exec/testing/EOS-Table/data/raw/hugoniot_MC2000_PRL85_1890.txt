@@ -1,0 +1,18 @@
+# Published principal-Hugoniot points for deuterium, PIMC (VDM nodes):
+# B. Militzer, D. M. Ceperley, "Path Integral Monte Carlo Calculation of
+# the Deuterium Hugoniot", Phys. Rev. Lett. 85 (2000) 1890
+# (arXiv:physics/0001047, table transcribed 2026-07-07 from ar5iv HTML).
+# Initial state: rho0 = 0.171 g/cc, T0 = 19.6 K, p0 = 0, E0 = -15.886 eV/atom
+# — same initial state as the FPEOS H-table header (V0 = 19.576 A^3/atom).
+# NOTE: this is the ORIGINAL PIMC locus; FPEOS 2011/2021 revised the
+# low-T (< ~100 kK) region with DFT-MD (peak compression ~4.5). High-T rows
+# (>= 250 kK) are pure PIMC in both and are the sharpest comparison points.
+# columns: T[K]  rho[g/cc]  P[GPa]  compression(rho/0.171)
+1000000   0.7019   5608.   4.105
+ 500000   0.7130   2748.   4.170
+ 250000   0.7242   1299.   4.235
+ 125000   0.7300    576.   4.269
+  62500   0.733     254.   4.287
+  31250   0.733     128.   4.287
+  15625   0.721      68.   4.216
+  10000   0.690      51.   4.035
