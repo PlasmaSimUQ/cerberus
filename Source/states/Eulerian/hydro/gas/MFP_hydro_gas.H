@@ -11,7 +11,7 @@ class HydroGas
 {
   public:
     HydroGas();
-    ~HydroGas();
+    virtual ~HydroGas();
 
     size_t n_species() const { return mass.size(); }
     size_t n_tracers() const { return n_species() - 1; }
@@ -84,8 +84,11 @@ class HydroGas
 
     // clamp face density/pressure ahead of a Riemann solve; returns the
     // number of components that were clamped (all hydro gases share the
-    // HydroDef primitive layout so this lives on the base)
-    int apply_prim_floor(Vector<Real>& Q) const
+    // HydroDef primitive layout so this lives on the base). Virtual so a
+    // gas model with a *physical* floor can override the absolute
+    // effective_zero: the tabulated gas floors to its table-hull edge
+    // (plan W8.1, Stage 4), which keeps the floored sound speed finite.
+    virtual int apply_prim_floor(Vector<Real>& Q) const
     {
 #ifdef MFP_PRIM_FLOOR
         int n = 0;
@@ -102,6 +105,11 @@ class HydroGas
         return 0;
 #endif
     }
+
+    // diagnostic: number of table-hull clamps since the last call (always 0
+    // for analytic gas models; the tabulated gas counts its inversion
+    // clamps/non-convergences here — plan W8.3, Stage 4)
+    virtual long get_and_reset_hull_clamps() const { return 0; }
 
     int idx;
     bool mass_const, charge_const;

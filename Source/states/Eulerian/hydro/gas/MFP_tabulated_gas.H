@@ -70,18 +70,70 @@ class TabulatedEOS : public HydroGas
     virtual std::string get_tag() const override { return tag; }
     virtual void write_info(nlohmann::json& js) const override;
 
+    // Stage-4 W8.1: floor to the PHYSICAL table-hull edge instead of the
+    // absolute effective_zero — a face floored to (rho_hull_min, p_hull_min)
+    // has a finite, table-consistent sound speed, so the time step cannot
+    // collapse the way an absolute 1e-14 density floor allows.
+    virtual int apply_prim_floor(Vector<Real>& Q) const override;
+
+    // Stage-4 W8.3: hand the accumulated clamp count to the state's
+    // per-step report and zero it
+    virtual long get_and_reset_hull_clamps() const override
+    {
+        const long n = n_hull_clamps;
+        n_hull_clamps = 0;
+        return n;
+    }
+
     static bool registered;
     static std::string tag;
 
   private:
     // (rho, e_int) -> full evaluation via the re inversion; the workhorse
-    // behind cons2prim and the from_cons getters
-    void eval_from_rho_e(Real rho, Real e_int, EosEval& ev) const;
+    // behind cons2prim and the from_cons getters. `st` reports whether the
+    // target was attainable (flag != 0 -> the returned state was clamped to
+    // the hull edge / best bracket — Stage-4 W8.2)
+    void eval_from_rho_e(Real rho, Real e_int, EosEval& ev, EosInvertStats& st) const;
     // (rho, p) -> full evaluation via the rp inversion (from_prim getters)
-    void eval_from_rho_p(Real rho, Real p, EosEval& ev) const;
+    void eval_from_rho_p(Real rho, Real p, EosEval& ev, EosInvertStats& st) const;
+
+    // count an inversion outcome toward the per-step clamp report (W8.3);
+    // mutable because every evaluation path is const (no OpenMP in Cerberus,
+    // so a plain counter is safe)
+    void tally(const EosInvertStats& st) const
+    {
+        if (st.flag != 0) ++n_hull_clamps;
+    }
+
+    // Clamp a raw density into the table hull, tallying if it moved
+    // (W8.2: the density axis clamps silently inside locate(), so it must
+    // be clamped HERE, before anything is derived from it — otherwise the
+    // primitive set mixes a raw off-hull rho with edge-column table values
+    // and the face states handed to the Riemann solver are inconsistent).
+    Real clamp_rho(Real rho) const
+    {
+        const Real lo = std::max(effective_zero, rho_hull_min);
+        if (rho < lo) {
+            ++n_hull_clamps;
+            return lo;
+        }
+        if (rho > rho_hull_max) {
+            ++n_hull_clamps;
+            return rho_hull_max;
+        }
+        return rho;
+    }
 
     EosTable table;    // owner: loaded + nondimensionalised in the ctor
     EosTableView tv;   // cached non-owning view of `table`
+
+    // hull-edge floors in code units, cached at construction (W8.1):
+    // the smallest in-hull density / pressure the table can represent
+    Real rho_hull_min = 0.0;
+    Real rho_hull_max = 0.0;
+    Real p_hull_min = 0.0;
+
+    mutable long n_hull_clamps = 0;  // W8.3 diagnostic accumulator
 };
 
 #endif  // MFP_TABULATED_GAS_H

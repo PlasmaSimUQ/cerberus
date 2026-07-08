@@ -67,25 +67,64 @@ TabulatedEOS::TabulatedEOS(const int global_idx, const sol::table& def)
 
     tv = table.view();
 
+    // Cache the hull-edge floors (W8.1): the axis minimum for density, and
+    // the smallest pressure at any in-hull node. One sweep at load; the
+    // floors themselves are then two comparisons per call.
+    rho_hull_min = table.rho_min();
+    rho_hull_max = table.rho_max();
+    p_hull_min = std::numeric_limits<Real>::max();
+    for (int i = 0; i < tv.n_rho; ++i) {
+        for (int j = 0; j < tv.n_T; ++j) {
+            if (tv.hull[tv.idx(i, j)] > 0.5) {
+                p_hull_min = std::min(p_hull_min, tv.p[tv.idx(i, j)]);
+            }
+        }
+    }
+    if (!(p_hull_min > 0.0))
+        Abort("State: " + name + "; table has a non-positive in-hull pressure minimum (" +
+              std::to_string(p_hull_min) + ") — a cold-curve table needs the deferred " +
+              "hull-membership validity work (plan D10), not the v1 p>0 machinery");
+
     amrex::Print() << "TabulatedEOS[" << name << "]: hull (code units) rho=["
                    << table.rho_min() << "," << table.rho_max() << "] T=["
-                   << table.T_min() << "," << table.T_max() << "]\n";
+                   << table.T_min() << "," << table.T_max() << "] p_min=" << p_hull_min << "\n";
+}
+
+// Stage-4 W8.1: hull-physical face floor (see header). effective_zero still
+// wins if the user configured it *tighter* than the hull edge is low --
+// max() keeps whichever floor is higher.
+int TabulatedEOS::apply_prim_floor(Vector<Real>& Q) const
+{
+#ifdef MFP_PRIM_FLOOR
+    int n = 0;
+    const Real rho_fl = std::max(effective_zero, rho_hull_min);
+    const Real p_fl = std::max(effective_zero, p_hull_min);
+    if (Q[+HydroDef::PrimIdx::Density] < rho_fl) {
+        Q[+HydroDef::PrimIdx::Density] = rho_fl;
+        n += 1;
+    }
+    if (Q[+HydroDef::PrimIdx::Prs] < p_fl) {
+        Q[+HydroDef::PrimIdx::Prs] = p_fl;
+        n += 1;
+    }
+    return n;
+#else
+    return 0;
+#endif
 }
 
 // ---------------------------------------------------------------------------
 // internal drivers
 
-void TabulatedEOS::eval_from_rho_e(Real rho, Real e_int, EosEval& ev) const
+void TabulatedEOS::eval_from_rho_e(Real rho, Real e_int, EosEval& ev, EosInvertStats& st) const
 {
-    EosInvertStats st;
     const Real T =
       EosTable::invert_T_from_e(tv, rho, e_int, -1.0, table.ttol, table.max_newton, st);
     EosTable::eval_rt(tv, rho, T, ev);
 }
 
-void TabulatedEOS::eval_from_rho_p(Real rho, Real p, EosEval& ev) const
+void TabulatedEOS::eval_from_rho_p(Real rho, Real p, EosEval& ev, EosInvertStats& st) const
 {
-    EosInvertStats st;
     const Real T =
       EosTable::invert_T_from_p(tv, rho, p, -1.0, table.ttol, table.max_newton, st);
     EosTable::eval_rt(tv, rho, T, ev);
@@ -98,7 +137,13 @@ bool TabulatedEOS::cons2prim(Vector<Real>& U, Vector<Real>& Q) const
 {
     BL_PROFILE("TabulatedEOS::cons2prim");
 
-    Real rho = U[+HydroDef::ConsIdx::Density];
+    // density is clamped into the hull FIRST: every derived quantity below
+    // (velocities, e_int, gamma_e, the evaluation column, Q[Density]) then
+    // describes the same in-hull state. A cell below the table's density
+    // floor is outside the model's validity; deriving the velocity against
+    // the floor keeps the update bounded (W8.1/W8.2 — this is also what
+    // prevents the u = mx/1e-14 time-step collapse of an absolute floor).
+    Real rho = clamp_rho(U[+HydroDef::ConsIdx::Density]);
     Real mx = U[+HydroDef::ConsIdx::Xmom];
     Real my = U[+HydroDef::ConsIdx::Ymom];
     Real mz = U[+HydroDef::ConsIdx::Zmom];
@@ -113,12 +158,20 @@ bool TabulatedEOS::cons2prim(Vector<Real>& U, Vector<Real>& Q) const
     // re inversion (inverse-map seed + Newton polish, plan D5/D8); an
     // unattainable e clamps to the hull edge inside the driver (flagged)
     EosEval ev;
-    eval_from_rho_e(rho, e_int, ev);
+    EosInvertStats st;
+    eval_from_rho_e(rho, e_int, ev, st);
+    tally(st);
 
     // energy-consistent effective gamma: what the (unchanged) Riemann
-    // solvers reconstruct face energy from. Use the physical e_int so
-    // p/(gamma_e - 1) = rho*e_int is exact where the inversion converged.
-    const Real ge = 1.0 + ev.p / std::max(rho * e_int, std::numeric_limits<Real>::min());
+    // solvers reconstruct face energy from. Where the inversion converged,
+    // use the physical e_int so p/(gamma_e - 1) = rho*e_int is exact. Where
+    // it CLAMPED (e_int off the hull -- e.g. driven negative by a strong
+    // rarefaction) the physical e_int is meaningless and can be <= 0, which
+    // would send gamma_e to ~1e308 through the max() guard; use the
+    // table-consistent ev.e instead so (p, T, gamma_e) describe the same
+    // clamped state (Stage-4 W8.2).
+    const Real e_eff = (st.flag == 0) ? e_int : ev.e;
+    const Real ge = 1.0 + ev.p / std::max(rho * e_eff, std::numeric_limits<Real>::min());
 
     // general-EOS specific heat identity (reduces to gamma-law cp on the
     // synthetic table)
@@ -139,10 +192,8 @@ bool TabulatedEOS::cons2prim(Vector<Real>& U, Vector<Real>& Q) const
     }
 
 #ifdef MFP_PRIM_FLOOR
-    // same floor policy as ThermallyPerfectGas::cons2prim
-    if (Q[+HydroDef::PrimIdx::Density] < effective_zero) {
-        Q[+HydroDef::PrimIdx::Density] = effective_zero;
-    }
+    // rho was hull-clamped up front; p and T come from the table (positive
+    // in-hull by construction) — these floors are a pure backstop
     if (Q[+HydroDef::PrimIdx::Prs] < effective_zero) {
         Q[+HydroDef::PrimIdx::Prs] = effective_zero;
     }
@@ -158,7 +209,7 @@ void TabulatedEOS::prim2cons(Vector<Real>& Q, Vector<Real>& U) const
 {
     BL_PROFILE("TabulatedEOS::prim2cons");
 
-    Real rho = Q[+HydroDef::PrimIdx::Density];
+    Real rho = clamp_rho(Q[+HydroDef::PrimIdx::Density]);
     Real u = Q[+HydroDef::PrimIdx::Xvel];
     Real v = Q[+HydroDef::PrimIdx::Yvel];
     Real w = Q[+HydroDef::PrimIdx::Zvel];
@@ -172,7 +223,9 @@ void TabulatedEOS::prim2cons(Vector<Real>& Q, Vector<Real>& U) const
     // rp inversion -> T -> e (the Temp slot is not trusted here; the seed
     // map makes the guess irrelevant anyway)
     EosEval ev;
-    eval_from_rho_p(rho, p, ev);
+    EosInvertStats st;
+    eval_from_rho_p(rho, p, ev, st);
+    tally(st);
 
     U[+HydroDef::ConsIdx::Density] = rho;
     U[+HydroDef::ConsIdx::Xmom] = mx;
@@ -194,7 +247,9 @@ void TabulatedEOS::define_rho_p_T(Vector<Real>& Q) const
     Real T = Q[+HydroDef::PrimIdx::Temp];
 
     // same given-ness convention as ThermallyPerfectGas: positive = given,
-    // same priority order
+    // same priority order. A GIVEN density is hull-clamped; zero means
+    // "not given" and must stay zero for the convention to work.
+    if (rho > 0.0) rho = clamp_rho(rho);
     EosInvertStats st;
     if ((rho > 0.0) && (p > 0.0)) {
         T = EosTable::invert_T_from_p(tv, rho, p, T, table.ttol, table.max_newton, st);
@@ -205,6 +260,7 @@ void TabulatedEOS::define_rho_p_T(Vector<Real>& Q) const
         EosTable::eval_rt(tv, rho, T, ev);
         p = ev.p;
     }
+    tally(st);
 
     Q[+HydroDef::PrimIdx::Density] = rho;
     Q[+HydroDef::PrimIdx::Prs] = p;
@@ -218,7 +274,7 @@ Real TabulatedEOS::get_temperature_from_cons(const Vector<Real>& U) const
 {
     BL_PROFILE("TabulatedEOS::get_temperature_from_cons");
 
-    const Real rho = U[+HydroDef::ConsIdx::Density];
+    const Real rho = clamp_rho(U[+HydroDef::ConsIdx::Density]);
     const Real rhoinv = 1 / rho;
     const Real u = U[+HydroDef::ConsIdx::Xmom] * rhoinv;
     const Real v = U[+HydroDef::ConsIdx::Ymom] * rhoinv;
@@ -226,7 +282,10 @@ Real TabulatedEOS::get_temperature_from_cons(const Vector<Real>& U) const
     const Real e_int = U[+HydroDef::ConsIdx::Eden] * rhoinv - 0.5 * (u * u + v * v + w * w);
 
     EosInvertStats st;
-    return EosTable::invert_T_from_e(tv, rho, e_int, -1.0, table.ttol, table.max_newton, st);
+    const Real T =
+      EosTable::invert_T_from_e(tv, rho, e_int, -1.0, table.ttol, table.max_newton, st);
+    tally(st);
+    return T;
 }
 
 Real TabulatedEOS::get_gamma_from_cons(const Vector<Real>& U,
@@ -236,7 +295,7 @@ Real TabulatedEOS::get_gamma_from_cons(const Vector<Real>& U,
     BL_PROFILE("TabulatedEOS::get_gamma_from_cons");
     amrex::ignore_unused(tracer_idx);
 
-    const Real rho = U[density_idx];
+    const Real rho = clamp_rho(U[density_idx]);
     const Real rhoinv = 1 / rho;
     const Real u = U[+HydroDef::ConsIdx::Xmom] * rhoinv;
     const Real v = U[+HydroDef::ConsIdx::Ymom] * rhoinv;
@@ -244,8 +303,13 @@ Real TabulatedEOS::get_gamma_from_cons(const Vector<Real>& U,
     const Real e_int = U[+HydroDef::ConsIdx::Eden] * rhoinv - 0.5 * (u * u + v * v + w * w);
 
     EosEval ev;
-    eval_from_rho_e(rho, e_int, ev);
-    return 1.0 + ev.p / std::max(rho * e_int, std::numeric_limits<Real>::min());
+    EosInvertStats st;
+    eval_from_rho_e(rho, e_int, ev, st);
+    tally(st);
+    // same clamp-consistency rule as cons2prim (W8.2): a flagged inversion
+    // means e_int is off the hull (possibly <= 0) -- use the table e
+    const Real e_eff = (st.flag == 0) ? e_int : ev.e;
+    return 1.0 + ev.p / std::max(rho * e_eff, std::numeric_limits<Real>::min());
 }
 
 Real TabulatedEOS::get_gamma_from_prim(const Vector<Real>& Q, const int idx) const
@@ -253,11 +317,14 @@ Real TabulatedEOS::get_gamma_from_prim(const Vector<Real>& Q, const int idx) con
     BL_PROFILE("TabulatedEOS::get_gamma_from_prim");
     amrex::ignore_unused(idx);
 
-    const Real rho = Q[+HydroDef::PrimIdx::Density];
+    const Real rho = clamp_rho(Q[+HydroDef::PrimIdx::Density]);
     const Real p = Q[+HydroDef::PrimIdx::Prs];
 
     EosEval ev;
-    eval_from_rho_p(rho, p, ev);
+    EosInvertStats st;
+    eval_from_rho_p(rho, p, ev, st);
+    tally(st);
+    // ev.e is a table value (> 0 across the hull), so no overflow path here
     return 1.0 + p / std::max(rho * ev.e, std::numeric_limits<Real>::min());
 }
 
@@ -268,7 +335,7 @@ Real TabulatedEOS::get_cp_from_cons(const Vector<Real>& U,
     BL_PROFILE("TabulatedEOS::get_cp_from_cons");
     amrex::ignore_unused(tracer_idx);
 
-    const Real rho = U[density_idx];
+    const Real rho = clamp_rho(U[density_idx]);
     const Real rhoinv = 1 / rho;
     const Real u = U[+HydroDef::ConsIdx::Xmom] * rhoinv;
     const Real v = U[+HydroDef::ConsIdx::Ymom] * rhoinv;
@@ -276,7 +343,9 @@ Real TabulatedEOS::get_cp_from_cons(const Vector<Real>& U,
     const Real e_int = U[+HydroDef::ConsIdx::Eden] * rhoinv - 0.5 * (u * u + v * v + w * w);
 
     EosEval ev;
-    eval_from_rho_e(rho, e_int, ev);
+    EosInvertStats st;
+    eval_from_rho_e(rho, e_int, ev, st);
+    tally(st);
     return ev.cv + (ev.T / (rho * rho)) * ev.dpdT * ev.dpdT /
                      std::max(ev.dpdrho, std::numeric_limits<Real>::min());
 }
@@ -286,11 +355,13 @@ Real TabulatedEOS::get_cp_from_prim(const Vector<Real>& Q, const int tracer_idx)
     BL_PROFILE("TabulatedEOS::get_cp_from_prim");
     amrex::ignore_unused(tracer_idx);
 
-    const Real rho = Q[+HydroDef::PrimIdx::Density];
+    const Real rho = clamp_rho(Q[+HydroDef::PrimIdx::Density]);
     const Real p = Q[+HydroDef::PrimIdx::Prs];
 
     EosEval ev;
-    eval_from_rho_p(rho, p, ev);
+    EosInvertStats st;
+    eval_from_rho_p(rho, p, ev, st);
+    tally(st);
     return ev.cv + (ev.T / (rho * rho)) * ev.dpdT * ev.dpdT /
                      std::max(ev.dpdrho, std::numeric_limits<Real>::min());
 }
@@ -302,8 +373,12 @@ RealArray TabulatedEOS::get_speed_from_cons(const Vector<Real>& U) const
     Real rho = U[+HydroDef::ConsIdx::Density];
 
 #ifdef MFP_PRIM_FLOOR
-    // raw conserved data that has not passed through the cons2prim floors
-    rho = std::max(rho, effective_zero);
+    // raw conserved data that has not passed through the cons2prim floors.
+    // Hull floor, not the absolute effective_zero (W8.1): an evacuated cell
+    // with rho ~ 1e-14 would otherwise report u = mx/rho ~ 1e10 and
+    // collapse the global time step — the documented absolute-floor
+    // pathology. The hull edge bounds the velocity by construction.
+    rho = std::max(rho, std::max(effective_zero, rho_hull_min));
 #endif
 
     const Real rhoinv = 1 / rho;
@@ -319,7 +394,9 @@ RealArray TabulatedEOS::get_speed_from_cons(const Vector<Real>& U) const
     // true table sound speed -> the CFL time step is exact even in
     // effective_gamma flux mode (plan D2)
     EosEval ev;
-    eval_from_rho_e(rho, e_int, ev);
+    EosInvertStats st;
+    eval_from_rho_e(rho, e_int, ev, st);
+    tally(st);
     const Real a = ev.cs;
 
     RealArray s = {AMREX_D_DECL(a + std::abs(u), a + std::abs(v), a + std::abs(w))};
@@ -332,15 +409,19 @@ RealArray TabulatedEOS::get_speed_from_prim(const Vector<Real>& Q) const
     BL_PROFILE("TabulatedEOS::get_speed_from_prim");
 
 #ifdef MFP_PRIM_FLOOR
-    const Real rho = std::max(Q[+HydroDef::PrimIdx::Density], effective_zero);
-    const Real p = std::max(Q[+HydroDef::PrimIdx::Prs], effective_zero);
+    // hull floors, as in get_speed_from_cons (W8.1)
+    const Real rho =
+      std::max(Q[+HydroDef::PrimIdx::Density], std::max(effective_zero, rho_hull_min));
+    const Real p = std::max(Q[+HydroDef::PrimIdx::Prs], std::max(effective_zero, p_hull_min));
 #else
-    const Real rho = Q[+HydroDef::PrimIdx::Density];
+    const Real rho = clamp_rho(Q[+HydroDef::PrimIdx::Density]);
     const Real p = Q[+HydroDef::PrimIdx::Prs];
 #endif
 
     EosEval ev;
-    eval_from_rho_p(rho, p, ev);
+    EosInvertStats st;
+    eval_from_rho_p(rho, p, ev, st);
+    tally(st);
     const Real a = ev.cs;
 
     RealArray s = {AMREX_D_DECL(a + std::abs(Q[+HydroDef::PrimIdx::Xvel]),

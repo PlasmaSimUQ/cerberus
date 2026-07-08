@@ -455,6 +455,22 @@ void EulerianState::calc_primitives(const Box& box,
         }
     }
 
+    // hull-clamp report (Stage-4 W8.3), mirroring the prim-floor report in
+    // calc_fluxes: counts every EOS evaluation since the last report that
+    // clamped to the table hull (off-hull e/rho or a non-converged
+    // inversion), whichever path called it (this box's cons2prim, timestep
+    // speed sweeps, BC fills) -- silent for gas models without a bounded
+    // validity region
+    if (MFP::verbosity >= 2) {
+        const long n_clamped = get_and_reset_thermo_clamps();
+        if (n_clamped > 0) {
+            // AllPrint, not Print: the clamping cells usually belong to a
+            // non-IO rank, whose Print() output would be silently dropped
+            amrex::AllPrint() << "[" << name << "] EOS hull clamp applied to " << n_clamped
+                              << " evaluations\n";
+        }
+    }
+
     return;
 }
 

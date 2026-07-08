@@ -174,7 +174,10 @@ accepts a finite p→e→p round-trip error; we do not, because the Godunov
 update conserves e). The (ρ,T) surface stays canonical — T is needed for
 transport, collisions, and the Stage-6 2T split. Off-table queries **clamp
 and flag** (Athena++ silently linear-extrapolates off its grid; unsafe below
-a cold curve). Athena++'s dimensionless-ratio storage (log of `p/e` etc.,
+a cold curve). A guarded linear extrapolation off the hull edge — continuing
+`p`, `e` along the stored edge derivatives for a bounded distance — is
+recorded as the alternative if the clamp plateau itself causes artefacts;
+see STAGE4.md W8.1 for the trade-off. Clamp-and-flag stays the v1 default. Athena++'s dimensionless-ratio storage (log of `p/e` etc.,
 exactly constant for ideal gas) is noted as a possible conditioning
 refinement for the derived blocks, not adopted in v1.
 
@@ -206,6 +209,17 @@ node-shared MPI-3 window pattern from the STL/SDF work, are later drop-ins.
 change); the tabulated model validates against its hull (ρ, T bounds) and
 internal energy, since p>0 is the wrong test below the cold curve. Maps
 `small_temp`/`small_dens` onto the existing `effective_zero` conventions.
+*Stage-3 refinement (see STAGE4.md):* `prim_valid`/`cons_valid`
+(`MFP_hydro_gas.cpp:152,166`) are **non-virtual and `Abort`** — `prim_valid`
+tests `p>0`, `cons_valid` only `Eden>0` (never internal energy), and
+`apply_prim_floor` (`:88`) floors to an absolute `1e-14` (the open dt-collapse
+pathology). For the v1 FPEOS table the whole hull is `p>0`, so v1 does **not**
+virtualize `prim_valid`/`cons_valid`; instead it (i) makes `apply_prim_floor`
+virtual and floors the tabulated gas to the *physical* hull edge, and
+(ii) makes the `cons2prim` hull-`e` clamp the real guard (it catches the
+below-hull `e_int` that `cons_valid`'s `Eden>0` cannot). Virtualizing the
+validity tests is the cold-curve lifting task, deferred until a cold-curve
+table is actually added.
 
 ---
 
@@ -220,7 +234,7 @@ internal energy, since p>0 is the wrong test below the cold curve. Maps
 | W5 | One-zone unit tests: rt→re→rt, rt→rp→rt round trips over the hull; cs/Γ₁ vs centred finite differences (debug-gated Lua `self_test`, mirroring the SDF pattern) | S–M | W4 |
 | W6 | `TabulatedEOS : HydroGas`: all virtual overrides, effective-γ fill of `Gamma` slot, Lua schema, factory registration | M | W4 |
 | W7 | Flux-mode resolution plumbing only: config-time defaults by gas type + Lua override + validation (`flux='HLLC_general_eos'` aborts until W10). **No edits to existing solvers** — the `eos` path is W10's separate solver file | S | — (parallel) |
-| W8 | Floors generalization (D10): gas-model-defined validity; hull clamps; reconstruction-fallback interplay; non-convergence flag path | M | W6 |
+| W8 | Floors generalization (D10): (a) `HydroGas::apply_prim_floor` made `virtual`, tabulated override floors to hull `ρ_min`/`p(ρ,T_min)` not `1e-14` (resolves the open absolute-floor dt-collapse pathology, scoped to the table); (b) `cons2prim` clamps `e_int` to the hull `e`-column before inversion — the load-bearing guard `cons_valid`'s `Eden>0` test cannot provide; (c) the `clamped` flag made load-bearing (per-box counter + verbosity report); (d) `prim_valid`/`cons_valid`/`get_positive_prim` **verified never-fire** on FPEOS (whole hull `p>0`) rather than virtualized — cold-curve virtualization documented-but-deferred | M | W6 |
 | W9 | Test cases in `Exec/testing/`: Sod into the table's ideal-gas corner vs γ-law analytic; single-material strong-shock Hugoniot vs published FPEOS locus | M | W6, W3 |
 | W10 | `eos` flux mode = new solver `riemann/MFP_hllc_general_eos.{H,cpp}` (Athena++ `hllc.cpp` GENERAL_EOS pattern, see D2): face (e, a²) from gas-model (ρ,p) evaluations, q-factor from local γ=a²ρ/p at PVRS p*; two new `HydroGas` virtuals with ideal-gas defaults; round-off agreement vs `HLLC` on TPG; A/B vs `effective_gamma` on W9 cases; flip default `flux` for tabulated states | L | W7, W9 |
 | W11 | Braginskii consistency: replace the four `p=(γ−1)(E−ke)` / `T=pm/ρ` reform sites (`MFP_CTU_Braginskii.cpp:2573,2574,2606,2743,2755`) with gas-interface calls, behind the same switch | M | W7 |
@@ -228,6 +242,8 @@ internal energy, since p>0 is the wrong test below the cold curve. Maps
 | W13 | 2T components (SESAME 303/304 split, per-state component binding, 303+304=301 init assertion, exchange-term cv) and, if needed, the mixture/MTMMMT driver | L | W10, W12 |
 | W14 | MHD guard: incompatibility comments in `MFP_mhd.H` (class header + `gamma` member); config-time `amrex::Abort` if an MHD state coexists with a `tabulated` hydro gas | S | W6 |
 | W15 | MHD with general EOS (future, demand-driven; Athena++ `general_mhd.cpp` pattern — see §6): MHD gas-closure abstraction, table-backed fast magnetosonic speed, `MFP_mhd_hlle_general_eos` solver, guard replaced | L | W10 |
+| W16 | Separate `rho_floor`/`p_floor` (later goal; see STAGE4.md deferred section): per-variable floors replacing the single `effective_zero` for all gas models + MHD, closing the absolute-floor dt-collapse pathology globally (Stage-4 W8.1 closes it for the tabulated gas only); includes the vacuum-cell velocity decision | M | W8 |
+| W17 | Checkpoint/restart test with the tabulated gas (later goal; see STAGE4.md deferred section): stop/restart/`fcompare`-vs-uninterrupted bit-identity gate; no new StateData expected, table reloads per rank at config time | S | W9 |
 
 ---
 
@@ -261,9 +277,24 @@ incompatible combination. Exit: Sod-into-ideal-corner matches the γ-law
 analytic; suite still green.
 
 **Stage 4 — Robustness + validation gate** *(medium; W8, W9-Hugoniot)*
+**DONE 2026-07-08** — detailed plan + results: `Exec/testing/EOS-Table/STAGE4.md`.
+Key deviation from plan: the *density* axis, not the energy axis, was the
+load-bearing clamp (`locate()` clamped off-hull ρ silently; the fix is
+`clamp_rho()` at every gas-model entry before anything is derived).
+Hugoniot gate: measured compressions on the table-RH locus to 0.7–1.3%
+across 247 GPa–25 TPa; abusive rarefaction completes with 10,966 tallied
+clamps and zero validity aborts.
+Swaps the synthetic table for the **real conditioned FPEOS deuterium table**.
 Hull-aware floors, survival of a deliberately abusive strong-shock run
 (bisection fallback exercised, flagged, non-fatal), Hugoniot overlay against
-the published FPEOS locus.
+the published FPEOS locus. Reframed after the Stage-3 verification reads
+(see STAGE4.md): the FPEOS hull is entirely `p>0` (no cold curve at T≥1.35 eV),
+so the load-bearing robustness is **hull-edge / negative-internal-energy
+clamping**, not literal `p<0`. The three floor/validity mechanisms
+(`apply_prim_floor` → hull-physical floor; the `cons2prim` hull-`e` clamp made
+load-bearing with a counter; `prim_valid`/`cons_valid`/`get_positive_prim`
+verified never-fire rather than virtualized) are detailed there; the
+cold-curve virtualization is documented-but-deferred.
 **Milestone gate: everything after this stage may be revised based on what
 Stages 1–4 teach.**
 

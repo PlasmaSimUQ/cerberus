@@ -1,0 +1,6 @@
+*plt*
+run_log_*.txt
+temp_*.inputs
+plot.png
+Backtrace.*
+chk*

@@ -67,6 +67,11 @@ class HydroState : public EulerianState
         return gas->apply_prim_floor(Q);
     }
 
+    virtual long get_and_reset_thermo_clamps() const override
+    {
+        return gas->get_and_reset_hull_clamps();
+    }
+
     virtual const Vector<int> get_cons_vector_idx() const override
     {
         return arr2vec(cons_vector_idx);

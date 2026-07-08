@@ -247,9 +247,37 @@ edge, zero non-convergences over 1759 in-hull points per mode.
 outside the table's (ρ,T) rectangle (coordinates are clamped to the edge —
 the table never extrapolates, plan D5), or the containing cell is marked 0
 in the hull mask (the value returned is arithmetic on *filled* placeholder
-data, not physics). Today the flag is informational and exercised by the
-self-test; Stage 4 (hull-aware positivity floors, W8/D10) is where it
-becomes load-bearing in the solver.
+data, not physics).
+
+Since Stage 4 (W8) the clamping is **load-bearing** in the gas model, with
+one important subtlety learned the hard way: the low-level `locate()` clamps
+an off-grid *density* silently (no flag — only an unattainable inversion
+*target* sets `EosInvertStats::flag`). The gas model therefore clamps the
+density itself (`TabulatedEOS::clamp_rho`) at every entry point BEFORE
+deriving anything from it, so velocities (`u = m/ρ`), internal energy, the
+effective gamma and the evaluation column all describe the same in-hull
+state. Skipping that produced inconsistent Riemann-face states and a
+floating-point crash in HLLC on the Stage-4 abusive run. Flagged inversions
+additionally swap the physical `e_int` for the table-consistent `ev.e` in
+the γₑ formula (a negative post-rarefaction `e_int` would otherwise drive
+γₑ through the `max()` guard to ~1e308).
+
+Every clamp — density or inversion-target — is tallied in a per-gas counter
+and reported once per primitive sweep under `verbosity >= 2` (via
+`amrex::AllPrint()`, because the clamping cells usually belong to a non-IO
+rank whose `Print()` output would be dropped):
+
+```
+[fluid] EOS hull clamp applied to 142 evaluations
+```
+
+`apply_prim_floor` (the pre-Riemann face guard) floors density and pressure
+to the **hull edge** (`ρ_min`, smallest in-hull `p`) instead of the absolute
+`effective_zero = 1e-14` used by the analytic gas models — a floored face
+then has a finite, table-consistent sound speed, which is what prevents the
+time-step collapse an absolute density floor allows. Constructor-time guard:
+a table whose in-hull pressure minimum is not positive (a cold-curve table)
+is rejected with a pointer to the deferred D10 hull-membership work.
 
 ## 9. How it is used in the code today
 

@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+
+# Strong-shock Hugoniot validation on the real FPEOS deuterium table
+# (Stage 4, W9 — see problem_definition.lua and check.py). Three driver
+# strengths sweep the locus; the 'rarefaction' run is the abusive
+# robustness gate (hull clamps must fire, run must complete).
+(cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE)
+
+EXE=../../local/MFP.1d.gnu.MPI.ex
+
+rm -rf *plt* chk* run_log_*.txt temp_*.inputs
+
+# per-run inputs are the base file plus a generated overlay (quoting an
+# embedded-Lua override through mpirun+ParmParse argv is too fragile)
+make_inputs() {  # $1=tag $2=stop_time $3=lua prelude
+    cat hugoniot.inputs > temp_$1.inputs
+    cat >> temp_$1.inputs <<EOF
+stop_time = $2
+amr.plot_per = $2
+amr.plot_file = $1.plt
+mfp.lua = "
+$3
+dofile('problem_definition.lua')
+"
+EOF
+}
+
+# driver temperature (code units, x1e5 K) : stop time (code units)
+# stop times keep BOTH waves inside the domain (shock us ~ 2.2 / 7.1 / 22
+# rightward; driver rarefaction head ~ cs_driver leftward) so the
+# conservation sums stay exact
+for CASE in "4:0.055" "40:0.020" "400:0.006"; do
+    T=${CASE%%:*}
+    STOP=${CASE##*:}
+    make_inputs hug_T${T} ${STOP} "T_DRIVER=${T}"
+    mpirun -n 4 ${EXE} temp_hug_T${T}.inputs 2>&1 | tee run_log_T${T}.txt
+done
+
+# abusive double rarefaction (W8 robustness gate)
+make_inputs rare 0.02 "MODE='rarefaction'"
+mpirun -n 4 ${EXE} temp_rare.inputs 2>&1 | tee run_log_rarefaction.txt
+
+python3 check.py

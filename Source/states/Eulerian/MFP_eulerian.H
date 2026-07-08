@@ -84,6 +84,12 @@ class EulerianState : public State
     // last line of defense: clamp a primitive face state immediately before a
     // Riemann solve; returns the number of components that were clamped
     virtual int apply_prim_floor(Vector<Real>& Q) const { return 0; }
+
+    // diagnostic: EOS evaluations clamped to a table hull since the last
+    // call (nonzero only for gas models with a bounded validity region,
+    // e.g. the tabulated EOS — plan W8.3, Stage 4); reported per box by
+    // calc_primitives under verbosity >= 2
+    virtual long get_and_reset_thermo_clamps() const { return 0; }
     virtual int get_num_grow() const = 0;
     virtual void set_num_grow(int n) = 0;
 
