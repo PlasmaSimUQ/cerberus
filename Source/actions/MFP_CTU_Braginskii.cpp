@@ -20,8 +20,38 @@ bool BraginskiiCTU::srin_switch = false;
 bool BraginskiiCTU::do_inter_species = true;
 bool BraginskiiCTU::do_intra_species = true;
 
+// EOS dispatch pointers for the static rhs()/check_invalid() (plan W11,
+// Stage 5). Non-null only when that species uses a tabulated gas; set in
+// calc_time_derivative before the serial cell loop.
+const HydroGas* BraginskiiCTU::s_ion_gas_tab = nullptr;
+const HydroGas* BraginskiiCTU::s_electron_gas_tab = nullptr;
+
 BraginskiiCTU::BraginskiiCTU() {}
 BraginskiiCTU::~BraginskiiCTU() {}
+
+// Temperature from the table T(rho,e) map on one RK-stage conserved state
+// (plan W11). Only called on the tabulated branch; the gamma-law path never
+// reaches here, so this cannot perturb the byte-identical ideal result. A
+// static scratch vector avoids per-substep allocation — safe because the
+// cell loop is serial (OpenMP is force-disabled in Cerberus).
+Real BraginskiiCTU::species_temperature_tabulated(const HydroGas* gas,
+                                                  Real rho,
+                                                  Real mx,
+                                                  Real my,
+                                                  Real mz,
+                                                  Real Eden)
+{
+    static Vector<Real> U(+HydroDef::ConsIdx::NUM);
+    U[+HydroDef::ConsIdx::Density] = rho;
+    U[+HydroDef::ConsIdx::Xmom] = mx;
+    U[+HydroDef::ConsIdx::Ymom] = my;
+    U[+HydroDef::ConsIdx::Zmom] = mz;
+    U[+HydroDef::ConsIdx::Eden] = Eden;
+    // the tabulated gas is single-material (tracers passive), so the density
+    // index alone closes the state; get_temperature_from_cons hull-clamps
+    // and always returns a positive in-hull T
+    return gas->get_temperature_from_cons(U);
+}
 
 BraginskiiCTU::BraginskiiCTU(const int idx, const sol::table& def)
 {
@@ -2572,7 +2602,17 @@ int BraginskiiCTU::rhs(Real t,
     const Real w_e = y[+VectorIdx::ElectronZmom] * inv_rho_e;
     const Real p_e = (gam_e - 1.0) * (y[+VectorIdx::ElectronEden] -
                                       0.5 * rho_e * (u_e * u_e + v_e * v_e + w_e * w_e));
-    const Real T_e = p_e * m_e * inv_rho_e;
+    // gamma-law temperature (unchanged); overridden by the table map when
+    // the electron species is tabulated (plan W11 — the ideal p_e above is
+    // used only to form this T_e, so only temperature is reformed)
+    Real T_e = p_e * m_e * inv_rho_e;
+    if (s_electron_gas_tab)
+        T_e = species_temperature_tabulated(s_electron_gas_tab,
+                                            rho_e,
+                                            y[+VectorIdx::ElectronXmom],
+                                            y[+VectorIdx::ElectronYmom],
+                                            y[+VectorIdx::ElectronZmom],
+                                            y[+VectorIdx::ElectronEden]);
 
     const Real dT_dx = data[+DataIdx::dTdx];
 
@@ -2604,7 +2644,15 @@ int BraginskiiCTU::rhs(Real t,
     const Real w_i = y[+VectorIdx::IonZmom] * inv_rho_i;
     const Real p_i =
       (gam_i - 1.0) * (y[+VectorIdx::IonEden] - 0.5 * rho_i * (u_i * u_i + v_i * v_i + w_i * w_i));
-    const Real T_i = p_i * m_i * inv_rho_i;
+    // gamma-law temperature (unchanged); table map when the ion is tabulated
+    Real T_i = p_i * m_i * inv_rho_i;
+    if (s_ion_gas_tab)
+        T_i = species_temperature_tabulated(s_ion_gas_tab,
+                                            rho_i,
+                                            y[+VectorIdx::IonXmom],
+                                            y[+VectorIdx::IonYmom],
+                                            y[+VectorIdx::IonZmom],
+                                            y[+VectorIdx::IonEden]);
 
     const Real Z_i = -q_i / q_e;  // Get charge for braginskii table of constants
                                   // (electron charge is negative)
@@ -2743,7 +2791,11 @@ bool BraginskiiCTU::check_invalid(Array<Real, +VectorIdx::NUM>& y, Array<Real, +
     const Real p_e = (gam_e - 1.0) * (y[+VectorIdx::ElectronEden] -
                                       0.5 * rho_e * (u_e * u_e + v_e * v_e + w_e * w_e));
 
-    if (p_e < effective_zero) { return true; }
+    // gamma-law positivity bailout (unchanged for ideal species). A
+    // tabulated species is hull-clamped in the gas model and has p>0 by
+    // construction across its hull, so the ideal p_e test — built from a
+    // frozen gamma — does not apply and is skipped (plan W11).
+    if (!s_electron_gas_tab && p_e < effective_zero) { return true; }
 
     const Real gam_i = data[+DataIdx::IonGamma];
     const Real rho_i = data[+DataIdx::IonDensity];
@@ -2754,7 +2806,8 @@ bool BraginskiiCTU::check_invalid(Array<Real, +VectorIdx::NUM>& y, Array<Real, +
     const Real p_i =
       (gam_i - 1.0) * (y[+VectorIdx::IonEden] - 0.5 * rho_i * (u_i * u_i + v_i * v_i + w_i * w_i));
 
-    if (p_i < effective_zero) { return true; }
+    // as above: skipped for a tabulated ion (hull-clamped, p>0 in-hull)
+    if (!s_ion_gas_tab && p_i < effective_zero) { return true; }
 
     return false;
 }
@@ -2767,6 +2820,17 @@ void BraginskiiCTU::calc_time_derivative(MFP* mfp,
     BL_PROFILE("BraginskiiCTU::calc_time_derivative");
 
     if (do_inter_species == false) { return; }
+
+    // resolve the EOS dispatch for the static rhs()/check_invalid() once per
+    // call (plan W11): a species pointer is non-null only when it is
+    // tabulated, so the ideal path branches on a null check and stays
+    // byte-identical. Safe as a static: the cell loop below is serial
+    // (OpenMP is force-disabled). A tabulated gamma-law comparison thus needs
+    // no code change — the same build runs both.
+    s_ion_gas_tab =
+      (ion_state->gas->get_tag() == "tabulated") ? ion_state->gas.get() : nullptr;
+    s_electron_gas_tab =
+      (electron_state->gas->get_tag() == "tabulated") ? electron_state->gas.get() : nullptr;
 
     const int nc_i = ion_state->n_cons();
     const int nc_e = electron_state->n_cons();

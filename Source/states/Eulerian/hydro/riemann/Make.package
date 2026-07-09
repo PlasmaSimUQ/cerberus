@@ -7,6 +7,9 @@ CEXE_sources += MFP_ausmdv.cpp
 CEXE_headers += MFP_hllc.H
 CEXE_sources += MFP_hllc.cpp
 
+CEXE_headers += MFP_hllc_general_eos.H
+CEXE_sources += MFP_hllc_general_eos.cpp
+
 CEXE_headers += MFP_hybrid_hll.H
 CEXE_sources += MFP_hybrid_hll.cpp
 

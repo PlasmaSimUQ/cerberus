@@ -7,6 +7,16 @@
 --   GAS_TYPE = 'ideal'      -> thermally_perfect gas, gamma = 1.4
 --   GAS_TYPE = 'tabulated'  -> tabulated gas on a synthetic gamma=1.4 table
 --
+-- Stage 5 (W10) adds a FLUX global: each .inputs file may set the Riemann
+-- solver explicitly (FLUX = 'HLLC' or 'HLLC_general_eos'); leaving it unset
+-- on the tabulated run exercises the config default (tabulated states with
+-- no 'flux' key select 'HLLC_general_eos' — STAGE5.md D-e/G5). The four
+-- runs the script drives give the solver-isolation and A/B gates:
+--   ideal              TPG + HLLC              (baseline)
+--   ideal_geos         TPG + HLLC_general_eos  (G1: round-off vs baseline)
+--   tabulated          table + default solver  (G2/G5)
+--   tabulated_effgamma table + HLLC            (Stage-3 effective_gamma A/B)
+--
 -- Because the table IS the ideal gas (generated in closed form by
 -- eos_table_prep.py), the two runs must agree to table-interpolation
 -- accuracy; any larger difference is an EOS-path bug with everything else
@@ -74,7 +84,7 @@ states = {
     type = 'hydro',
     gas = gas_def,
     reconstruction = 'minmod',
-    flux = 'HLLC',
+    flux = FLUX,  -- nil (unset global) -> key absent -> config default
     value = {
       rho = rho0,
       x_vel = 0,

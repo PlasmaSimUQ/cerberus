@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-(cd ../../local && make -j8 DIM=3 USE_EB=FALSE AMREX_PARTICLES=FALSE)
+# USE_PRIM_FLOOR=TRUE is the default; stated explicitly because this test
+# relies on the density/pressure floor layers (see problem_definition.lua)
+(cd ../../local && make -j8 DIM=3 USE_EB=FALSE AMREX_PARTICLES=FALSE USE_PRIM_FLOOR=TRUE)
 
 EXE=../../local/MFP.3d.gnu.MPI.ex
 

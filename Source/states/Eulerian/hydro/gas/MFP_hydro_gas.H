@@ -5,6 +5,8 @@
 #include "MFP_factory.H"
 #include "MFP_hydro_defs.H"
 
+#include <cmath>
+
 //-------------------------------------------------------------------------
 
 class HydroGas
@@ -77,6 +79,35 @@ class HydroGas
     virtual RealArray get_speed_from_prim(const Vector<Real>& Q) const
     {
         return {AMREX_D_DECL(0, 0, 0)};
+    }
+
+    // Face evaluations for the general-EOS Riemann solver (plan W10,
+    // Stage 5 — STAGE5.md D-a/D-b). `Q` is a reconstructed face primitive
+    // vector in the HydroDef layout. The defaults below read the
+    // reconstructed `Gamma` SLOT (not get_gamma_from_prim, which would
+    // recompute gamma from the reconstructed tracers) so they reproduce the
+    // algebra of MFP_hllc.cpp exactly — HLLC_general_eos on a gamma-law gas
+    // then agrees with HLLC to round-off, which is the gate that isolates
+    // solver bugs from EOS bugs.
+    virtual Real get_internal_energy_from_prim(const Vector<Real>& Q) const
+    {
+        return Q[+HydroDef::PrimIdx::Prs] /
+               ((Q[+HydroDef::PrimIdx::Gamma] - 1.0) * Q[+HydroDef::PrimIdx::Density]);
+    }
+    virtual Real get_sound_speed_from_prim_rp(const Vector<Real>& Q) const
+    {
+        return std::sqrt(Q[+HydroDef::PrimIdx::Gamma] * Q[+HydroDef::PrimIdx::Prs] /
+                         Q[+HydroDef::PrimIdx::Density]);
+    }
+    // combined face evaluation: the solver needs BOTH e and a per face, and
+    // for a tabulated gas they come from the same (rho, p) table inversion —
+    // the override answers both for one inversion (the G8 wall-time budget
+    // depends on this). The default is exactly the two calls above, so the
+    // gamma-law path is unchanged.
+    virtual void get_face_eval_from_prim(const Vector<Real>& Q, Real& e, Real& a) const
+    {
+        e = get_internal_energy_from_prim(Q);
+        a = get_sound_speed_from_prim_rp(Q);
     }
 
     virtual std::string get_tag() const { return ""; }

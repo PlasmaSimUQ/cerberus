@@ -288,6 +288,25 @@ class BraginskiiCTU : public Action
                                       const Real time,
                                       const Real dt) override;
 
+    // EOS-consistent species temperature for the tabulated path (plan W11,
+    // Stage 5 — STAGE5.md). rhs()/check_invalid() are STATIC (they are
+    // passed to rk4_adaptive as function pointers), so the tabulated gas
+    // model is reached through the static pointers below rather than through
+    // ion_state/electron_state. Inside rhs the ideal p_e/p_i exist only to
+    // form T_e/T_i, so only temperature is reformed: for a tabulated species
+    // T comes from the table T(rho,e) map on the current RK-stage state; the
+    // gamma-law path is left byte-identical (a single predictable branch).
+    static Real species_temperature_tabulated(const HydroGas* gas,
+                                               Real rho,
+                                               Real mx,
+                                               Real my,
+                                               Real mz,
+                                               Real Eden);
+    // non-null ONLY when that species uses a tabulated gas; set once per
+    // calc_time_derivative before the (serial, no-OpenMP) cell loop
+    static const HydroGas* s_ion_gas_tab;
+    static const HydroGas* s_electron_gas_tab;
+
     enum class BraginskiiStateIdx { Ion = 0, Electron, Field };
 
     Array<EulerianState*, 3> states;

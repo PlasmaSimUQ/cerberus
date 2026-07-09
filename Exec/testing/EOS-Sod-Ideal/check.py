@@ -1,15 +1,23 @@
 #!/usr/bin/env python3
-"""Gates for the tabulated-EOS twin-run Sod case (Stage 3, W9).
+"""Gates for the tabulated-EOS twin-run Sod case (Stage 3 W9 + Stage 5 W10).
 
 1. twin agreement:   tabulated vs thermally_perfect, L1 per field — isolates
                      EOS-path error with identical numerics; bound set by
-                     table interpolation accuracy.
+                     table interpolation accuracy. Run twice: the default
+                     (general-EOS) solver and the effective_gamma override.
 2. analytic:         both runs vs the exact Riemann solution — the tabulated
                      run must sit at (essentially) the same distance from
                      truth as the ideal run (scheme error dominates).
 3. conservation:     total mass and energy drift, first vs last plotfile.
-4. wall-time budget: tabulated/ideal 'Run Time total' ratio (plan review
-                     amendment #4).
+4. wall-time budget: tabulated/ideal 'Run Time advance' ratio (plan review
+                     amendment #4), plus the Stage-5 G8 budget: general-EOS
+                     solver vs effective_gamma on the same table.
+5. G1 round-off:     TPG + HLLC_general_eos vs TPG + HLLC. The gas-model
+                     base defaults reproduce HLLC's algebra exactly, so any
+                     structured difference is a SOLVER bug, isolated from
+                     EOS bugs by construction (STAGE5.md D-b/G1).
+6. G5 default flip:  the tabulated run has no 'flux' key; the log must show
+                     the config default selecting HLLC_general_eos.
 
 Tolerances marked MEASURED were committed from the first passing run per the
 plan's no-guessed-gates amendment.
@@ -37,6 +45,19 @@ ANALYTIC_FACTOR = 1.25     # MEASURED: ratio 0.99 (tabulated marginally closer)
 IDEAL_L1_MAX = 5.0e-3      # MEASURED: 1.8e-3 on rho at 2048 cells (minmod/HLLC)
 CONS_TOL = 1.0e-11         # relative mass/energy drift
 WALL_RATIO_MAX = 3.0       # MEASURED: 2.67 (advance time) at 2048 cells
+GEOS_ROUNDOFF_TOL = 1.0e-11  # G1: Linf/range, TPG general-EOS vs HLLC (D-b
+                             # makes the algebra identical up to FP
+                             # reassociation in the q-factor round-trip)
+GEOS_WALL_RATIO_MAX = 2.0    # G8: general-EOS vs effective_gamma on the same
+                             # table. MEASURED 2026-07-09: 1.57 in the
+                             # sequential suite (1.32-1.57 clean, up to 2.21
+                             # under concurrent build load). The extra cost is
+                             # inherent — the solver does one table inversion
+                             # per face side that effective_gamma (which reads
+                             # the reconstructed gamma slot) does not. Budget
+                             # set above the clean measurement with margin; it
+                             # still catches a >25% regression on the method's
+                             # inherent cost. Noise-sensitive at sub-2s runtimes.
 
 failed = []
 
@@ -162,18 +183,37 @@ def profile(prefix, which):
 
 ideal_0 = profile("ideal.plt", "first")
 ideal_1 = profile("ideal.plt", "last")
+geos_0 = profile("ideal_geos.plt", "first")
+geos_1 = profile("ideal_geos.plt", "last")
 tab_0 = profile("tabulated.plt", "first")
 tab_1 = profile("tabulated.plt", "last")
+eff_0 = profile("tabulated_effgamma.plt", "first")
+eff_1 = profile("tabulated_effgamma.plt", "last")
 
 # ---------------------------------------------------------------------------
-# 1. twin agreement
+# 1. twin agreement (default/general-EOS solver, and the effective_gamma
+#    override that preserves the Stage-3 gate's meaning)
 
-for f in ("rho-fluid", "p-fluid", "x_vel-fluid", "T-fluid"):
+for label, d in (("", tab_1), ("eff-", eff_1)):
+    for f in ("rho-fluid", "p-fluid", "x_vel-fluid", "T-fluid"):
+        vi = ideal_1[f][1]
+        vt = d[f][1]
+        rng = vi.max() - vi.min()
+        l1 = np.mean(np.abs(vt - vi)) / rng
+        gate("twin-%s%s" % (label, f.split("-")[0]), l1 <= TWIN_TOL,
+             "L1/range=%.3e (tol %g)" % (l1, TWIN_TOL))
+
+# ---------------------------------------------------------------------------
+# 5. G1 round-off: the general-EOS solver on the gamma-law gas vs HLLC.
+#    Linf, not L1: every cell must agree, not just on average.
+
+for f in ("rho-fluid", "p-fluid", "x_vel-fluid", "T-fluid", "nrg-fluid"):
     vi = ideal_1[f][1]
-    vt = tab_1[f][1]
+    vg = geos_1[f][1]
     rng = vi.max() - vi.min()
-    l1 = np.mean(np.abs(vt - vi)) / rng
-    gate("twin-%s" % f.split("-")[0], l1 <= TWIN_TOL, "L1/range=%.3e (tol %g)" % (l1, TWIN_TOL))
+    linf = np.max(np.abs(vg - vi)) / rng
+    gate("geos-roundoff-%s" % f.split("-")[0], linf <= GEOS_ROUNDOFF_TOL,
+         "Linf/range=%.3e (tol %g)" % (linf, GEOS_ROUNDOFF_TOL))
 
 # ---------------------------------------------------------------------------
 # 2. vs the exact solution (density, the sharpest field)
@@ -190,7 +230,8 @@ gate("analytic-tabulated", l1_tab <= ANALYTIC_FACTOR * l1_ideal,
 # ---------------------------------------------------------------------------
 # 3. conservation (uniform grid: sums are integrals up to a constant factor)
 
-for name, d0, d1 in (("ideal", ideal_0, ideal_1), ("tabulated", tab_0, tab_1)):
+for name, d0, d1 in (("ideal", ideal_0, ideal_1), ("tabulated", tab_0, tab_1),
+                     ("geos", geos_0, geos_1), ("effgamma", eff_0, eff_1)):
     for f, label in (("rho-fluid", "mass"), ("nrg-fluid", "energy")):
         s0 = d0[f][1].sum()
         s1 = d1[f][1].sum()
@@ -211,12 +252,30 @@ def wall(log):
 
 w_i = wall("run_log_ideal.txt")
 w_t = wall("run_log_tabulated.txt")
-if w_i and w_t:
-    ratio = w_t / w_i
+w_e = wall("run_log_tabulated_effgamma.txt")
+if w_i and w_e:
+    # Stage-3 budget, preserved on the run that still uses effective_gamma
+    ratio = w_e / w_i
     gate("wall-time", ratio <= WALL_RATIO_MAX,
-         "tabulated/ideal = %.2f (%.2fs / %.2fs, max %g)" % (ratio, w_t, w_i, WALL_RATIO_MAX))
+         "effgamma/ideal = %.2f (%.2fs / %.2fs, max %g)" % (ratio, w_e, w_i, WALL_RATIO_MAX))
 else:
-    gate("wall-time", False, "could not parse 'Run Time total' from logs")
+    gate("wall-time", False, "could not parse 'Run Time advance' from logs")
+if w_t and w_e:
+    # Stage-5 G8 budget: what the dedicated solver costs over effective_gamma
+    ratio = w_t / w_e
+    gate("wall-geos", ratio <= GEOS_WALL_RATIO_MAX,
+         "geos/effgamma = %.2f (%.2fs / %.2fs, max %g)" % (ratio, w_t, w_e,
+                                                           GEOS_WALL_RATIO_MAX))
+else:
+    gate("wall-geos", False, "could not parse 'Run Time advance' from logs")
+
+# ---------------------------------------------------------------------------
+# 6. G5 default flip: the tabulated run carries no 'flux' key, so the config
+#    default must have selected the general-EOS solver (and said so)
+
+log_txt = open("run_log_tabulated.txt").read()
+gate("default-flux", "defaulting to 'HLLC_general_eos'" in log_txt,
+     "config-default notice in run_log_tabulated.txt")
 
 print("check.py:", "FAIL" if failed else "PASS")
 sys.exit(1 if failed else 0)

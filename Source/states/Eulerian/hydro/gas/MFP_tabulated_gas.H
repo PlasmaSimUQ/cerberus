@@ -67,6 +67,17 @@ class TabulatedEOS : public HydroGas
     virtual RealArray get_speed_from_cons(const Vector<Real>& U) const override;
     virtual RealArray get_speed_from_prim(const Vector<Real>& Q) const override;
 
+    // Stage-5 W10.1: direct face evaluations for the HLLC_general_eos
+    // solver — one rp inversion each, clamp-first + tally (the Stage-4
+    // doctrine). The solver also calls the sound-speed one with
+    // Q[Prs] = p_star for its q-factor (STAGE5.md D-c); an off-hull p_star
+    // clamps inside the inversion and is tallied like any other clamp.
+    virtual Real get_internal_energy_from_prim(const Vector<Real>& Q) const override;
+    virtual Real get_sound_speed_from_prim_rp(const Vector<Real>& Q) const override;
+    virtual void get_face_eval_from_prim(const Vector<Real>& Q,
+                                         Real& e,
+                                         Real& a) const override;
+
     virtual std::string get_tag() const override { return tag; }
     virtual void write_info(nlohmann::json& js) const override;
 

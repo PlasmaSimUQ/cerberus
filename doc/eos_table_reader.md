@@ -369,12 +369,55 @@ python3 ../../python_analysis/eos_table_prep.py fpeos \
     --hug-ref data/raw/hugoniot_MC2000_PRL85_1890.txt
 ```
 
-## 10. *(future)* How the solver will use it
+## 10. How the Riemann solver uses it (`flux` modes, Stage 5 / W10)
 
-- **Stage 5 (W10):** a separate Riemann solver `HLLC_general_eos`
-  (Athena++'s pattern) evaluates face energies and sound speeds directly
-  from the table through two new `HydroGas` virtuals; until it lands, the
-  reserved `flux = 'HLLC_general_eos'` name aborts at configuration time
-  with a pointer to the plan.
+A tabulated state can run under two Riemann-solver (the flux routine
+between two cells) configurations, selected by the per-state Lua `flux`
+key:
+
+```lua
+states = {
+  fluid = {
+    type = 'hydro',
+    gas = { type = 'tabulated', table = 'data/D_fpeos.eostab', ... },
+    -- no 'flux' key            -> 'HLLC_general_eos'  (the default)
+    -- flux = 'HLLC_general_eos'-> same, explicitly
+    -- flux = 'HLLC'            -> effective_gamma mode (Stages 3-4 path)
+  },
+}
+```
+
+- **`HLLC_general_eos` (default).** A dedicated solver
+  (`riemann/MFP_hllc_general_eos.{H,cpp}`) asks the gas model for the face
+  specific internal energy and sound speed through one combined evaluation
+  per face (`HydroGas::get_face_eval_from_prim` — for a tabulated gas, a
+  single rp inversion answers both). Its two-shock q-factor uses the local
+  acoustic gamma Γ₁ = a²ρ/p at the face, reusing that same sound speed, so
+  no extra table calls. On a gamma-law gas the base-class defaults reduce
+  every one of these to exactly `MFP_hllc.cpp`'s algebra — the new solver
+  agrees with `HLLC` to round-off, which is also the validation gate that
+  isolates solver bugs from EOS bugs (run TPG with
+  `flux = 'HLLC_general_eos'` to reproduce it).
+- **`HLLC` (effective_gamma mode).** The unmodified solver reads the
+  reconstructed `Gamma` slot, which the tabulated `cons2prim` fills with
+  γₑ = 1 + p/(ρe). Face energy is exact; the wave-speed estimate is
+  approximate (Γ₁ ≠ γₑ off the ideal corner) and the γₑ slot is linearly
+  reconstructed across shocks. Kept selectable for A/B comparison and for
+  wall-time-sensitive runs — it adds no per-face table calls.
+
+Non-tabulated states are unaffected: they still require an explicit `flux`
+key, and their solvers are byte-identical to pre-Stage-5 builds. All face
+evaluations inside the general-EOS path go through the same hull clamping +
+counter as §8 (clamp the inputs first, derive everything from the clamped
+state).
+
+Wall-time expectation: the general-EOS solver pays one combined table
+inversion per face side per stage that effective_gamma mode does not; on
+the 2048-cell Sod twin that measured 1.57x the effective_gamma advance
+time (gate `wall-geos` in `Exec/testing/EOS-Sod-Ideal/check.py`, budget
+2.0x — noise-sensitive at these short runtimes).
+
+## 11. *(future)* Two-temperature
+
 - **Stage 6:** two-temperature (separate ion/electron tables) extends the
   file format and this reader; the design memo is W12.

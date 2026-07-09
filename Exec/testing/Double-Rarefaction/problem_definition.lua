@@ -92,6 +92,12 @@ states = {
     },
     reconstruction = 'O6', -- unlimited: guaranteed to overshoot at the step
     reconstruction_fallback = 'minmod', -- feature under test
+    -- positivity floor threshold: used by the fallback guard for rho and p
+    -- (tracers are guarded at exactly 0), by the cons2prim cell-centre
+    -- floors, the wave-speed floors and the pre-Riemann face clamp (the
+    -- floors compile in only with USE_PRIM_FLOOR=TRUE, the default - see
+    -- the run script). 1e-14 is the default; stated explicitly here.
+    effective_zero = 1e-14,
     flux = 'HLLC',
     value = {
       rho = 1.0,

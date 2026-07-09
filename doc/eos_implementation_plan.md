@@ -236,14 +236,15 @@ table is actually added.
 | W7 | Flux-mode resolution plumbing only: config-time defaults by gas type + Lua override + validation (`flux='HLLC_general_eos'` aborts until W10). **No edits to existing solvers** — the `eos` path is W10's separate solver file | S | — (parallel) |
 | W8 | Floors generalization (D10): (a) `HydroGas::apply_prim_floor` made `virtual`, tabulated override floors to hull `ρ_min`/`p(ρ,T_min)` not `1e-14` (resolves the open absolute-floor dt-collapse pathology, scoped to the table); (b) `cons2prim` clamps `e_int` to the hull `e`-column before inversion — the load-bearing guard `cons_valid`'s `Eden>0` test cannot provide; (c) the `clamped` flag made load-bearing (per-box counter + verbosity report); (d) `prim_valid`/`cons_valid`/`get_positive_prim` **verified never-fire** on FPEOS (whole hull `p>0`) rather than virtualized — cold-curve virtualization documented-but-deferred | M | W6 |
 | W9 | Test cases in `Exec/testing/`: Sod into the table's ideal-gas corner vs γ-law analytic; single-material strong-shock Hugoniot vs published FPEOS locus | M | W6, W3 |
-| W10 | `eos` flux mode = new solver `riemann/MFP_hllc_general_eos.{H,cpp}` (Athena++ `hllc.cpp` GENERAL_EOS pattern, see D2): face (e, a²) from gas-model (ρ,p) evaluations, q-factor from local γ=a²ρ/p at PVRS p*; two new `HydroGas` virtuals with ideal-gas defaults; round-off agreement vs `HLLC` on TPG; A/B vs `effective_gamma` on W9 cases; flip default `flux` for tabulated states | L | W7, W9 |
-| W11 | Braginskii consistency: replace the four `p=(γ−1)(E−ke)` / `T=pm/ρ` reform sites (`MFP_CTU_Braginskii.cpp:2573,2574,2606,2743,2755`) with gas-interface calls, behind the same switch | M | W7 |
+| W10 | **DONE (Stage 5)** `eos` flux mode = new solver `riemann/MFP_hllc_general_eos.{H,cpp}` (Athena++ `hllc.cpp` GENERAL_EOS pattern, see D2): face (e, a) from a combined gas-model (ρ,p) evaluation, q-factor from local γ=a²ρ/p at the **face** (not PVRS p*, changed after the G8 wall measurement); `HydroGas` virtuals `get_internal_energy_from_prim`/`get_sound_speed_from_prim_rp`/`get_face_eval_from_prim` with Gamma-slot ideal defaults; round-off vs `HLLC` on TPG = 5e-15; A/B vs `effective_gamma` on W9 (Hugoniot gates unchanged); default `flux` flipped for tabulated states | L | W7, W9 |
+| W11 | **DONE (Stage 5)** Braginskii consistency: `T_e`/`T_i` reform in `rhs` (`:2573-75`, `:2605-07`) + positivity bailouts in `check_invalid` (`:2791-94`, `:2802-05`). Corrected from plan: these are `static` functions → dispatch via static `s_*_gas_tab` pointers set in `calc_time_derivative`, not `ion_state`; only **T** needed reforming (`p_e`/`p_i` are intermediates), via `species_temperature_tabulated` → the table `T(ρ,e)` map. γ-law path bit-identical (G7 fcompare) | M | W7 |
 | W12 | 2T design memo (paper before code): `rho_lookup` data flow — which state's data, at which RK stage — and the electron wave-speed chain rule (∂P_e/∂ρ_e vs table axis ∂P_e/∂ρ_material) | M | parallel |
 | W13 | 2T components (SESAME 303/304 split, per-state component binding, 303+304=301 init assertion, exchange-term cv) and, if needed, the mixture/MTMMMT driver | L | W10, W12 |
 | W14 | MHD guard: incompatibility comments in `MFP_mhd.H` (class header + `gamma` member); config-time `amrex::Abort` if an MHD state coexists with a `tabulated` hydro gas | S | W6 |
 | W15 | MHD with general EOS (future, demand-driven; Athena++ `general_mhd.cpp` pattern — see §6): MHD gas-closure abstraction, table-backed fast magnetosonic speed, `MFP_mhd_hlle_general_eos` solver, guard replaced | L | W10 |
 | W16 | Separate `rho_floor`/`p_floor` (later goal; see STAGE4.md deferred section): per-variable floors replacing the single `effective_zero` for all gas models + MHD, closing the absolute-floor dt-collapse pathology globally (Stage-4 W8.1 closes it for the tabulated gas only); includes the vacuum-cell velocity decision | M | W8 |
 | W17 | Checkpoint/restart test with the tabulated gas (later goal; see STAGE4.md deferred section): stop/restart/`fcompare`-vs-uninterrupted bit-identity gate; no new StateData expected, table reloads per rank at config time | S | W9 |
+| W18 | **Later** — store `.eostab` payload in **SI** instead of CGS (units = the dimensional system a quantity is expressed in; SI = kg·m·s, CGS = g·cm·s, so e.g. density switches g/cm³→kg/m³, pressure erg/cm³→Pa, a factor of 10). Currently the table columns are written and read in CGS while Cerberus reference quantities are SI, so the reader ctor does an SI→CGS round-trip; storing SI removes that mismatch and one conversion class. Scope: (a) `.eostab` format spec `units` metadata field (W2) declares `SI`, with a version bump + a back-compat reader branch so existing CGS tables still load by their header tag; (b) the Python conditioning tool (W3, `eos_table_prep.py`) emits SI columns and the SI provenance header; (c) the `EosTable`/`TabulatedEOS` reader (W4/W6) drops the SI→CGS step and nondimensionalises directly against the SI reference quantities; (d) regenerate `EOS-Table/data/*.eostab`; (e) gate: one-zone self-test (W5) round-trips + `EOS-Sod-Ideal`/`EOS-Hugoniot` verdicts unchanged after regeneration (numbers are dimensionless post-nondimensionalisation, so gates should be bit-identical modulo table round-off) | M | W2, W3, W4, W6 |
 
 ---
 
@@ -298,13 +299,24 @@ cold-curve virtualization is documented-but-deferred.
 **Milestone gate: everything after this stage may be revised based on what
 Stages 1–4 teach.**
 
-**Stage 5 — `eos` flux mode becomes default** *(large; W10, W11)*
-The `HLLC_general_eos` solver (Athena++ pattern, D2), validated in three
-steps: (1) round-off agreement with `HLLC` on a γ-law gas (isolates solver
-bugs from EOS bugs), (2) A/B against `effective_gamma` on the Stage-4 cases,
-(3) default `flux` flipped for tabulated states (γ-law states continue to run
-the untouched existing solvers). Braginskii reform sites (W11) converted
-behind the same mode resolution.
+**Stage 5 — `eos` flux mode becomes default** *(large; W10, W11)* —
+**DONE 2026-07-09** (STAGE5.md has the full results notes). Detailed plan +
+design decisions D-a…D-g and gates G1–G8 in `Exec/testing/EOS-Table/STAGE5.md`.
+The `HLLC_general_eos` solver (Athena++ pattern, D2) is now the default for
+tabulated states, validated in three steps: (1) round-off agreement with
+`HLLC` on a γ-law gas — L∞/range 5e-15, isolating solver bugs from EOS bugs;
+(2) A/B against `effective_gamma` on the Stage-4 cases — the 21 Hugoniot
+gates re-passed unchanged (compressions 0.67/1.07/1.27%, jump is
+conservation-set so both modes agree); (3) default `flux` flipped for
+tabulated states (γ-law states run the untouched existing solvers, byte-
+identical by fcompare). Braginskii temperature (W11) reformed behind static
+dispatch pointers — γ-law transport path bit-identical (G7). Key deviations
+from the written plan, both in W11: the reform sites are `static` functions
+(dispatch via static pointers, not `ion_state`), and only *temperature*
+needed reforming (`p_e`/`p_i` are intermediates). q-factor uses the face Γ₁
+(not PVRS-p*) after the G8 wall-time measurement; wall budget 2.0× (measured
+1.57×). The combined `get_face_eval_from_prim` virtual (one inversion for
+both face e and a) was added for that budget.
 
 **Stage 6 — Two-temperature** *(large; W12 memo written early, W13 gated on it)*
 Per `Cerberus_TabularEOS_Implementation_Plan.txt`, sequenced 2T-first (true

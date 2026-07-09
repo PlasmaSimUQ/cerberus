@@ -83,7 +83,10 @@ states = {
       charge = 0.0,
     },
     reconstruction = 'minmod',
-    flux = 'HLLC',
+    -- Stage 5: no explicit solver -> the tabulated default HLLC_general_eos
+    -- (STAGE5.md D-e). Set FLUX = 'HLLC' in an inputs overlay to A/B the
+    -- effective_gamma mode of Stages 3-4.
+    flux = FLUX,
     value = init,
   },
 }

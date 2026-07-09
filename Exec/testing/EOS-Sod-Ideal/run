@@ -16,7 +16,9 @@ mkdir -p data
 
 rm -rf *plt* chk*
 
-mpirun -n 4 ${EXE} Sod-ideal.inputs     2>&1 | tee run_log_ideal.txt
-mpirun -n 4 ${EXE} Sod-tabulated.inputs 2>&1 | tee run_log_tabulated.txt
+mpirun -n 4 ${EXE} Sod-ideal.inputs              2>&1 | tee run_log_ideal.txt
+mpirun -n 4 ${EXE} Sod-ideal-geos.inputs         2>&1 | tee run_log_ideal_geos.txt
+mpirun -n 4 ${EXE} Sod-tabulated.inputs          2>&1 | tee run_log_tabulated.txt
+mpirun -n 4 ${EXE} Sod-tabulated-effgamma.inputs 2>&1 | tee run_log_tabulated_effgamma.txt
 
 python3 check.py

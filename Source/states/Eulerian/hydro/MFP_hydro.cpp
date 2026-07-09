@@ -3,8 +3,10 @@
 #include "Eigen"
 #include "MFP.H"
 #include "MFP_diagnostics.H"
+#include "MFP_hllc_general_eos.H"
 #include "MFP_hydro_refine.H"
 #include "MFP_lua.H"
+#include "MFP_tabulated_gas.H"
 #include "MFP_transforms.H"
 
 std::string HydroState::multicomp_prim_name = "alpha";
@@ -239,20 +241,32 @@ void HydroState::set_flux()
 
     std::string flux = state_def["flux"].get_or<std::string>("null");
 
-    if (flux == "null")
-        Abort("Flux option required for state '" + name + "'. Options are " +
-              vec2str(rfact.getKeys()));
-
-    // planned general-EOS solver (tabulated-EOS work, Stage 5 / W10):
-    // reserved name, clean abort until it lands
-    if (flux == "HLLC_general_eos")
-        Abort("flux='HLLC_general_eos' is not implemented yet; see "
-              "doc/eos_implementation_plan.md (W10, Stage 5)");
+    if (flux == "null") {
+        // default-flux resolution (plan D2/W10, STAGE5.md D-e): tabulated
+        // states default to the general-EOS solver; every other gas keeps
+        // the hard requirement. An explicit `flux` key on a tabulated state
+        // is honoured — flux='HLLC' selects effective_gamma mode (A/B path).
+        if (gas && gas->get_tag() == TabulatedEOS::tag) {
+            flux = HydroHLLCGeneralEOS::tag;
+            state_def["flux"] = flux;  // builder dispatch reads def["flux"]
+            amrex::Print() << "HydroState[" << name << "]: no 'flux' key, defaulting to '"
+                           << flux << "' for gas type '" << TabulatedEOS::tag << "'\n";
+        } else {
+            Abort("Flux option required for state '" + name + "'. Options are " +
+                  vec2str(rfact.getKeys()));
+        }
+    }
 
     flux_solver = rfact.Build(flux, state_def);
 
     if (!flux_solver)
         Abort("Invalid flux solver option '" + flux + "'. Options are " + vec2str(rfact.getKeys()));
+
+    // the general-EOS solver asks the gas model for face internal energy and
+    // sound speed: inject the non-owning pointer (STAGE5.md D-d; set_gas()
+    // has already run — construction order is init_from_lua's)
+    if (flux == HydroHLLCGeneralEOS::tag)
+        static_cast<HydroHLLCGeneralEOS*>(flux_solver.get())->set_gas(gas.get());
 
     return;
 }

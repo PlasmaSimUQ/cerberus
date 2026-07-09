@@ -35,13 +35,13 @@ particles.do_particles = 0
 amr.checkpoint_files_output = 0
 amr.check_int               = -1
 amr.plot_files_output = 1
-amr.plot_file         = ideal.plt
+amr.plot_file         = tabulated_effgamma.plt
 amr.plot_int          = -1
 amr.plot_per          = 0.2
 
 # ======== PROBLEM ==========
 mfp.lua = "
-GAS_TYPE = 'ideal'
+GAS_TYPE = 'tabulated'
 FLUX = 'HLLC'
 dofile('problem_definition.lua')
 "

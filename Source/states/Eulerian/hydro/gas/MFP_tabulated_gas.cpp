@@ -328,6 +328,53 @@ Real TabulatedEOS::get_gamma_from_prim(const Vector<Real>& Q, const int idx) con
     return 1.0 + p / std::max(rho * ev.e, std::numeric_limits<Real>::min());
 }
 
+Real TabulatedEOS::get_internal_energy_from_prim(const Vector<Real>& Q) const
+{
+    BL_PROFILE("TabulatedEOS::get_internal_energy_from_prim");
+
+    const Real rho = clamp_rho(Q[+HydroDef::PrimIdx::Density]);
+    const Real p = Q[+HydroDef::PrimIdx::Prs];
+
+    EosEval ev;
+    EosInvertStats st;
+    eval_from_rho_p(rho, p, ev, st);
+    tally(st);
+    // table value: > 0 across the hull, and hull-consistent when clamped
+    return ev.e;
+}
+
+Real TabulatedEOS::get_sound_speed_from_prim_rp(const Vector<Real>& Q) const
+{
+    BL_PROFILE("TabulatedEOS::get_sound_speed_from_prim_rp");
+
+    const Real rho = clamp_rho(Q[+HydroDef::PrimIdx::Density]);
+    const Real p = Q[+HydroDef::PrimIdx::Prs];
+
+    EosEval ev;
+    EosInvertStats st;
+    eval_from_rho_p(rho, p, ev, st);
+    tally(st);
+    // eval_rt floors cs^2 >= 0 (non-convexity guard, plan D5); the faces
+    // arriving here are hull-floored (W8.1) so cs is finite and positive
+    return ev.cs;
+}
+
+void TabulatedEOS::get_face_eval_from_prim(const Vector<Real>& Q, Real& e, Real& a) const
+{
+    BL_PROFILE("TabulatedEOS::get_face_eval_from_prim");
+
+    const Real rho = clamp_rho(Q[+HydroDef::PrimIdx::Density]);
+    const Real p = Q[+HydroDef::PrimIdx::Prs];
+
+    // one rp inversion answers both face quantities (G8 budget)
+    EosEval ev;
+    EosInvertStats st;
+    eval_from_rho_p(rho, p, ev, st);
+    tally(st);
+    e = ev.e;
+    a = ev.cs;
+}
+
 Real TabulatedEOS::get_cp_from_cons(const Vector<Real>& U,
                                     const int density_idx,
                                     const int tracer_idx) const
