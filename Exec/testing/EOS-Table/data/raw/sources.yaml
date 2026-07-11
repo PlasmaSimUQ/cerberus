@@ -1,0 +1,194 @@
+# Raw EOS building-block manifest (doc/eos_creation_plan.md, Part 2).
+#
+# Every raw dataset the offline toolchain consumes is recorded here:
+# citation, origin, retrieval date, sha256 per file, license note and
+# acquisition mode. Verify/fetch with:
+#
+#     python3 Exec/python_analysis/eos_table_prep.py sources --verify
+#     python3 Exec/python_analysis/eos_table_prep.py sources --fetch
+#
+# acquisition: scripted  = fetchable by URL (checksum-gated)
+#              manual    = requires a human step (licensed/paywalled/forms)
+#              digitized = transcribed from a paper table/figure; the
+#                          transcription script or provenance columns are
+#                          committed next to the data
+#
+# File paths are relative to this directory. Prose characterisation of each
+# source lives in README.md; this file is the machine-checkable record.
+
+sources:
+  - id: fpeos
+    citation: >
+      B. Militzer, F. Gonzalez-Cataldo, S. Zhang, K. P. Driver, F. Soubiran,
+      "First-Principles Equation of State Database for Warm Dense Matter
+      Computation", Phys. Rev. E 103 (2021) 013203.
+    url: https://militzer.berkeley.edu/FPEOS/fpeos_10-26-25.tar.gz
+    retrieved: 2026-07-07
+    license: >
+      No explicit license file; the authors request citation of the articles
+      listed in each table's header (see README.md).
+    acquisition: scripted
+    notes: >
+      H table (FPEOS/H_EOS_09-18-20.txt inside the archive) is the WDM/plasma
+      deuterium building block via isotope mass-scaling; archive kept
+      byte-identical to the download, extraction happens in scratch space.
+    files:
+      - path: fpeos_10-26-25.tar.gz
+        sha256: b42c44298e8630afe73e30db4755bd9a4b8a2f41ad147a82130accd3476a1ab1
+
+  - id: hugoniot-mc2000
+    citation: >
+      B. Militzer, D. M. Ceperley, "Path Integral Monte Carlo Calculation of
+      the Deuterium Hugoniot", Phys. Rev. Lett. 85 (2000) 1890
+      (arXiv:physics/0001047).
+    url: https://arxiv.org/abs/physics/0001047
+    retrieved: 2026-07-07
+    license: arXiv non-exclusive distribution; data quoted for comparison.
+    acquisition: digitized
+    notes: >
+      Table transcribed 2026-07-07 from the ar5iv HTML rendering; columns
+      T rho P_GPa compression, initial state in the file header. Used as the
+      Stage-4 'anchor-PIMC' gate reference (EOS-Hugoniot/check.py).
+    files:
+      - path: hugoniot_MC2000_PRL85_1890.txt
+        sha256: 6b8f517fa8bd503b0ced6038a25b6a51bd75bca768901719e8f9196bc71af4de
+
+  # --- planned building blocks, files added as they are acquired ------------
+  # (an entry without a 'files' list is inert for verify/fetch; it records
+  #  the acquisition intent and where the data will come from)
+
+  - id: ifpeos
+    citation: >
+      D. I. Mihaylov, V. V. Karasiev, S. X. Hu, J. R. Rygg, V. N. Goncharov,
+      G. W. Collins, "Improved first-principles equation-of-state table of
+      deuterium for high-energy-density applications", Phys. Rev. B 104
+      (2021) 144104 (iFPEOS; T-SCAN-L thermal XC + PIMD nuclear quantum
+      effects). DOI 10.1103/PhysRevB.104.144104. See
+      doc/eos_splice_plan.md section 1.
+    url: https://par.nsf.gov/servlets/purl/10355657
+    retrieved: 2026-07-11
+    license: >
+      APS-published, DOE-funded accepted manuscript (open access via
+      NSF-PAR/OSTI); cite the article.
+    acquisition: manual
+    notes: >
+      53 rho points 0.001..1596.49 g/cc x 39 T points 800 K..256 MK.
+      Article PDF downloaded manually 2026-07-11; characterisation memo:
+      iFPEOS/README.md. 2026-07-12: the APS Supplemental Material was
+      confirmed (user download) to contain ONLY the rho = 0.001 g/cc
+      demonstration isochore — the full table is NOT published. iFPEOS is
+      therefore DEMOTED from seam-1 source to validation data (the one
+      isochore + paper figures); H-REOS.3 (entry 'reos3') takes the WDM
+      role. Optional upgrade path: request the full table from the LLE
+      authors (Mihaylov/Karasiev/Hu).
+    files:
+      - path: iFPEOS/iFPEOS_Deuterium_PhysRevB.104.144104.pdf
+        sha256: cfed3dcfed29a5ae5d516e9b38268e771210bcde5b373a8f8a166edd36362090
+      - path: iFPEOS/SM/Supplmental_Material_iFPEOS.pdf
+        sha256: adbcc98b007d5664bb567b651488acf41116b51751ff14befca2108d0209a975
+        # 4 pages; Sec. 2 holds ONLY the rho = 0.001 g/cc isochore —
+        # confirmed (2026-07-12) to be the complete published SM.
+      - path: iFPEOS/ifpeos_rho0.001_isochore.csv
+        sha256: 672373a70b53b1737bf666ad8f09b0a5e278bc107a2567141ae40dfe5099a1cc
+        # transcribed by iFPEOS/extract_sm_isochore.py (re-runnable;
+        # row-count/monotonicity invariants asserted); validation overlay.
+
+  - id: reos3
+    citation: >
+      A. Becker, W. Lorenzen, J. J. Fortney, N. Nettelmann, M. Schoettler,
+      R. Redmer, "Ab initio equations of state for hydrogen (H-REOS.3) and
+      helium (He-REOS.3) and their implications for the interior of brown
+      dwarfs", Astrophys. J. Suppl. Ser. 215, 21 (2014). Machine-readable
+      table 2 via VizieR catalog J/ApJS/215/21 (CDS).
+    url: https://cdsarc.cds.unistra.fr/ftp/J/ApJS/215/21/table2.dat
+    retrieved: 2026-07-12
+    license: CDS/VizieR — free for research with citation of the article.
+    acquisition: scripted
+    notes: >
+      H-REOS.3: FT-DFT-MD + FVT wide-range hydrogen EOS, 60 K..1e7 K,
+      3e-8..1800 g/cc, 106 rho x 42 T (~rectangular, 105 per isotherm),
+      columns rho[g/cc] T[K] P[GPa] u[kJ/g], no P<=0 rows. PROMOTED to the
+      seam-1/WDM building block (2026-07-12) after the iFPEOS table proved
+      unpublished; mass-scale H->D like FPEOS. Caveats vs iFPEOS: classical
+      ions (no NQE), PBE-class XC. iFPEOS materials remain as validation.
+    files:
+      - path: reos3/ReadMe_J_ApJS_215_21.txt
+        sha256: 723ec1efa63e5bc1a019712700d442ab4373c5cbea4cbf32924f0d308fee08a5
+      - path: reos3/table2_HREOS3.dat
+        sha256: e93ae1223479b7c79c79198cae46751bfee92701b2c51bdfbc8104fcb428369b
+
+  - id: dft-wide-h
+    citation: >
+      Wide-range hydrogen DFT EOS (FPMD + orbital-free MD),
+      arXiv:1306.1902. Cross-check overlay only.
+    url: https://arxiv.org/abs/1306.1902
+    acquisition: scripted
+    notes: validation overlay for the spliced deuterium table.
+
+  - id: llnl-coldcurve
+    citation: >
+      D. A. Young, H. Cynn, P. Soderlind, A. Lanza, "Zero-Kelvin Compression
+      Isotherms of the Elements 1 <= Z <= 92 to 100 GPa", J. Phys. Chem.
+      Ref. Data 45, 043101 (2016); LLNL-JRNL-686936. Hydrogen column of
+      Table 2 (built on Loubeyre et al. DAC data + exp-6 low-P model,
+      report section 3.1).
+    url: https://www.osti.gov/pages/servlets/purl/1342023
+    retrieved: 2026-07-11
+    license: LLNL/DOE report, publicly released via OSTI PAGES.
+    acquisition: scripted
+    notes: >
+      T=0 K hydrogen isotherm V(P), 0..100 GPa in 1 GPa steps — the cold
+      curve for the semi-analytic D2 model (llnl_coldcurve/
+      extract_h_coldcurve.py is the re-runnable transcription; monotonicity
+      and column-count invariants asserted; H-vs-D zero-point caveat in the
+      CSV header). Supersedes the earlier 'dac-loubeyre' plan entry: same
+      underlying DAC data, already reduced to 0 K, which is what the QEOS
+      free-energy decomposition wants.
+    files:
+      - path: llnl_coldcurve/LLNL-JRNL-686936_zeroK_isotherms.pdf
+        sha256: 659c70c6f7df58a86bd8b0910f701d22b42607f8cad66dc4e9a15074ae90e216
+      - path: llnl_coldcurve/h_coldcurve_0K.csv
+        sha256: f0479934c454f901657206d0411537a55541fe542506d1d4f2ef010e2818c382
+      - path: llnl_coldcurve/ti_coldcurve_0K.csv
+        sha256: a381a79a941d716b74e32e6ff689b01f9b4af44ff458571f5076e2538c510c07
+        # Ti column (2026-07-12, extract_ti_coldcurve.py; DAC-reduced,
+        # report sec. 3.22): V0 = 10.451 cm3/mol -> rho0(0K) = 4.580 g/cc
+
+  - id: nist-ti-ie
+    citation: >
+      NIST Atomic Spectra Database (Kramida, Ralchenko, Reader, and NIST
+      ASD Team), ionization energies of Ti I-XXII. https://physics.nist.gov/asd
+    url: >-
+      https://physics.nist.gov/cgi-bin/ASD/ie.pl?spectra=Ti&units=1&format=2&order=0&sp_name_out=on&e_out=0
+    retrieved: 2026-07-12
+    license: NIST public data; cite the ASD.
+    acquisition: scripted
+    notes: >
+      All 22 Ti ionization stages — input for the planned Saha
+      average-ionization hot-side model of the titanium table (SS5b /
+      SS3-prime; see doc/eos_creation_plan.md).
+    files:
+      - path: nist_ti/ti_ionization_energies.csv
+        sha256: 53fa0649b794da9ac0db27489510d289267a68d3d6ae1895155908c928c535a4
+
+  - id: ti-mlmd-melt
+    citation: >
+      "High pressure melt dynamics in shock-compressed titanium",
+      arXiv:2603.04680 (2026) — ML-MD melt line + Hugoniot constraints,
+      ~100-180 GPa, 2000-4000 K.
+    url: https://arxiv.org/abs/2603.04680
+    acquisition: manual
+    notes: >
+      2026-07-12: the arXiv source ships figures only (no data files) —
+      constraint points require figure digitization or an author request.
+      Melt-region validation of the Ti table is pending this data.
+
+  - id: hugoniot-expt-d2
+    citation: >
+      Experimental principal-Hugoniot compilations for liquid D2
+      (Nellis gas-gun 1983; Knudson Z 2004; Hicks Omega 2009;
+      Boriskov 2005) — SS3 cold-start Hugoniot validation gates.
+    acquisition: digitized
+    notes: >
+      Reference state rho0 = 0.171 g/cc cryogenic liquid, ~20 K. Per-point
+      provenance column required.

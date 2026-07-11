@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+# SS4 cold-start validation on the spliced wide-range deuterium table
+# (doc/eos_creation_plan.md; problem_definition.lua and check.py). Three
+# driver strengths land the shocked state in the gas-gun, multi-Mbar and
+# classical-plasma regimes from the SAME 24 K liquid start; 'rarefaction'
+# is the abusive robustness run (expansion into the two-phase dome).
+(cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE)
+
+EXE=../../local/MFP.1d.gnu.MPI.ex
+
+# the committed table artifact is the .gz; decompress on demand
+[ -f ../EOS-Table/data/D_spliced.eostab ] || \
+    gunzip -k ../EOS-Table/data/D_spliced.eostab.gz
+
+rm -rf *plt* chk* run_log_*.txt temp_*.inputs
+
+make_inputs() {  # $1=tag $2=stop_time $3=lua prelude
+    cat coldshock.inputs > temp_$1.inputs
+    cat >> temp_$1.inputs <<EOF
+stop_time = $2
+amr.plot_per = $2
+amr.plot_file = $1.plt
+mfp.lua = "
+$3
+dofile('problem_definition.lua')
+"
+EOF
+}
+
+# tag : driver temperature (code units, x1e5 K) : stop time (code units).
+# Stop times keep BOTH waves inside the domain (see problem_definition).
+for CASE in "gasgun:0.2:0.25" "mbar:3:0.07" "plasma:100:0.012"; do
+    TAG=${CASE%%:*}
+    REST=${CASE#*:}
+    T=${REST%%:*}
+    STOP=${REST##*:}
+    make_inputs cs_${TAG} ${STOP} "T_DRIVER=${T}"
+    mpirun -n 4 ${EXE} temp_cs_${TAG}.inputs 2>&1 | tee run_log_${TAG}.txt
+done
+
+# abusive vacuum-forming expansion (clamps must fire, run must complete)
+make_inputs rare 0.2 "MODE='rarefaction'"
+mpirun -n 4 ${EXE} temp_rare.inputs 2>&1 | tee run_log_rarefaction.txt
+
+python3 check.py

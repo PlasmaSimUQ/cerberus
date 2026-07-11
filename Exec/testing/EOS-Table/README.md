@@ -223,3 +223,149 @@ python3 ../../python_analysis/eos_table_prep.py fpeos \
 4. W3.tool: ingest → regrid → condition → write → QA (bulk of the work;
    synthetic-table fallback keeps this moving if 1 stalls).
 5. Review QA plots together before declaring Stage 1 done.
+
+## SS1 record (2026-07-11) — offline-tool refactor + harvest infrastructure
+
+Plan: `doc/eos_creation_plan.md`. `eos_table_prep.py` became a CLI shim
+over the new `Exec/python_analysis/eos_tools/` package (code moved verbatim;
+the RH locus solver factored into `eos_tools/hugoniot.py`); raw-source
+manifest `data/raw/sources.yaml` + `sources --verify/--fetch` subcommand;
+pytest unit tests under `Exec/python_analysis/tests/` gated by the new
+`Exec/testing/EOS-PyTools` adapter case.
+
+Measured gates (all green):
+- regenerated `ideal_synthetic.eostab` and `D_fpeos.eostab` byte-identical
+  to the committed tables modulo the `generator:` provenance line;
+- pytest: 15 passed (regrid e-interpolation tolerance committed at the
+  measured 4.1% max for the 12-points-per-isochore synthetic source);
+- `sources --verify`: 0 failures (fpeos, hugoniot-mc2000);
+- affected suite verdict-identical: `EOS-Table` PASS (self-test, D_fpeos
+  fd-vs-blocks reported-not-gated as before), `EOS-Sod-Ideal` PASS
+  (twin/roundoff/analytic/conservation/wall gates; geos roundoff 5e-15,
+  wall-geos 1.48x), `EOS-Hugoniot` PASS (21 gates incl. clamps-fired
+  15598 > 0). No C++ or committed-table changes, so the remaining cases
+  run identical binaries and inputs.
+
+Open item: iFPEOS (PRB 104 144104) acquisition is a **manual** step from
+this network — see `data/raw/README.md` and the `ifpeos` manifest entry.
+
+## SS3 record (2026-07-12) — spliced wide-range deuterium table
+
+Artifact: `data/D_spliced.eostab.gz` (sha256
+`72a6cd22b4e78407b8c490a265d14ce6fd3490baf67cf9c12e03a36f4c79f7f5`,
+6.5 MB; decompressed 22.6 MB, gitignored — `gunzip -k` in run scripts).
+384x384, lrho [-4,3], lT [1.25,9]. Pipeline: `eos_tools/splice.py`
+(`splice --material D`); sources cold-composite | H-REOS.3(D) | FPEOS(D) |
+ideal-plasma; seams lT = 2.55/5.5/7.6 (T-only tanh, hw 0.15/0.25/0.20);
+rho hand-off to REOS.3 at 0.24 g/cc; energy chain-aligned (constant cE per
+pair); tension clip at 1e3 barye (0 cells fired); monotone-in-T value
+surfaces enforced (monoT_p=5887 cells max 3.3 rel in hull-0 fills,
+monoT_e=3596 max 0.9).
+
+Measured gates, all green (SPLICE-QA):
+- alignment constancy |dev|/kT: 0.0090 / 0.0154 / 0.0107 (gate < 0.10);
+- convexity: cs^2 > 0 at all 126,725 in-hull cells (85.9% hull);
+- Maxwell residual: blended median 3.1e-3 vs REOS.3 yardstick 3.8e-3
+  (gate < 2x source baseline);
+- C1 seams (in-band p99 vs 3x out-of-band p99): 3.1e-3 / 2.3e-3 / 3.1e-4
+  vs 1.7e-2;
+- cold-start principal Hugoniot from table (0.171 g/cc, 20 K): peak
+  compression 4.398 in [4.2, 4.9]; max adjacent stride 0.136 for
+  P >= 0.3 GPa (gate 0.15); MC2000 PIMC anchor median 1.19% over 8
+  in-range points (gate 5%);
+- resolution convergence 384 vs 768: Hugoniot compression shift median
+  0.0028% (gate 0.2%), max 0.37%;
+- iFPEOS rho=0.001 isochore overlay (validation): median 1.92% over 35
+  sigma-filtered points;
+- C++ one-zone self-test (DEBUG exe) on the emitted file: reader,
+  roundtrip-e (5.4e-11), roundtrip-p (9.9e-11), identities (4.6e-16),
+  hull, corner (7.3e-11) all PASS; fd-vs-blocks 49.1 reported-not-gated
+  (tier-2 policy; localized to fill-plateau cells where the secant is
+  ~0/0).
+
+Design decisions forced by measurement (full log in
+doc/eos_creation_plan.md §4):
+- seam 1 moved 3.2 -> 2.55 (355 K): the cold model's internal
+  CoolProp->rotor ramp (505-600 K) put a 24% p(T) dip at liquid densities;
+  REOS.3's 60 K floor makes the rotor piece unnecessary as a table source;
+- rho hand-off 1.0 -> 0.24 g/cc: QEOS-solid-above-melt vs REOS.3 mismatch
+  at (0.4 g/cc, 1-2.5 kK) put a 0.43 compression discontinuity on the
+  Hugoniot at ~10 GPa; a T-sliding hand-off over-corrected (diagonal kink)
+  and was reverted;
+- fallback ladder (never data-source fills): the FPEOS nearest-fill below
+  its 2e-3 g/cc floor planted non-monotone p/e bumps across dilute rows —
+  caught by the C++ round-trip self-test, not the offline QA;
+- monotonise-in-T conditioning pass added (the v1 single-branch inversion
+  contract); satL fill extended below CoolProp's 18.72 K floor.
+
+Known limitations (v1): melt smeared (no latent heat); REOS.3 classical
+ions (no NQE) and PBE-class XC; dome + sub-60 K/high-rho corners are
+hull-0 fills; experimental Hugoniot compilations (Nellis/Knudson/Hicks/
+Boriskov) still pending manual harvest — validation currently rests on
+the MC2000 PIMC anchor + iFPEOS isochore.
+
+## SS4 record (2026-07-12) — cold-start shock validation (EOS-ColdShock)
+
+New case `Exec/testing/EOS-ColdShock/` (EOS-Hugoniot structure): a hot
+driver slab shocks cryogenic liquid deuterium on `data/D_spliced.eostab`
+(gunzipped by `run`). Initial state (0.171 g/cc, 24 K, ~90 bar): 24 K not
+~20 K because the (0.171, T) cell is fully in-hull only for T >= ~23.5 K
+(dome edge satL(20 K) = 0.1718 > 0.171, plus the hull-flag shoulder of the
+splice rho hand-off at 0.185-0.23 g/cc below 60 K) — the sanctioned
+un-ionized numerical-relief start (shock-notes section 5).
+
+Measured gates, all 24 green (check.py):
+- three drive strengths from ONE cold start: gas-gun 6.67 GPa
+  (compression 2.562, RH-locus err 0.20%), multi-Mbar 176.2 GPa (4.156,
+  1.46%), plasma 6.26 TPa (4.064, 1.32%) — solid -> dissociating fluid ->
+  plasma emerges from the conservative update alone;
+- pre-shock closure: drho <= 2e-13, dT <= 9e-12, de = 3.48e-7 (identical
+  in all three runs — nondim unit-chain round-off, committed at 1e-6),
+  |p_sim - p_tab|/p_plateau <= 3e-10 (the reference cell's own p is
+  resolution-sensitive; plateau-normalized per the plan's recorded trap);
+- **noclamp gates: 0 hull clamps in all three physical runs** — the whole
+  24 K -> plasma path lives inside the table hull (the SS4-specific gate);
+- anchor-PIMC (from the table itself, no offline artifact): median 1.19%
+  over 8 in-range MC2000 points;
+- conservation drift <= 2.2e-15; boundary-flux-predicted mass loss on the
+  abusive run to 1.3e-6;
+- abusive run = VACUUM-FORMING expansion (|u| = 2 code ~ 40x the liquid
+  cs): the wide-range table's 17.8 K floor is hydrodynamically
+  unreachable (a 5x-cs dome expansion completed with ZERO clamps —
+  measured), so density-below-table-edge is the only abusive regime
+  left. It completes in ~2 s wall with 769,777 tallied clamps and finite
+  fields — the regime the FPEOS-table case deferred to W16 (absolute
+  floors collapsed dt) is closed by the hull-physical floors (W8.1) on
+  this table.
+
+Suite re-run after SS4: EOS-PyTools, EOS-Table, EOS-Sod-Ideal,
+EOS-Hugoniot all PASS (recorded in doc/eos_creation_plan.md §4).
+
+## SS5b record, part 1 (2026-07-12) — titanium solid model (Ti SS2')
+
+Ti pipeline started on the proven machinery (doc/eos_creation_plan.md §2.2).
+`eos_tools/materials/titanium.py`: LLNL Ti 0 K isotherm (Table 2 Ti column,
+`data/raw/llnl_coldcurve/ti_coldcurve_0K.csv`, re-runnable extraction) +
+Vinet fit + Slater-Debye ions (shared `models/qeos.SlaterDebye`) + a
+Sommerfeld electronic term (free-electron FD gamma at z_c = 4; d-band
+enhancement ~3x documented as the known v1 limitation).
+
+Measured QA (`coldmodel --material Ti`), all gates green:
+- Vinet fit rms 0.05% over 0-100 GPa; **B0 = 109.4 GPa, B0' = 3.65 —
+  inside the DAC literature window without being an input**;
+  rho0(fit) = 4.5802 vs the extracted 4.580 g/cc datum;
+- Slater theta0 = 562 K vs literature Debye 420 K (the expected
+  shear-blind Slater overestimate; report-only);
+- gamma_e(free-electron, z_c=4) = 1.03 mJ/mol/K^2 vs literature ~3.5
+  (the d-band factor; report-only);
+- cs(4.51 g/cc, cold) = 4.79 km/s vs Ti bulk sound speed ~4.9-5.2
+  (report-only);
+- cv > 0, cs^2 > 0 at all p > 0 cells of the (3-25 g/cc) x (17.8 K-4 kK)
+  rectangle; Maxwell residual median 1.5e-4.
+
+Harvested for the Ti hot side: NIST ASD Ti I-XXII ionization energies
+(`data/raw/nist_ti/`, scripted) — input for the planned Saha
+average-ionization model. The ML-MD melt constraints (arXiv 2603.04680)
+ship no data files; figure digitization or an author request is the
+remaining manual step. Ti SS3' (Saha hot side + splice + Ti_spliced
+.eostab) is the next stage.

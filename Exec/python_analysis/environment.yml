@@ -93,4 +93,11 @@ dependencies:
   - xz=5.4.6=h5eee18b_1
   - zlib=1.2.13=h5eee18b_1
   - zstd=1.5.5=hc292b87_2
+  - pip:
+      # offline EOS toolchain (eos_tools): unit tests, raw-source manifest,
+      # and the Richardson-2014 fluid-D2 model (table generation only —
+      # committed .eostab artifacts keep the test gates CoolProp-free)
+      - pytest
+      - pyyaml
+      - coolprop
 prefix: /home/kyriakos/anaconda3/envs/cerberus_python

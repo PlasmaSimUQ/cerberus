@@ -58,3 +58,28 @@ initial density). The Stage-1 QA Hugoniot overlay therefore compares our
 conditioned-table Hugoniot against the published FPEOS Hugoniot locus
 (Hu et al. 2011, Fig. 13-15 points) and can cross-check against the
 authors' own `fpeos` binary if built.
+
+## Machine-checkable manifest
+
+`sources.yaml` in this directory is the machine-checkable record of every
+raw building block (citation, URL/DOI, retrieval date, sha256, license,
+acquisition mode). Verify or fetch with:
+
+```sh
+python3 Exec/python_analysis/eos_table_prep.py sources --verify
+python3 Exec/python_analysis/eos_table_prep.py sources --fetch
+```
+
+## iFPEOS (Mihaylov et al., PRB 104, 144104) — status 2026-07-11
+
+The seam-1 WDM building block (see `doc/eos_creation_plan.md`).
+Article PDF acquired manually (scripted fetch impossible: par.nsf.gov
+unreachable, OSTI purl 500s, APS 403s to non-browser clients);
+characterisation memo from the article text: `iFPEOS/README.md`
+(53 ρ × 39 T points, 800 K–256 MK; seam-2 provisionally obsolete —
+iFPEOS covers the whole FPEOS domain).
+**Outstanding manual step:** the full table is the APS Supplemental
+Material — download in a browser from
+`https://link.aps.org/supplemental/10.1103/PhysRevB.104.144104` into
+`iFPEOS/SM/`, add checksums to `sources.yaml`, then transcribe per the
+plan's PDF-mitigation recipe.

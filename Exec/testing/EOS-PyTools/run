@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+# Adapter case: gates the offline python EOS toolchain (eos_tools package,
+# see doc/eos_creation_plan.md SS1). Pure python — no MFP build.
+# check.py parses the pytest log and sets the exit code.
+
+python3 -m pytest ../../python_analysis/tests -q --tb=short --color=no 2>&1 | tee pytest_log.txt
+
+python3 check.py

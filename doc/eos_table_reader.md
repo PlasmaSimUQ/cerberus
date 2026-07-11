@@ -35,7 +35,7 @@ a hydro code asks an equation of state:
 | Piece | Location |
 |---|---|
 | Reader/evaluator (C++) | `Source/states/Eulerian/hydro/gas/MFP_eos_table.{H,cpp}` |
-| Table *maker* (Python, offline) | `Exec/python_analysis/eos_table_prep.py` |
+| Table *maker* (Python, offline) | `Exec/python_analysis/eos_tools/` package (`eos_table_prep.py` is its CLI shim; plan: `doc/eos_creation_plan.md`) |
 | Format spec + conditioned tables | `Exec/testing/EOS-Table/` (`README.md`, `data/*.eostab`) |
 | Self-test harness | `Exec/testing/EOS-Table/{problem_definition.lua, onezone.inputs, run, check.py}` |
 | Lua registration | `Source/MFP_config.cpp` (`EosTable::register_with_lua`) |
