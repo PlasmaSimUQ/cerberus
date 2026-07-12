@@ -3,9 +3,16 @@
 Status: planning (2026-07-05; revised 2026-07-07 after a critical review of
 the stage plans and a study of Athena++'s general-EOS implementation —
 `src/eos/general/` in PrincetonUniversity/athena — which informs D2, D5, D8,
-W10 and the new §6 MHD plan). Companion documents:
+W10 and the new §6 MHD plan; 2026-07-12 folded in W19–W28 and Stages 8–9
+from `doc/eos_wide_range_and_mixtures.md`). Companion documents:
 - `doc/eos_table_reader.md` — standalone documentation of the `EosTable`
   reader and how the code uses it (kept current as stages land)
+- `doc/eos_wide_range_and_mixtures.md` — design note for the wide-range
+  single-material stitching (Stage 8, W19–W23) and the composition-weighted
+  mixture closure (Stage 9, W24–W28); the physics rationale for both lives
+  there, this plan carries the work-item/stage bookkeeping
+- `doc/eos_mixture_dalton_plan.md` — detailed Stage-9 bring-up plan for the
+  Dalton (partial-pressure) 1T mixture closure (W24–W26, W28-first-cut)
 - `Cerberus_TabularEOS_Implementation_Plan.txt` — physics/2T design study (FLASH/Microphysics provenance)
 - `MFP_eos_tab2T.H` — annotated draft header for the eventual two-temperature design
 - `EOS_Summary.txt`, `EOS_OpenSource_Port.txt` — background and data-supply notes
@@ -239,12 +246,51 @@ table is actually added.
 | W10 | **DONE (Stage 5)** `eos` flux mode = new solver `riemann/MFP_hllc_general_eos.{H,cpp}` (Athena++ `hllc.cpp` GENERAL_EOS pattern, see D2): face (e, a) from a combined gas-model (ρ,p) evaluation, q-factor from local γ=a²ρ/p at the **face** (not PVRS p*, changed after the G8 wall measurement); `HydroGas` virtuals `get_internal_energy_from_prim`/`get_sound_speed_from_prim_rp`/`get_face_eval_from_prim` with Gamma-slot ideal defaults; round-off vs `HLLC` on TPG = 5e-15; A/B vs `effective_gamma` on W9 (Hugoniot gates unchanged); default `flux` flipped for tabulated states | L | W7, W9 |
 | W11 | **DONE (Stage 5)** Braginskii consistency: `T_e`/`T_i` reform in `rhs` (`:2573-75`, `:2605-07`) + positivity bailouts in `check_invalid` (`:2791-94`, `:2802-05`). Corrected from plan: these are `static` functions → dispatch via static `s_*_gas_tab` pointers set in `calc_time_derivative`, not `ion_state`; only **T** needed reforming (`p_e`/`p_i` are intermediates), via `species_temperature_tabulated` → the table `T(ρ,e)` map. γ-law path bit-identical (G7 fcompare) | M | W7 |
 | W12 | 2T design memo (paper before code): `rho_lookup` data flow — which state's data, at which RK stage — and the electron wave-speed chain rule (∂P_e/∂ρ_e vs table axis ∂P_e/∂ρ_material) | M | parallel |
-| W13 | 2T components (SESAME 303/304 split, per-state component binding, 303+304=301 init assertion, exchange-term cv) and, if needed, the mixture/MTMMMT driver | L | W10, W12 |
+| W13 | 2T components (SESAME 303/304 split, per-state component binding, 303+304=301 init assertion, exchange-term cv). The mixture/MTMMMT driver is no longer here: W13 **specialises the Stage-9 1T machinery** (W24–W27) to electron/ion at separate temperatures, reusing its per-component binding, mixing-rule interface, and mixture-sound-speed chain rule | L | W10, W12, W24–W27 |
 | W14 | MHD guard: incompatibility comments in `MFP_mhd.H` (class header + `gamma` member); config-time `amrex::Abort` if an MHD state coexists with a `tabulated` hydro gas | S | W6 |
 | W15 | MHD with general EOS (future, demand-driven; Athena++ `general_mhd.cpp` pattern — see §6): MHD gas-closure abstraction, table-backed fast magnetosonic speed, `MFP_mhd_hlle_general_eos` solver, guard replaced | L | W10 |
 | W16 | Separate `rho_floor`/`p_floor` (later goal; see STAGE4.md deferred section): per-variable floors replacing the single `effective_zero` for all gas models + MHD, closing the absolute-floor dt-collapse pathology globally (Stage-4 W8.1 closes it for the tabulated gas only); includes the vacuum-cell velocity decision | M | W8 |
 | W17 | Checkpoint/restart test with the tabulated gas (later goal; see STAGE4.md deferred section): stop/restart/`fcompare`-vs-uninterrupted bit-identity gate; no new StateData expected, table reloads per rank at config time | S | W9 |
 | W18 | **Later** — store `.eostab` payload in **SI** instead of CGS (units = the dimensional system a quantity is expressed in; SI = kg·m·s, CGS = g·cm·s, so e.g. density switches g/cm³→kg/m³, pressure erg/cm³→Pa, a factor of 10). Currently the table columns are written and read in CGS while Cerberus reference quantities are SI, so the reader ctor does an SI→CGS round-trip; storing SI removes that mismatch and one conversion class. Scope: (a) `.eostab` format spec `units` metadata field (W2) declares `SI`, with a version bump + a back-compat reader branch so existing CGS tables still load by their header tag; (b) the Python conditioning tool (W3, `eos_table_prep.py`) emits SI columns and the SI provenance header; (c) the `EosTable`/`TabulatedEOS` reader (W4/W6) drops the SI→CGS step and nondimensionalises directly against the SI reference quantities; (d) regenerate `EOS-Table/data/*.eostab`; (e) gate: one-zone self-test (W5) round-trips + `EOS-Sod-Ideal`/`EOS-Hugoniot` verdicts unchanged after regeneration (numbers are dimensionless post-nondimensionalisation, so gates should be bit-identical modulo table round-off) | M | W2, W3, W4, W6 |
+
+### Stage 8 — wide-range single-material stitching (W19–W23)
+
+Rationale and physics in `doc/eos_wide_range_and_mixtures.md` §2–4. Offline-heavy;
+no C++ solver/reader changes with W23 deferred. Mnemonics WA/WB/WC/WE/WD.
+
+| # | Item | Effort | Depends |
+|---|---|---|---|
+| W19 (WA) | `eos_table_prep.py` **`stitch` subcommand**: ingest N source sub-EOS files (each with its own ρ,T support + region tag), build the union log-uniform (ρ,T) grid, regrid each source onto it. `source` metadata becomes a **list**; add a per-cell **provenance-map block** (dominant source per cell) for QA. `.eostab` format version bump + back-compat reader branch so single-source CGS/SI tables still load by header tag | M | W2, W3 |
+| W20 (WB) | **Overlap blending of p and e**: per-seam weight function (smoothstep/tanh in log-T, or along a supplied boundary curve) across the solid/WDM/plasma seams | M | W19 |
+| W21 (WC) | **Continuity + monotonicity conditioning across crossovers**: preserve ionisation/melt softening and the α→ω / ω→β energy jumps as steep **monotone** crossovers; keep p(ρ)_T monotone; cv > 0 in single-phase regions; latent-heat energy retained in e. No Maxwell construction (UC1-d) | M | W20 |
+| W22 (WE) | **Validation gates**: (a) principal shock Hugoniot through the transition region vs published Ti data; (b) seam continuity of p, e, cₛ within tolerance; (c) a solid→plasma shock tube runs stably; (d) reader inversion + CFL survive the softest (ionisation/melt) point | M | W19, W21, W3 |
+| **W23 (WD)** | **DEFERRED — exact coexistence plateau + energy-map-primary inversion.** Only needed for split-shock (two-wave) structure near a transition threshold; out of scope for the overdriven, strength-free target regime (`doc/eos_wide_range_and_mixtures.md` §3). Adds a Maxwell/tie-line construction + an energy-primary inversion branch in degenerate mixed-phase cells + a coexistence flag | (deferred) | W21 |
+
+### Stage 9 — composition-weighted mixtures, 1T (W24–W28)
+
+Rationale in `doc/eos_wide_range_and_mixtures.md` §5; detailed Dalton bring-up
+plan in `doc/eos_mixture_dalton_plan.md`. Hot-loop C++; builds on Stage 5
+(`HLLC_general_eos`, done) and the already-advected α-fractions (done). This is
+the **1T parent of W13**. Mnemonics WF–WJ.
+
+**Status 2026-07-12: W24, W25, W26 and the Dalton subset of W28 are DONE**
+(`MFP_mixture_gas.{H,cpp}`, tag `tabulated_mixture`; validation in
+`Exec/testing/EOS-Mixture/` — pure-cell round-off gates pass **bitwise**,
+per-component conservation exact, wall ratio 2.39 ≤ 2.5 for N=2). One
+implementation addition beyond the written plan: below-hull partial densities
+use the ideal-gas low-density limit (p, dpdT scaled by ρₖ/rho_hull_min at the
+hull-edge row) instead of a plain clamp — a plain clamp gives a dilute
+component the FULL p(rho_hull_min,T) partial pressure and a visible
+drop_tol kink; with the scaling the measured kink is 3e-12. W27 (Amagat)
+remains open.
+
+| # | Item | Effort | Depends |
+|---|---|---|---|
+| W24 (WF) **[DONE]** | **Mixing-rule interface + N-table binding**: a gas (`type='tabulated_mixture'`, or `tabulated` with a `components={{table=,name=},…}` list) owns N `EosTable`s bound to component names matching the αₖ tracer slots; define the mixing-rule virtual interface (forward p,e / `cons2prim` inverse / sound speed). Generalise the `set_flux` default-flux selection from a literal `TabulatedEOS::tag` compare to a `needs_general_eos_solver()` virtual | M | W6, W10 |
+| W25 (WG) **[DONE]** | **Dalton (partial-pressure) closure** — the cheap first cut: ρₖ=αₖρ, p=Σpₖ(ρₖ,T), e=Σαₖeₖ(ρₖ,T); `cons2prim` = 1-D Newton in T from total e_int (component densities known from αₖρ). Pure-cell short-circuit; per-component hull clamp+flag (+ dilute ideal-limit scaling, see status note) | M | W24 |
+| W26 (WH) **[DONE]** | **Mixture frozen sound speed + face eval**: a² = (∂p/∂ρ)\|_{s,α} via chain rule through the mixing rule (frozen composition; the wave-speed chain-rule subtlety flagged in the W12 2T memo); implement `get_face_eval_from_prim`/`get_speed_from_*` and the Gamma/SpHeat slot fill for the mixture so `HLLC_general_eos` drives it | M | W24, W25 |
+| W27 (WI) | **Amagat (additive-volume, P–T-equilibrium) closure** — the accurate mode, selectable against W24's interface: 1/ρ=Σαₖ/ρₖ(p,T), e=Σαₖeₖ(p,T); `cons2prim` = 2-D Newton in (p,T) per cell with inverse-map seeds; sound-speed chain rule for the volume-constraint form; per-component non-overlapping-hull fallback | L | W24, W26 |
+| W28 (WJ) **[Dalton subset DONE]** | **Validation**: (a) a mixture of two **identical** component tables reproduces the single-table result to round-off (mixing-rule analog of the Stage-5 G1 gate) — done, on IDENTICAL ideal-gas tables where Dalton is exact; (b) a binary-mixture shock tube — done (`EOS-Mixture/`); (c) Dalton-vs-Amagat A/B on a dilute case where they should nearly agree — needs W27; (d) mass-fraction conservation + positivity across a steepening composition gradient — done | M | W25, W26, W27 |
 
 ---
 
@@ -328,6 +374,27 @@ an evaluation ever takes two densities affects the `EosTable` view API.
 See §6. Not scheduled until a concrete MHD+tabulated use case exists; the
 W14 guard stays in force until this stage replaces it.
 
+**Stage 8 — wide-range single-material stitching** *(medium; W19–W22; W23 deferred)*
+Detailed design + physics: `doc/eos_wide_range_and_mixtures.md` §4. Offline-heavy
+— stitch several source sub-EOS (solid → WDM → plasma) for one material into a
+single wide-range `.eostab`; the reader, gas model, and solver are unchanged
+(one log-uniform (ρ,T) grid out). Sub-stage split: **8a** = W19 + W20 +
+single-phase gates (ships a working wide-range table); **8b** = W21 + the
+transition/cusp gates (gets the α→ω→β / ionisation crossovers right).
+Exit: principal Ti shock Hugoniot through the transition region matches
+published data; a solid→plasma shock tube runs stably; suite still green.
+
+**Stage 9 — composition-weighted mixtures, 1T** *(large; W24–W28)*
+Detailed design: `doc/eos_wide_range_and_mixtures.md` §5; Dalton bring-up plan:
+`doc/eos_mixture_dalton_plan.md`. Hot-loop C++ — a mixture gas binds one
+`EosTable` per component to the existing α-fraction tracer slots and closes the
+state with a selectable mixing rule (Dalton first, Amagat accurate) driven
+through the Stage-5 `HLLC_general_eos` solver. No new transport (composition is
+already advected). The **1T parent of W13**. Recommended after Stage 8 so
+mixtures can bind realistic wide-range component tables. Exit: identical-tables
+round-off gate (W28a) passes; a binary shock tube runs; mass fractions conserve
+and stay positive across a steepening composition gradient.
+
 ---
 
 ## 5. Reference: source-code touch map
@@ -342,7 +409,9 @@ W14 guard stays in force until this stage replaces it.
 | Braginskii | `Source/actions/MFP_CTU_Braginskii.cpp` | 5 |
 | MHD guard | `Source/states/Eulerian/mhd/MFP_mhd.H` (comments), config-time check (`MFP_config.cpp` or `MFP_mhd.cpp` init) | 3 |
 | MHD general EOS (future) | `mhd/MFP_mhd.{H,cpp}` closure abstraction, **new file** `mhd/riemann/MFP_mhd_hlle_general_eos.{H,cpp}` | 7 |
-| Tests | `Exec/testing/EOS-Table/` (Stage-1 data + Stage-2 one-zone; see its `README.md`/`STAGE2.md`), `EOS-Sod-Ideal/`, `EOS-Hugoniot/` | 2–4 |
+| Wide-range stitching (offline) | `Exec/python_analysis/eos_tools/` — new `stitch` subcommand + blending/conditioning; `.eostab` format version bump + back-compat reader branch in `MFP_eos_table.cpp` | 8 |
+| Mixture gas model | **new file** `Source/states/Eulerian/hydro/gas/MFP_mixture_gas.{H,cpp}` (owns N `EosTable`s + mixing-rule); `MFP_hydro_gas.{H,cpp}` (`needs_general_eos_solver()` virtual); `MFP_hydro.cpp` (`set_flux` default-flux generalisation) | 9 |
+| Tests | `Exec/testing/EOS-Table/` (Stage-1 data + Stage-2 one-zone; see its `README.md`/`STAGE2.md`), `EOS-Sod-Ideal/`, `EOS-Hugoniot/`, `EOS-Mixture/` (Stage 9) | 2–4, 9 |
 
 ---
 

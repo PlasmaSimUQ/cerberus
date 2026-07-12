@@ -13,5 +13,8 @@ CEXE_sources += MFP_eos_table.cpp
 CEXE_headers += MFP_tabulated_gas.H
 CEXE_sources += MFP_tabulated_gas.cpp
 
+CEXE_headers += MFP_mixture_gas.H
+CEXE_sources += MFP_mixture_gas.cpp
+
 INCLUDE_LOCATIONS += $(TOP)/Source/states/Eulerian/hydro/gas
 VPATH_LOCATIONS   += $(TOP)/Source/states/Eulerian/hydro/gas

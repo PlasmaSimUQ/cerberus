@@ -87,6 +87,20 @@ BraginskiiCTU::BraginskiiCTU(const int idx, const sol::table& def)
     states[+BraginskiiStateIdx::Electron] = electron_state;
     state_indexes.push_back(electron_state->global_idx);
 
+    // mixture-EOS guard (plan Stage 9, §8.3 of eos_mixture_dalton_plan.md):
+    // the W11 tabulated-temperature reform dispatches through the static
+    // single-table gas pointers below and is not mixture-aware — a
+    // tabulated_mixture species would silently get single-table physics.
+    // Abort at config time instead.
+    for (const HydroState* s : {ion_state, electron_state}) {
+        if (s->gas && s->gas->get_tag() == "tabulated_mixture") {
+            Abort("Braginskii action '" + name + "': state '" + s->name +
+                  "' uses gas={type='tabulated_mixture'}, which the Braginskii "
+                  "temperature dispatch does not support (single-table only — "
+                  "doc/eos_mixture_dalton_plan.md section 8)");
+        }
+    }
+
     field_state = &FieldState::get_state(state_names["field"]);
     states[+BraginskiiStateIdx::Field] = field_state;
     state_indexes.push_back(field_state->global_idx);

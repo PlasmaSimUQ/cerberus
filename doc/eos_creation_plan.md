@@ -325,11 +325,20 @@ inputs**, Slater θ₀ = 562 K (vs 420 K literature — known shear-blind bias, 
 sound speed 4.79 km/s (vs ~4.9–5.2). 49 pytest tests. Harvested: NIST Ti I–XXII ionization
 energies (scripted) for the Saha hot side.
 
+### 2026-07-12 — SS5b part 2 complete: Saha model + Ti_spliced.eostab (Ti SS3′)
+
+Full record: `Exec/testing/EOS-Table/README.md` §SS5b part 2. `models/saha.py` (NIST Ti
+I–XXII, envelope-theorem-consistent (P, e), unit-tested against hydrogenic and limit cases)
++ `splice_ti.py` → `Ti_spliced.eostab.gz` (384², 10⁻³–50 g/cc, 17.8 K–10⁹ K; solid | Saha |
+FD ideal plasma, seams lT = 4.5/8.4). All structural gates green (convexity clean over
+125k in-hull cells, Hugoniot stride 0.139, C++ round-trips 10⁻¹⁰); seam-3 Saha↔FD
+cross-validation at 0.03% max. **Ti v0 accuracy statement**: the seam-1/WDM band is
+uncontrolled pending real data — its 4.8 kT alignment scatter is reported, not gated.
+54 pytest tests.
+
 ### Next
-- **Ti SS3′**: Saha average-ionization hot-side model (NIST energies harvested) →
-  `materials/titanium.py` splice → `Ti_spliced.eostab` + QA vs experimental Ti Hugoniot.
-  Manual data item: ML-MD melt constraints (arXiv 2603.04680 ships no data files —
-  digitize or author request); Ti experimental Hugoniot compilation.
+- **Ti v1 data**: ML-MD melt constraints (arXiv 2603.04680 — digitize or author request);
+  Ti experimental Hugoniot compilation; then re-seam and gate the WDM band.
 - **SS5a**: point `Exec/testing/ciral_implosion` at `D_spliced.eostab` (Lua gas block +
   deuteron `ref_*`), smoke gates per §3.
 - Manual items open: experimental D₂ Hugoniot compilations (paywalled); optional iFPEOS

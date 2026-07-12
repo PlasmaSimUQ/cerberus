@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+# Dalton-mixture validation (Stage 9, W28 — doc/eos_mixture_dalton_plan.md
+# section 11). Five Sod runs: a single-table baseline, three identical-table
+# mixture modes (pure-1 / pure-0 round-off gates + a uniform-mix
+# interpolation gate) and a binary two-material tube. Release build: physics
+# and wall-time comparison, not a debug harness.
+(cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE)
+
+EXE=../../local/MFP.1d.gnu.MPI.ex
+
+# two synthetic ideal-gas tables (256x256, closed-form truth): identical
+# hulls, different gamma. ~10 MB each so generated here rather than committed
+mkdir -p data
+[ -f data/mix_a.eostab ] || \
+    python3 ../../python_analysis/eos_table_prep.py synthetic \
+        --out data/mix_a.eostab --gamma 1.4 --n-rho 256 --n-T 256
+[ -f data/mix_b.eostab ] || \
+    python3 ../../python_analysis/eos_table_prep.py synthetic \
+        --out data/mix_b.eostab --gamma 1.6666666666666667 --n-rho 256 --n-T 256
+
+rm -rf *plt* chk*
+
+mpirun -n 4 ${EXE} Sod-single.inputs      2>&1 | tee run_log_single.txt
+mpirun -n 4 ${EXE} Sod-mix_pure1.inputs   2>&1 | tee run_log_mix_pure1.txt
+mpirun -n 4 ${EXE} Sod-mix_pure0.inputs   2>&1 | tee run_log_mix_pure0.txt
+mpirun -n 4 ${EXE} Sod-mix_uniform.inputs 2>&1 | tee run_log_mix_uniform.txt
+mpirun -n 4 ${EXE} Sod-mix_binary.inputs  2>&1 | tee run_log_mix_binary.txt
+
+python3 check.py

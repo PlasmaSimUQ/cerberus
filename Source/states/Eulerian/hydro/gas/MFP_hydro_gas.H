@@ -113,6 +113,13 @@ class HydroGas
     virtual std::string get_tag() const { return ""; }
     virtual void write_info(nlohmann::json& js) const;
 
+    // true for gas models whose closure is not a gamma-law (tabulated,
+    // tabulated_mixture): HydroState::set_flux defaults these to the
+    // HLLC_general_eos solver, and the MHD compatibility guard keys off the
+    // same predicate (plan W24 generalising W10/W14 — the tag-literal
+    // comparisons would silently miss new general-EOS gas types).
+    virtual bool needs_general_eos_solver() const { return false; }
+
     // clamp face density/pressure ahead of a Riemann solve; returns the
     // number of components that were clamped (all hydro gases share the
     // HydroDef primitive layout so this lives on the base). Virtual so a

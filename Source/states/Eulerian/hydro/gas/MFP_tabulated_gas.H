@@ -81,6 +81,8 @@ class TabulatedEOS : public HydroGas
     virtual std::string get_tag() const override { return tag; }
     virtual void write_info(nlohmann::json& js) const override;
 
+    virtual bool needs_general_eos_solver() const override { return true; }
+
     // Stage-4 W8.1: floor to the PHYSICAL table-hull edge instead of the
     // absolute effective_zero — a face floored to (rho_hull_min, p_hull_min)
     // has a finite, table-consistent sound speed, so the time step cannot

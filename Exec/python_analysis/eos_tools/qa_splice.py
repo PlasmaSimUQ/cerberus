@@ -26,6 +26,122 @@ class Gate:
             self.failed.append(name)
 
 
+def run_qa_ti(res, qa_dir=None):
+    """Ti v0 splice QA. Hard gates are STRUCTURAL only (convexity, finite,
+    Hugoniot smoothness/monotonicity); the seam-1 band metrics are reports
+    — the WDM band is documented as accuracy-uncontrolled pending real
+    data (splice_ti.py docstring)."""
+    import numpy as np
+
+    from .splice_ti import REF_STATE_TI, S1_TI, S3_TI
+    from .thermo import maxwell_residual as mres
+
+    g = Gate()
+    lrho, lT = res["lrho"], res["lT"]
+    blocks = res["blocks"]
+    p, e, hull = blocks["p"], blocks["e"], blocks["hull"] > 0.5
+    R = 10.0 ** lrho[:, None] * np.ones((1, len(lT)))
+    TT = 10.0 ** lT[None, :] * np.ones((len(lrho), 1))
+
+    g.check("hull", hull.mean() > 0.4,
+            "in-hull fraction %.3f; tension-clipped %d cells"
+            % (hull.mean(), res["n_clip"]))
+    for a in res["align_stats"]:
+        g.check("align-" + a["pair"], True,
+                "cE=%.4e erg/g n=%d; mean|dev|/kT=%.3f (report — Ti v0 "
+                "WDM band uncontrolled)" % (a["cE"], a["n"],
+                                            a["std_over_kT"]), hard=False)
+
+    finite = all(np.all(np.isfinite(blocks[k]))
+                 for k in ("p", "e", "dpdT", "dpdrho", "cv", "dedrho"))
+    g.check("finite", finite, "all blocks finite")
+
+    cs2 = sound_speed_sq(R, TT, p, blocks["dpdrho"], blocks["dpdT"],
+                         blocks["cv"])
+    n_bad = int(np.sum(cs2[hull] <= 0.0))
+    g.check("convexity", n_bad == 0,
+            "cs^2 <= 0 at %d/%d in-hull cells" % (n_bad, int(hull.sum())))
+
+    Rm = mres(lrho, lT, p, e)
+    g.check("maxwell", True,
+            "in-hull median %.2e p95 %.2e (report)"
+            % (float(np.median(Rm[hull])),
+               float(np.percentile(Rm[hull], 95.0))), hard=False)
+
+    # cold-start Hugoniot from ambient solid Ti (report p0; the model's
+    # ambient pressure is not exactly zero — no literature inputs used)
+    rho0, T0 = REF_STATE_TI["rho0"], REF_STATE_TI["T0"]
+    e0 = bilin(lrho, lT, e, rho0, T0)
+    p0 = bilin(lrho, lT, p, rho0, T0)
+    comp, pres = locus(lrho, lT, p, e, rho0, e0, p0)
+    m_s = pres >= 1.0 * GPA_CGS  # >= 1 GPa
+    ok_pts = int(m_s.sum()) > 30
+    dj = float(np.abs(np.diff(comp[m_s])).max()) if ok_pts else 9.9
+    peak = float(comp.max()) if len(comp) else 0.0
+    g.check("hugoniot-smooth", ok_pts and dj < 0.2,
+            "max adjacent compression jump %.3f for P >= 1 GPa (%d pts); "
+            "p0=%.3g GPa (report)" % (dj, int(m_s.sum()), p0 / 1e10))
+    g.check("hugoniot-peak", True,
+            "peak compression %.3f (report — no Ti reference data "
+            "harvested yet)" % peak, hard=False)
+
+    # seam-3 physics: Saha vs FD ideal plasma agreement in-band
+    band3 = np.abs(lT - S3_TI.c) <= S3_TI.d
+    sa, ip = res["srcs"]["saha"], res["srcs"]["ip"]
+    sel = band3[None, :] & ip["avail"]
+    relp = np.abs(sa["p"][sel] / ip["p"][sel] - 1.0)
+    g.check("seam3-saha-vs-ip", float(np.median(relp)) < 0.05,
+            "P agreement in seam-3 band: median %.3f%% max %.3f%%"
+            % (100 * np.median(relp), 100 * relp.max()))
+
+    if qa_dir:
+        plots_ti(qa_dir, res, cs2, Rm, comp, pres)
+
+    print("SPLICE-QA OVERALL %s (%d gate failure(s))"
+          % ("PASS" if not g.failed else "FAIL", len(g.failed)))
+    return (1 if g.failed else 0), dict(comp=comp, pres=pres)
+
+
+def plots_ti(outdir, res, cs2, Rm, comp, pres):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    os.makedirs(outdir, exist_ok=True)
+    lrho, lT = res["lrho"], res["lT"]
+    hull = res["blocks"]["hull"]
+    fig, axes = plt.subplots(2, 2, figsize=(13.5, 10.5))
+    dom = np.argmax(res["W"], axis=0).astype(float)
+    im = axes[0, 0].pcolormesh(lT, lrho, dom, shading="nearest",
+                               vmin=0, vmax=2)
+    fig.colorbar(im, ax=axes[0, 0],
+                 label="dominant source (0 solid, 1 Saha, 2 IP)")
+    axes[0, 0].contour(lT, lrho, hull, levels=[0.5], colors="r",
+                       linewidths=0.7)
+    axes[0, 0].set_title("Ti sources + hull (red)")
+    im = axes[0, 1].pcolormesh(lT, lrho,
+                               res["srcs"]["saha"].get("zbar",
+                                                       np.zeros_like(hull)),
+                               shading="nearest")
+    fig.colorbar(im, ax=axes[0, 1], label="Saha Zbar")
+    axes[0, 1].set_title("mean ionization (Saha)")
+    im = axes[1, 0].pcolormesh(lT, lrho, np.log10(np.maximum(cs2, 1.0)),
+                               shading="nearest")
+    fig.colorbar(im, ax=axes[1, 0], label="log10 cs^2")
+    axes[1, 0].set_title("cs^2")
+    axes[1, 1].semilogy(comp, pres / GPA_CGS, "-")
+    axes[1, 1].set_xlabel("compression rho/rho0")
+    axes[1, 1].set_ylabel("P [GPa]")
+    axes[1, 1].set_yscale("log")
+    axes[1, 1].set_title("Ti cold-start Hugoniot (v0, no reference data)")
+    for ax in axes.flat[:3]:
+        ax.set_xlabel("log10 T [K]")
+        ax.set_ylabel("log10 rho [g/cc]")
+    fig.tight_layout()
+    fig.savefig(os.path.join(outdir, "splice_Ti_qa.png"), dpi=130)
+    plt.close(fig)
+
+
 def bilin(lrho, lT, F, rho, T):
     """Bilinear table lookup mirroring the C++ rule (QA-local)."""
     x = np.interp(np.log10(rho), lrho, np.arange(len(lrho)))

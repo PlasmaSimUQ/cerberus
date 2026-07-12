@@ -136,6 +136,17 @@ def cmd_splice(args):
     import datetime
     import sys
 
+    gen = "eos_table_prep.py %s, run %s" % (
+        git_sha(), datetime.date.today().isoformat())
+    if args.material == "Ti":
+        from .qa_splice import run_qa_ti
+        from .splice_ti import splice_titanium, write_spliced_ti
+        res = splice_titanium(n_rho=args.n_rho, n_T=args.n_T)
+        rc, _ = run_qa_ti(res, qa_dir=args.qa)
+        if args.out:
+            write_spliced_ti(res, args.out, gen)
+        sys.exit(rc)
+
     from .qa_splice import run_qa
     from .splice import splice_deuterium, write_spliced
 
@@ -146,8 +157,6 @@ def cmd_splice(args):
               % (a["pair"], a["cE"], a["n"], a["std_over_kT"]))
     rc, _ = run_qa(res, qa_dir=args.qa)
     if args.out:
-        gen = "eos_table_prep.py %s, run %s" % (
-            git_sha(), datetime.date.today().isoformat())
         write_spliced(res, args.out, gen)
     sys.exit(rc)
 
@@ -203,7 +212,7 @@ def main():
 
     s = sub.add_parser("splice",
                        help="build + QA the spliced wide-range table (SS3)")
-    s.add_argument("--material", default="D", choices=["D"])
+    s.add_argument("--material", default="D", choices=["D", "Ti"])
     s.add_argument("--out", default=None,
                    help=".eostab output path (also writes .gz)")
     s.add_argument("--qa", default=None, help="QA output directory")

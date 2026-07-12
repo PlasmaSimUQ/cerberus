@@ -164,23 +164,28 @@ void MFP::read_config()
 
     for (auto& istate : states) { istate->init_from_lua(); }
 
-    // tabulated-EOS / MHD incompatibility guard (plan W14): the MHD state
-    // hard-codes a constant-gamma ideal gas (see MFP_mhd.H at the `gamma`
-    // member), so running it alongside a tabulated-gas hydro state would
-    // silently mix inconsistent physics. Abort at config time instead.
+    // tabulated-EOS / MHD incompatibility guard (plan W14, generalised by
+    // W24): the MHD state hard-codes a constant-gamma ideal gas (see
+    // MFP_mhd.H at the `gamma` member), so running it alongside any
+    // general-EOS hydro state (tabulated, tabulated_mixture) would silently
+    // mix inconsistent physics. Abort at config time instead.
     // Lifting path: doc/eos_implementation_plan.md section 6.
     {
-        std::string mhd_name, tab_name;
+        std::string mhd_name, tab_name, tab_gas;
         for (auto& istate : states) {
             if (istate->get_type() == State::StateType::MHD) mhd_name = istate->name;
             if (istate->get_type() == State::StateType::Hydro) {
                 auto& hydro = static_cast<HydroState&>(*istate);
-                if (hydro.gas && hydro.gas->get_tag() == "tabulated") tab_name = istate->name;
+                if (hydro.gas && hydro.gas->needs_general_eos_solver()) {
+                    tab_name = istate->name;
+                    tab_gas = hydro.gas->get_tag();
+                }
             }
         }
         if (!mhd_name.empty() && !tab_name.empty()) {
             Abort("MHD state '" + mhd_name + "' cannot be combined with hydro state '" + tab_name +
-                  "' using gas={type='tabulated'}: MHD assumes a constant-gamma ideal gas "
+                  "' using gas={type='" + tab_gas +
+                  "'}: MHD assumes a constant-gamma ideal gas "
                   "(see MFP_mhd.H and doc/eos_implementation_plan.md section 6)");
         }
     }

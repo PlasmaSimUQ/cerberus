@@ -369,3 +369,42 @@ average-ionization model. The ML-MD melt constraints (arXiv 2603.04680)
 ship no data files; figure digitization or an author request is the
 remaining manual step. Ti SS3' (Saha hot side + splice + Ti_spliced
 .eostab) is the next stage.
+
+## SS5b record, part 2 (2026-07-12) — Saha model + Ti_spliced.eostab (Ti SS3')
+
+`eos_tools/models/saha.py`: chemical-picture average-ionization model on
+the NIST-harvested Ti I-XXII energies (Zbar by bracketed root-finding,
+log-space populations; U_j = 1, Boltzmann electrons, no continuum
+lowering — all recorded). Unit tests: hydrogenic half-ionization
+benchmark, dilute/full-ionization limits, Ti Zbar staging, and a
+Maxwell-residual consistency check of the equilibrium (P, e) pair
+(median 8e-4 at production grid pitch — envelope-theorem consistency
+verified numerically).
+
+`eos_tools/splice_ti.py` -> `data/Ti_spliced.eostab.gz` (sha256
+d02ac84b10c691c3444130d9c6872af2b200d7543116e97b2223b6bef882bbe5),
+384x384, 1e-3..50 g/cc, 17.8 K..1e9 K: solid | Saha | FD ideal plasma
+(Z=22), seams lT = 4.50/8.40, rho hand-off 3.2 g/cc, expanded-condensed
+wedge (0.02-3.2 g/cc below 4 kK) and tension clip (3311 cells) flagged
+hull-0.
+
+Measured gates (structural gates hard, WDM-band metrics reports — the
+**Ti v0 accuracy statement**: the seam-1 band is uncontrolled pending
+OFMD/ML-MD data, exactly the splice-plan §4 "genuinely new work" gap):
+- convexity: cs^2 > 0 at all 125,115 in-hull cells (84.8% hull); finite;
+- Hugoniot from ambient solid (4.51 g/cc, 293 K): max compression stride
+  0.139 for P >= 1 GPa (grid-striding-verified: 0.524 at 96^2); peak
+  compression 5.589 (report — no Ti reference data harvested yet);
+- seam-3 Saha vs FD ideal plasma: P agreement median 0.000%, max 0.033%
+  (a genuine cross-validation of the two independent hot models);
+- alignment: ip->saha |dev|/kT = 0.001; saha->solid |dev|/kT = 4.8
+  (report — the cohesion/WDM gap, by construction);
+- C++ one-zone self-test: reader/roundtrip-e (9.6e-11)/roundtrip-p
+  (8.9e-11)/identities (4.2e-16)/hull/corner (9.3e-11) all PASS;
+  fd-vs-blocks reported-not-gated (metric degenerates on the larger Ti
+  fill plateaus).
+
+Path to Ti v1 (recorded): OFMD or author-supplied WDM data for the seam-1
+band ('ti-mlmd-melt' manifest entry, manual); Ti experimental Hugoniot
+compilation for the anchor gate; optional degeneracy/continuum-lowering
+upgrades to the Saha side.

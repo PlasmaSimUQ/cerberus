@@ -6,7 +6,6 @@
 #include "MFP_hllc_general_eos.H"
 #include "MFP_hydro_refine.H"
 #include "MFP_lua.H"
-#include "MFP_tabulated_gas.H"
 #include "MFP_transforms.H"
 
 std::string HydroState::multicomp_prim_name = "alpha";
@@ -242,15 +241,16 @@ void HydroState::set_flux()
     std::string flux = state_def["flux"].get_or<std::string>("null");
 
     if (flux == "null") {
-        // default-flux resolution (plan D2/W10, STAGE5.md D-e): tabulated
-        // states default to the general-EOS solver; every other gas keeps
-        // the hard requirement. An explicit `flux` key on a tabulated state
-        // is honoured — flux='HLLC' selects effective_gamma mode (A/B path).
-        if (gas && gas->get_tag() == TabulatedEOS::tag) {
+        // default-flux resolution (plan D2/W10, STAGE5.md D-e): general-EOS
+        // gases (tabulated, tabulated_mixture) default to the general-EOS
+        // solver; every other gas keeps the hard requirement. An explicit
+        // `flux` key on such a state is honoured — flux='HLLC' selects
+        // effective_gamma mode (A/B path).
+        if (gas && gas->needs_general_eos_solver()) {
             flux = HydroHLLCGeneralEOS::tag;
             state_def["flux"] = flux;  // builder dispatch reads def["flux"]
             amrex::Print() << "HydroState[" << name << "]: no 'flux' key, defaulting to '"
-                           << flux << "' for gas type '" << TabulatedEOS::tag << "'\n";
+                           << flux << "' for gas type '" << gas->get_tag() << "'\n";
         } else {
             Abort("Flux option required for state '" + name + "'. Options are " +
                   vec2str(rfact.getKeys()));

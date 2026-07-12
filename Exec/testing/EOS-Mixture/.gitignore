@@ -1,0 +1,4 @@
+data/
+*plt*
+run_log_*.txt
+chk*
