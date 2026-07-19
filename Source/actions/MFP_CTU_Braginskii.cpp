@@ -2189,7 +2189,7 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp,
             // each cell has a hi and lo side in each direction
 
             // calculate the reconstructed face values
-            istate.calc_reconstruction(rbox, prim, R_lo[idx], R_hi[idx]);
+            istate.calc_reconstruction(rbox, prim, R_lo[idx], R_hi[idx], level, mfi.index());
 
             // ===================================================================
             // update the face values to time t+1/2 based on the local wave speeds
@@ -2244,7 +2244,8 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp,
 
             if (active[idx] == FabType::covered) continue;
 
-            istate.calc_fluxes(box, *conserved[idx], R_lo[idx], R_hi[idx], fluxes[idx], dx, dt);
+            istate.calc_fluxes(
+              box, *conserved[idx], R_lo[idx], R_hi[idx], fluxes[idx], dx, dt, level, mfi.index());
 
     #if AMREX_SPACEDIM > 1
             if (do_CTU) {
@@ -2272,7 +2273,15 @@ void BraginskiiCTU::calc_spatial_derivative(MFP* mfp,
                 if (active[idx] == FabType::covered) continue;
 
                 // recalculate the fluxes
-                istate.calc_fluxes(box, *conserved[idx], R_lo[idx], R_hi[idx], fluxes[idx], dx, dt);
+                istate.calc_fluxes(box,
+                                   *conserved[idx],
+                                   R_lo[idx],
+                                   R_hi[idx],
+                                   fluxes[idx],
+                                   dx,
+                                   dt,
+                                   level,
+                                   mfi.index());
             }
         }
     #endif

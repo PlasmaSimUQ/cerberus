@@ -138,6 +138,19 @@ else
 endif
 
 
+#=== SOLVER DIAGNOSTICS ===
+# Per-block, per-guard counters for the Riemann degeneracy fallback, the
+# reconstruction fallback and the primitive floors. These sit in the per-face
+# inner loop and emit one AllPrint line per troubled block, which is a
+# measurable cost at high refinement — so they follow DEBUG by default and are
+# compiled out of a release build entirely. Set explicitly to force either way.
+
+USE_SOLVER_DIAG ?= $(DEBUG)
+ifeq ($(USE_SOLVER_DIAG), TRUE)
+  DEFINES += -DMFP_SOLVER_DIAG
+endif
+
+
 #=== EILMER GAS ===
 
 ifndef EILMER_GAS

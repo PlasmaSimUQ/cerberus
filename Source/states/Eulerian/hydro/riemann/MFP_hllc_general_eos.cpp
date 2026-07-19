@@ -3,6 +3,9 @@
 #include "MFP_hydro_gas.H"
 #include "MFP_utility.H"
 
+#include <algorithm>
+#include <cmath>
+
 //================================================================================
 std::string HydroHLLCGeneralEOS::tag = "HLLC_general_eos";
 bool HydroHLLCGeneralEOS::registered = GetHydroRiemannSolverFactory().Register(
@@ -26,6 +29,10 @@ HydroHLLCGeneralEOS::HydroHLLCGeneralEOS(const sol::table& def)
     trR.resize(n_tracer);
 
     n_flux = +HydroDef::ConsIdx::NUM + n_tracer;
+
+    // embedded star-less fallback for degenerate faces, and its relative floor
+    hlle = HydroHLLEGeneralEOS(def);
+    eps_rel = def["fallback_eps"].get_or(1.0e-6);
 }
 
 void HydroHLLCGeneralEOS::solve(Vector<Real>& L, Vector<Real>& R, Vector<Real>& F, Real* shk)
@@ -33,6 +40,29 @@ void HydroHLLCGeneralEOS::solve(Vector<Real>& L, Vector<Real>& R, Vector<Real>& 
     BL_PROFILE("HydroHLLCGeneralEOS::solve");
 
     AMREX_ASSERT(gas != nullptr);  // wired by HydroState::set_flux (STAGE5.md D-d)
+
+    // swaps 1+2 (STAGE5.md): specific internal energy and sound speed from
+    // ONE combined gas-model face evaluation per side instead of p/(gam-1) and
+    // sqrt(gam*p/rho) — for a tabulated gas both come from the same table
+    // inversion, which is what keeps the G8 wall-time budget
+    Real eL, aL;
+    gas->get_face_eval_from_prim(L, eL, aL);
+    Real eR, aR;
+    gas->get_face_eval_from_prim(R, eR, aR);
+
+    solve(L, R, F, shk, eL, aL, eR, aR);
+}
+
+void HydroHLLCGeneralEOS::solve(Vector<Real>& L,
+                                Vector<Real>& R,
+                                Vector<Real>& F,
+                                Real* shk,
+                                Real eL,
+                                Real aL,
+                                Real eR,
+                                Real aR)
+{
+    BL_PROFILE("HydroHLLCGeneralEOS::solve_reuse");
 
     const size_t n_alpha = L.size() - +HydroDef::PrimIdx::NUM;
     const size_t n_flux = +HydroDef::ConsIdx::NUM + n_alpha;
@@ -43,12 +73,6 @@ void HydroHLLCGeneralEOS::solve(Vector<Real>& L, Vector<Real>& R, Vector<Real>& 
     Real vL = L[+HydroDef::PrimIdx::Yvel];
     Real wL = L[+HydroDef::PrimIdx::Zvel];
     Real pL = L[+HydroDef::PrimIdx::Prs];
-    // swaps 1+2 (STAGE5.md): specific internal energy and sound speed from
-    // ONE combined gas-model face evaluation instead of p/(gam-1) and
-    // sqrt(gam*p/rho) — for a tabulated gas both come from the same table
-    // inversion, which is what keeps the G8 wall-time budget
-    Real eL, aL;
-    gas->get_face_eval_from_prim(L, eL, aL);
     Real nrgL = rhoL * eL + 0.5 * rhoL * (uL * uL + vL * vL + wL * wL);
 
     for (int i = +HydroDef::PrimIdx::NUM; i < L.size(); ++i) {
@@ -61,20 +85,61 @@ void HydroHLLCGeneralEOS::solve(Vector<Real>& L, Vector<Real>& R, Vector<Real>& 
     Real vR = R[+HydroDef::PrimIdx::Yvel];
     Real wR = R[+HydroDef::PrimIdx::Zvel];
     Real pR = R[+HydroDef::PrimIdx::Prs];
-    Real eR, aR;
-    gas->get_face_eval_from_prim(R, eR, aR);
     Real nrgR = rhoR * eR + 0.5 * rhoR * (uR * uR + vR * vR + wR * wR);
 
     for (int i = +HydroDef::PrimIdx::NUM; i < R.size(); ++i) {
         trR[i - +HydroDef::PrimIdx::NUM] = R[i] * rhoR;
     }
 
+    // ---- Degeneracy fallback guards (doc/general_eos_hllc_fallback_plan.md).
+    // Each is PREDICTIVE — tested before the operation it protects — because
+    // FPE traps (USE_PRIM_FLOOR builds) fire at the bad divide, before any
+    // post-hoc isfinite check could run. On a trip, substitute the star-less
+    // general-EOS HLLE (reusing the face evaluations above) and return. ----
+
+    // guard 1: EOS evaluation finiteness/sign (mode D — off-hull face)
+    if (!std::isfinite(eL) || !std::isfinite(eR) || !std::isfinite(aL) || !std::isfinite(aR) ||
+        (aL < 0.0) || (aR < 0.0)) {
+#ifdef MFP_SOLVER_DIAG
+        ++n_fallback.eval;
+#endif
+        hlle.solve(L, R, F, shk, eL, aL, eR, aR);
+        return;
+    }
+
+    // guard 2: relative sound-speed floor (modes A, B — cold hull). v_ref is the
+    // local characteristic speed; a face whose sound speed is negligible against
+    // it makes pL/(rhoL*aL) in the starred energy (and rho_bar*a_bar in S*)
+    // blow up. Also catches the a_bar == 0 dead-cell corner.
+    const Real a_bar = 0.5 * (aL + aR);
+    const Real v_ref = std::max(std::max(std::abs(uL), std::abs(uR)), std::max(aL, aR));
+    if ((std::min(aL, aR) < eps_rel * v_ref) || (a_bar <= 0.0)) {
+#ifdef MFP_SOLVER_DIAG
+        ++n_fallback.sound;
+#endif
+        hlle.solve(L, R, F, shk, eL, aL, eR, aR);
+        return;
+    }
+
     // Calculate wave speeds S_L, S_star and S_R
 
     Real rho_bar = 0.5 * (rhoL + rhoR);
-    Real a_bar = 0.5 * (aL + aR);
 
     Real p_star = 0.5 * (pL + pR) - 0.5 * (uR - uL) * rho_bar * a_bar;
+
+    // NOTE: there is deliberately NO guard on p_star <= 0 here. A negative PVRS
+    // pressure looks like incipient vacuum, but p_star is never a divisor in
+    // this solver — it only selects the q-factor branch below, and p_star <= pL
+    // (trivially true when negative) yields q = 1, i.e. S_L = uL - aL and
+    // S_R = uR + aR, the ordinary acoustic/rarefaction case HLLC is designed
+    // for. An earlier revision did guard it and fell back to HLLE, which broke
+    // case_1_eos outright: it diverted strong-expansion faces into the one
+    // regime where HLLE is *worse* than HLLC, since HLL's single averaged star
+    // state cannot represent two separating rarefactions and can produce
+    // negative internal energy there. See Section 11 of
+    // doc/general_eos_hllc_fallback_plan.md.
+
+    // a_bar > 0 was enforced by guard 2, so this division is safe
     Real S_star = 0.5 * (uL + uR) - 0.5 * (pR - pL) / (rho_bar * a_bar);
 
     // swap 3: where the two-shock q-factor needs a gamma, use the local
@@ -104,6 +169,21 @@ void HydroHLLCGeneralEOS::solve(Vector<Real>& L, Vector<Real>& R, Vector<Real>& 
     }
 
     Real S_R = uR + aR * qR;
+
+    // guard 4: wave ordering + relative gap floor (modes C, F). coeff and the
+    // tracer star divide by (S_L - S_star)/(S_R - S_star); a collapsed fan
+    // (S_R <= S_L) or an acoustic wave merging with the contact (gap -> 0), or
+    // an S_star thrown outside [S_L, S_R] by a marginal estimate, makes those
+    // singular. Enforcing the ordering here also guarantees coeff > 0, ruling
+    // out negative star density/energy.
+    const Real dS = S_R - S_L;
+    if ((dS <= 0.0) || ((S_star - S_L) < eps_rel * dS) || ((S_R - S_star) < eps_rel * dS)) {
+#ifdef MFP_SOLVER_DIAG
+        ++n_fallback.wave;
+#endif
+        hlle.solve(L, R, F, shk, eL, aL, eR, aR);
+        return;
+    }
 
     if (S_L >= 0.0) {
         // flux vector L

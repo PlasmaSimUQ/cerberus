@@ -144,7 +144,11 @@ class EulerianState : public State
                                      const EBCellFlagFab& flag,
                                      const FArrayBox& vfrac
 #endif
-    ) const;
+                                     ,
+                                     // block identity, for the per-block
+                                     // reconstruction-fallback diagnostic only
+                                     const int level = -1,
+                                     const int grid_idx = -1) const;
 
     virtual void calc_time_averaged_faces(const Box& box,
                                           const FArrayBox& prim,
@@ -186,7 +190,11 @@ class EulerianState : public State
                              const EBCellFlagFab& flag,
 #endif
                              const Real* dx,
-                             const Real dt) const;
+                             const Real dt,
+                             // block identity, for the per-block Riemann
+                             // fallback diagnostic only; -1 = unidentified
+                             const int level = -1,
+                             const int grid_idx = -1) const;
 
     virtual void correct_face_prim(const Box& box,
                                    Array<FArrayBox, AMREX_SPACEDIM>& r_lo,

@@ -3,6 +3,9 @@
 #include "MFP.H"
 #include "MFP_transforms.H"
 
+#include <sstream>  // per-block Riemann fallback report is assembled off-line
+                    // so AllPrint emits it as ONE atomic write per block
+
 EulerianState::EulerianState()
 {
     BL_PROFILE("EulerianState::EulerianState");
@@ -561,7 +564,9 @@ void EulerianState::calc_reconstruction(const Box& box,
                                         const EBCellFlagFab& flag,
                                         const FArrayBox& vfrac
 #endif
-) const
+                                        ,
+                                        const int level,
+                                        const int grid_idx) const
 {
     BL_PROFILE("EulerianState::calc_reconstruction");
 
@@ -595,7 +600,11 @@ void EulerianState::calc_reconstruction(const Box& box,
     Vector<Real> fb_stencil;
     int fb_len = 0;
     int fb_shift = 0;
-    long n_fallback_hits = 0;
+    // split by tier: the lower-order scheme rescuing the face, versus that
+    // scheme ALSO overshooting and the face collapsing to first order. Lumping
+    // them hides how much of the domain has actually lost its spatial order.
+    long n_fb_limiter = 0;
+    long n_fb_first_order = 0;
 
     if (has_fallback) {
         for (const auto& gp : get_positive_prim()) {
@@ -677,9 +686,15 @@ void EulerianState::calc_reconstruction(const Box& box,
                             if ((lo_face < face_min) || (hi_face < face_min)) {
                                 lo_face = src4(i, j, k, n);
                                 hi_face = lo_face;
+#ifdef MFP_SOLVER_DIAG
+                                ++n_fb_first_order;
+#endif
                             }
-
-                            ++n_fallback_hits;
+#ifdef MFP_SOLVER_DIAG
+                            else {
+                                ++n_fb_limiter;
+                            }
+#endif
                         }
 
                         lo4(i, j, k, n) = lo_face;
@@ -690,10 +705,30 @@ void EulerianState::calc_reconstruction(const Box& box,
         }
     }
 
-    if ((n_fallback_hits > 0) && (MFP::verbosity >= 2)) {
-        Print() << "[" << name << "] reconstruction fallback applied to " << n_fallback_hits
-                << " faces\n";
+    // AllPrint, not Print: the troubled cells usually belong to a non-IO rank,
+    // whose Print() output is silently dropped — a lumped IO-rank-only count
+    // understates the real rate by roughly the rank count.
+#ifdef MFP_SOLVER_DIAG
+    if (((n_fb_limiter + n_fb_first_order) > 0) && (MFP::verbosity >= 2)) {
+        const IntVect blo = box.smallEnd();
+        const IntVect bhi = box.bigEnd();
+
+        std::ostringstream os;
+        os << "[" << name << "] reconstruction fallback"
+           << " lev=" << level << " grid=" << grid_idx << " box=(";
+        for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+            os << (d ? "," : "") << blo[d];
+        }
+        os << ")..(";
+        for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+            os << (d ? "," : "") << bhi[d];
+        }
+        os << ") faces=" << (n_fb_limiter + n_fb_first_order) << " (limiter=" << n_fb_limiter
+           << " first_order=" << n_fb_first_order << ")\n";
+
+        amrex::AllPrint() << os.str();
     }
+#endif
 
     return;
 }
@@ -1055,7 +1090,9 @@ void EulerianState::calc_fluxes(const Box& box,
                                 const EBCellFlagFab& flag,
 #endif
                                 const Real* dx,
-                                const Real dt) const
+                                const Real dt,
+                                const int level,
+                                const int grid_idx) const
 {
     BL_PROFILE("EulerianState::calc_fluxes");
 
@@ -1140,10 +1177,60 @@ void EulerianState::calc_fluxes(const Box& box,
         }
     }
 
+    // AllPrint for the same reason as the fallback reports below: floored faces
+    // are usually on a non-IO rank and Print() would drop them silently.
+#ifdef MFP_SOLVER_DIAG
     if ((n_floor_hits > 0) && (MFP::verbosity >= 2)) {
-        Print() << "[" << name << "] prim floor applied to " << n_floor_hits
-                << " face components\n";
+        amrex::AllPrint() << "[" << name << "] prim floor lev=" << level << " grid=" << grid_idx
+                          << " components=" << n_floor_hits << "\n";
     }
+#endif
+
+    // Riemann degeneracy-fallback report, mirroring the prim-floor report:
+    // faces on which the flux solver substituted a robust fallback
+    // (general-EOS HLLC -> HLLE) while sweeping THIS box, split by which guard
+    // tripped and tagged with the block's identity — logical (level, grid
+    // index, index-space corners) and spatial (physical extent) — so a hot
+    // block can be located in the domain and cross-referenced with a plotfile.
+    //
+    // The read-and-reset is per box, so the counts are exactly this block's.
+    // Blocks with no fallbacks are silent: at max_level 3 an all-blocks-always
+    // report would dwarf the rest of the log. AllPrint because the degenerate
+    // cells usually belong to a non-IO rank.
+#ifdef MFP_SOLVER_DIAG
+    if (flux_solver && (MFP::verbosity >= 2)) {
+        const RiemannFallbackCounts fb = flux_solver->get_and_reset_fallback_counts();
+        // fan is deliberately outside total() (it is not an HLLC guard) so it
+        // must be tested explicitly, or a fan-only block would report nothing
+        if ((fb.total() > 0) || (fb.fan > 0)) {
+            const IntVect blo = box.smallEnd();
+            const IntVect bhi = box.bigEnd();
+            const Real* problo = amrex::DefaultGeometry().ProbLo();
+
+            std::ostringstream os;
+            os << "[" << name << "] Riemann fallback"
+               << " lev=" << level << " grid=" << grid_idx << " box=(";
+            for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+                os << (d ? "," : "") << blo[d];
+            }
+            os << ")..(";
+            for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+                os << (d ? "," : "") << bhi[d];
+            }
+            os << ") x=[";
+            for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+                // cell-centred index space: the block spans [blo*dx, (bhi+1)*dx)
+                const Real xlo = problo[d] + blo[d] * dx[d];
+                const Real xhi = problo[d] + (bhi[d] + 1) * dx[d];
+                os << (d ? " " : "") << xlo << ":" << xhi;
+            }
+            os << "] faces=" << fb.total() << " (sound=" << fb.sound << " wave=" << fb.wave
+               << " eval=" << fb.eval << ") fan=" << fb.fan << "\n";
+
+            amrex::AllPrint() << os.str();
+        }
+    }
+#endif
 
     return;
 }

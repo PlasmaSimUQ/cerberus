@@ -29,6 +29,7 @@
 // speeds are floored non-negative inside eval_rt; the q-factor divisions are
 // guarded by the p_star > p_face branch condition and g_loc > 0.
 
+#include "MFP_hlle_general_eos.H"
 #include "MFP_hydro_riemann.H"
 
 class HydroGas;
@@ -41,7 +42,37 @@ class HydroHLLCGeneralEOS : public HydroRiemannSolver
 
     virtual void solve(Vector<Real>& L, Vector<Real>& R, Vector<Real>& F, Real* shk) override;
 
-    void set_gas(const HydroGas* g) { gas = g; }
+    // eval-reuse overload: consume face internal-energy/sound-speed pairs the
+    // caller has already computed (the hybrid blend), avoiding a redundant
+    // table inversion per side; the plain solve() above computes them then
+    // delegates here.
+    void solve(Vector<Real>& L,
+               Vector<Real>& R,
+               Vector<Real>& F,
+               Real* shk,
+               Real eL,
+               Real aL,
+               Real eR,
+               Real aR);
+
+    // forward the table pointer to the embedded HLLE used as the degeneracy
+    // fallback (Section 2 of doc/general_eos_hllc_fallback_plan.md)
+    void set_gas(const HydroGas* g)
+    {
+        gas = g;
+        hlle.set_gas(g);
+    }
+
+    // diagnostic accumulator: faces that tripped a degeneracy guard and fell
+    // back to HLLE since the last report, split by guard (read-and-reset)
+    virtual RiemannFallbackCounts get_and_reset_fallback_counts() override
+    {
+        RiemannFallbackCounts n = n_fallback;
+        n_fallback = RiemannFallbackCounts();
+        // fold in the embedded fallback's own distress signal
+        n.fan = hlle.get_and_reset_fan_widened();
+        return n;
+    }
 
     virtual const std::string get_tag() const override { return tag; }
     static std::string tag;
@@ -52,6 +83,16 @@ class HydroHLLCGeneralEOS : public HydroRiemannSolver
     static bool registered;
 
     const HydroGas* gas = nullptr;
+
+    // star-less fallback for degenerate faces; armed via set_gas
+    HydroHLLEGeneralEOS hlle;
+
+    // relative floor for the degeneracy guards (Lua key 'fallback_eps')
+    Real eps_rel = 1.0e-6;
+
+    // per-rank, per-guard counts of fallback substitutions (plain increments in
+    // solve; never reduced inside the per-face path)
+    RiemannFallbackCounts n_fallback;
 
     Vector<Real> svLs, fvL, svL;
     Vector<Real> svRs, fvR, svR;

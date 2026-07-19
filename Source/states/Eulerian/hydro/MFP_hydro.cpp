@@ -4,6 +4,8 @@
 #include "MFP.H"
 #include "MFP_diagnostics.H"
 #include "MFP_hllc_general_eos.H"
+#include "MFP_hlle_general_eos.H"
+#include "MFP_hybrid_hll_general_eos.H"
 #include "MFP_hydro_refine.H"
 #include "MFP_lua.H"
 #include "MFP_transforms.H"
@@ -267,6 +269,10 @@ void HydroState::set_flux()
     // has already run — construction order is init_from_lua's)
     if (flux == HydroHLLCGeneralEOS::tag)
         static_cast<HydroHLLCGeneralEOS*>(flux_solver.get())->set_gas(gas.get());
+    else if (flux == HydroHLLEGeneralEOS::tag)
+        static_cast<HydroHLLEGeneralEOS*>(flux_solver.get())->set_gas(gas.get());
+    else if (flux == HydroHybridHLLGeneralEOS::tag)
+        static_cast<HydroHybridHLLGeneralEOS*>(flux_solver.get())->set_gas(gas.get());
 
     return;
 }
@@ -279,17 +285,29 @@ void HydroState::set_shock_detector()
 
     sol::table sd_def = MFP::lua["states"][name]["shock_detector"].get_or(sol::table());
 
-    if (!sd_def.valid()) return;
+    // note: the build is conditional but the guard below is NOT — an omitted
+    // 'shock_detector' key leaves sd_def invalid, and that is precisely the
+    // case the guard must catch, so it cannot sit behind an early return
+    if (sd_def.valid()) {
+        sd_def["global_idx"] = global_idx;
 
-    sd_def["global_idx"] = global_idx;
+        std::string sd_name = sd_def["name"].get_or<std::string>("");
 
-    std::string sd_name = sd_def["name"].get_or<std::string>("");
+        shock_detector = sdfact.Build(sd_name, sd_def);
 
-    shock_detector = sdfact.Build(sd_name, sd_def);
+        if (!sd_name.empty() && !shock_detector)
+            Abort("Invalid shock_detector option '" + sd_name + "'. Options are " +
+                  vec2str(sdfact.getKeys()));
+    }
 
-    if (!sd_name.empty() && !shock_detector)
-        Abort("Invalid shock_detector option '" + sd_name + "'. Options are " +
-              vec2str(sdfact.getKeys()));
+    // guard: a shock-switching flux (the HLLE/HLLC hybrids) is meaningless
+    // without a detector to set the blend weight *shk. set_flux() has already
+    // run, so flux_solver is resolved; without this the hybrid would silently
+    // degrade to pure HLLC (shk stays 0 at every face) with no diagnostic.
+    if (flux_solver && flux_solver->requires_shock_detector() && !shock_detector)
+        Abort("Flux solver '" + flux_solver->get_tag() + "' for state '" + name +
+              "' requires a 'shock_detector' "
+              "(e.g. {name='pressure_jump_detector', threshold=0.1}).");
 }
 
 void HydroState::set_refinement()

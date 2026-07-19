@@ -29,7 +29,7 @@ import subprocess
 import numpy as np
 
 from .condition import condition, inverse_maps, shift_energy
-from .constants import KB, M_D
+from .constants import AMU_G, KB, M_D
 from .formats.eostab import read_eostab, write_eostab
 from .formats.fpeos import fpeos_to_deuterium, read_fpeos
 from .grids import regrid
@@ -64,7 +64,13 @@ def provenance(material, source, comp, e_shift, stats):
 def cmd_synthetic(args):
     """Ideal-gas gamma-law table with analytic blocks (closed-form truth)."""
     g = args.gamma
-    R = KB / M_D
+    if args.mass_amu is None:
+        R = KB / M_D
+        material, comp = "ideal-D", "A=2.014 Z=1"
+    else:
+        R = KB / (args.mass_amu * AMU_G)
+        material = args.material
+        comp = "A=%g (mean particle mass, amu)" % args.mass_amu
     lrho = np.linspace(np.log10(args.rho_min), np.log10(args.rho_max), args.n_rho)
     lT = np.linspace(np.log10(args.T_min), np.log10(args.T_max), args.n_T)
     rho = 10.0 ** lrho[:, None]
@@ -82,8 +88,8 @@ def cmd_synthetic(args):
     le, lp, T_of_e, T_of_p = inverse_maps(lrho, lT, p, e)
     blocks["T_of_e"], blocks["T_of_p"] = T_of_e, T_of_p
     stats = dict(cv_floor=0.0, cv_floored=0, monotonised=0, maxwell="none-needed")
-    prov = provenance("ideal-D", "synthetic gamma-law gamma=%g (this tool)" % g,
-                      "A=2.014 Z=1", 0.0, stats)
+    prov = provenance(material, "synthetic gamma-law gamma=%g (this tool)" % g,
+                      comp, 0.0, stats)
     write_eostab(args.out, prov, lrho, lT, blocks, {"le": le, "lp": lp})
     if args.qa:
         from .qa import qa_plots
@@ -182,6 +188,11 @@ def main():
     s.add_argument("--rho-max", type=float, default=10.0)
     s.add_argument("--T-min", type=float, default=1e3)
     s.add_argument("--T-max", type=float, default=1e7)
+    s.add_argument("--mass-amu", type=float, default=None,
+                   help="mean particle mass in amu (default: deuterium, "
+                        "2.0136, with legacy ideal-D provenance)")
+    s.add_argument("--material", default="ideal-gas",
+                   help="provenance material label (used with --mass-amu)")
     s.set_defaults(func=cmd_synthetic)
 
     s = sub.add_parser("fpeos", help="condition an FPEOS element table -> D")

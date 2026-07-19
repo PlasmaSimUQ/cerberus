@@ -218,7 +218,9 @@ void HydroCTU::calc_spatial_derivative(MFP* mfp,
                                            flag,
                                            vfrac
 #endif
-                );
+                                           ,
+                                           level,
+                                           mfi.index());
 
                 // ===================================================================
                 // update the face values to time t+1/2 based on the local wave speeds
@@ -303,7 +305,9 @@ void HydroCTU::calc_spatial_derivative(MFP* mfp,
                                *fab_flags[idx],
 #endif
                                dx,
-                               dt);
+                               dt,
+                               level,
+                               mfi.index());
 
 #if AMREX_SPACEDIM > 1
             if (do_CTU) {
@@ -355,7 +359,9 @@ void HydroCTU::calc_spatial_derivative(MFP* mfp,
                                    *fab_flags[idx],
     #endif
                                    dx,
-                                   dt);
+                                   dt,
+                                   level,
+                                   mfi.index());
             }
         }
 #endif

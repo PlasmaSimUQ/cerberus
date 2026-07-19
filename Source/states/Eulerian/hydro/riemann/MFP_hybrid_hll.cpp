@@ -21,10 +21,13 @@ HydroHybridHLL::HydroHybridHLL(const sol::table& def)
     const int n_cons = def["n_cons"];
     const int n_tracer = def["n_tracer"];
 
-    F_hlle.resize(n_cons + n_tracer);
-    F_hllc.resize(n_cons + n_tracer);
+    // n_cons() is ConsIdx::NUM + n_tracers, i.e. it ALREADY counts the tracers;
+    // 'n_cons + n_tracer' would double-count them. Latent while the blend loop
+    // stopped at ConsIdx::NUM, live once it blends the full n_flux vector.
+    n_flux = +HydroDef::ConsIdx::NUM + n_tracer;
 
-    n_flux = n_cons + n_tracer;
+    F_hlle.resize(n_flux);
+    F_hllc.resize(n_flux);
 }
 
 void HydroHybridHLL::solve(Vector<Real>& L, Vector<Real>& R, Vector<Real>& F, Real* shk)
@@ -40,7 +43,11 @@ void HydroHybridHLL::solve(Vector<Real>& L, Vector<Real>& R, Vector<Real>& F, Re
     } else {
         hllc.solve(L, R, F_hllc, shk);
         hlle.solve(L, R, F_hlle, shk);
-        for (int i = 0; i < +HydroDef::ConsIdx::NUM; ++i) {
+        // blend the FULL flux vector (conserved hydro + tracers); stopping at
+        // ConsIdx::NUM leaves the tracer slots of F holding stale values from
+        // the previous face, corrupting passive-scalar transport in every
+        // shock-transition cell
+        for (int i = 0; i < n_flux; ++i) {
             F[i] = (1.0 - *shk) * F_hllc[i] + *shk * F_hlle[i];
         }
     }

@@ -208,9 +208,9 @@ class MixtureEOS : public HydroGas
     std::vector<Real> rho_hull_min_k, rho_hull_max_k, p_hull_min_k;
     std::vector<Real> T_min_k, T_max_k;
 
-    // union / conservative scalars derived from the caches (ctor)
+    // union scalars derived from the caches (ctor)
     Real rho_union_min = 0.0, rho_union_max = 0.0;  // min_k / max_k of the rho hulls
-    Real rho_floor = 0.0, p_floor = 0.0;            // conservative max_k floors (plan 5.6)
+    Real rho_floor = 0.0, p_floor = 0.0;            // union (min_k) floors; rho_floor == rho_union_min
     Real T_lo_all = 0.0, T_hi_all = 0.0;            // full-component T-hull intersection
 
     MixRule rule = MixRule::Dalton;
