@@ -113,6 +113,28 @@ class MixtureEOS : public HydroGas
         return n;
     }
 
+    virtual long get_and_reset_alpha_fixes() const override
+    {
+        const long n = n_alpha_fixes;
+        n_alpha_fixes = 0;
+        return n;
+    }
+
+    // B (T4b plan Part I): floor-time momentum repairs performed by
+    // cons2prim (resurrections zeroed + soft hits capped)
+    virtual long get_and_reset_mom_fixes() const override
+    {
+        const long n = n_mom_fixes;
+        n_mom_fixes = 0;
+        return n;
+    }
+
+    // true iff the LAST cons2prim call repaired the conserved vector in
+    // place — calc_primitives keys the conserved-fab write-back on this
+    // (the 2026-07-24 forensics found rho <= 0 persisted in checkpoints
+    // when only the primitive copy was repaired)
+    virtual bool cons_was_repaired() const override { return last_repair; }
+
     static bool registered;
     static std::string tag;
 
@@ -211,6 +233,7 @@ class MixtureEOS : public HydroGas
     // union scalars derived from the caches (ctor)
     Real rho_union_min = 0.0, rho_union_max = 0.0;  // min_k / max_k of the rho hulls
     Real rho_floor = 0.0, p_floor = 0.0;            // union (min_k) floors; rho_floor == rho_union_min
+    Real floor_u_max = -1.0;  // B: |u| cap for soft floor hits (Lua `floor_u_max`; <= 0 disables)
     Real T_lo_all = 0.0, T_hi_all = 0.0;            // full-component T-hull intersection
 
     MixRule rule = MixRule::Dalton;
@@ -233,6 +256,8 @@ class MixtureEOS : public HydroGas
     mutable long n_hull_clamps = 0;              // total-rho / aggregate clamps
     mutable std::vector<long> n_hull_clamps_k;   // per-component clamp accounting
     mutable long n_alpha_fixes = 0;              // sanitize_alpha repairs
+    mutable long n_mom_fixes = 0;                // B: floor-time momentum repairs
+    mutable bool last_repair = false;            // B: last cons2prim repaired U in place
 };
 
 #endif  // MFP_MIXTURE_GAS_H

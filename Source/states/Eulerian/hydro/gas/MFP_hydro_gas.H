@@ -149,6 +149,18 @@ class HydroGas
     // clamps/non-convergences here — plan W8.3, Stage 4)
     virtual long get_and_reset_hull_clamps() const { return 0; }
 
+    // composition repairs (multi-component gas models only): evaluations
+    // whose raw tracer fractions needed clamping/renormalising into the
+    // simplex before use -- silent for single-component models
+    virtual long get_and_reset_alpha_fixes() const { return 0; }
+
+    // B (T4b plan): floor-time momentum repairs by cons2prim, and the
+    // per-call indicator that the last cons2prim modified U in place (the
+    // caller then persists U to the conserved fab). Base gas models never
+    // repair -- both are inert defaults.
+    virtual long get_and_reset_mom_fixes() const { return 0; }
+    virtual bool cons_was_repaired() const { return false; }
+
     int idx;
     bool mass_const, charge_const;
     Vector<Real> mass, charge;

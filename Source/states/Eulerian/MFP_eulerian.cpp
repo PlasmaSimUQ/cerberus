@@ -383,6 +383,11 @@ void EulerianState::calc_primitives(const Box& box,
             for (int i = lo.x; i <= hi.x; ++i) {
                 x = prob_lo[0] + (i + 0.5) * dx[0];
 
+                // U holds this cell's own conserved data (write-back legal)
+                // unless the EB branch overwrites it with a neighbourhood
+                // average below
+                bool direct_cons = true;
+
 #ifdef AMREX_USE_EB
                 if (vfrac4(i, j, k) == 0.0) {
                     // iterate over all neighbouring cells checking if it has valid data
@@ -414,6 +419,7 @@ void EulerianState::calc_primitives(const Box& box,
                     // fill in the primitives with zeros
                     if (vtot > 0.0) {
                         for (int n = 0; n < n_cons(); ++n) { U[n] /= vtot; }
+                        direct_cons = false;  // U is an average, not this cell's state
                     } else {
                         for (int n = 0; n < n_prim(); ++n) { p4(i, j, k, n) = 0.0; }
                         continue;
@@ -428,6 +434,17 @@ void EulerianState::calc_primitives(const Box& box,
 
                 // convert to primitive
                 cons2prim(U, Q);
+
+                // B (T4b plan I.2): a gas model that repaired the conserved
+                // vector during cons2prim (floor-time momentum handling)
+                // must have that repair PERSISTED, or the corrupt state
+                // re-poisons every later evaluation — measured 2026-07-24:
+                // 221 rho <= 0 cells stored in the post-step-1 plotfile
+                // when only the primitive copy was repaired. Flag-gated so
+                // non-repairing gas models are byte-identical.
+                if (direct_cons && cons_was_repaired()) {
+                    for (int n = 0; n < n_cons(); ++n) { s4(i, j, k, n) = U[n]; }
+                }
 
                 //---------------------Dynamic update of cons from initiation function/values
                 // modify the primitives vector if needed and upload back to
@@ -471,6 +488,16 @@ void EulerianState::calc_primitives(const Box& box,
             // non-IO rank, whose Print() output would be silently dropped
             amrex::AllPrint() << "[" << name << "] EOS hull clamp applied to " << n_clamped
                               << " evaluations\n";
+        }
+        const long n_alpha = get_and_reset_alpha_fixes();
+        if (n_alpha > 0) {
+            amrex::AllPrint() << "[" << name << "] composition (alpha) repaired in " << n_alpha
+                              << " evaluations\n";
+        }
+        const long n_mom = get_and_reset_mom_fixes();
+        if (n_mom > 0) {
+            amrex::AllPrint() << "[" << name << "] floor momentum repaired in " << n_mom
+                              << " cells\n";
         }
     }
 

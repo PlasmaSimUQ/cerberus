@@ -72,6 +72,18 @@ class HydroState : public EulerianState
         return gas->get_and_reset_hull_clamps();
     }
 
+    virtual long get_and_reset_alpha_fixes() const override
+    {
+        return gas->get_and_reset_alpha_fixes();
+    }
+
+    virtual long get_and_reset_mom_fixes() const override
+    {
+        return gas->get_and_reset_mom_fixes();
+    }
+
+    virtual bool cons_was_repaired() const override { return gas->cons_was_repaired(); }
+
     virtual const Vector<int> get_cons_vector_idx() const override
     {
         return arr2vec(cons_vector_idx);

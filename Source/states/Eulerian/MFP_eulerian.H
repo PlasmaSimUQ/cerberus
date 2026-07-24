@@ -90,6 +90,11 @@ class EulerianState : public State
     // e.g. the tabulated EOS — plan W8.3, Stage 4); reported per box by
     // calc_primitives under verbosity >= 2
     virtual long get_and_reset_thermo_clamps() const { return 0; }
+    virtual long get_and_reset_alpha_fixes() const { return 0; }
+    // B (T4b plan): floor-time momentum repairs + the per-call write-back
+    // indicator (see HydroGas for semantics)
+    virtual long get_and_reset_mom_fixes() const { return 0; }
+    virtual bool cons_was_repaired() const { return false; }
     virtual int get_num_grow() const = 0;
     virtual void set_num_grow(int n) = 0;
 

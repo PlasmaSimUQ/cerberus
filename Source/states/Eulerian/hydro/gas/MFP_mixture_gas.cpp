@@ -145,6 +145,10 @@ MixtureEOS::MixtureEOS(const int global_idx, const sol::table& def)
     max_newton = def["max_newton"].get_or(100);
     pure_tol = def["pure_tol"].get_or(1.0e-10);
     drop_tol = def["drop_tol"].get_or(1.0e-10);
+    // B (T4b plan I.1 D-B1): optional |u| cap for cells floored from
+    // small-but-positive mass; <= 0 (the default) disables the cap and only
+    // the always-on resurrection zeroing acts
+    floor_u_max = def["floor_u_max"].get_or(-1.0);
 
     const sol::table comps = def["components"].get_or(sol::table());
     if (!comps.valid())
@@ -655,7 +659,10 @@ bool MixtureEOS::cons2prim(Vector<Real>& U, Vector<Real>& Q) const
     get_alpha_fractions_from_cons(U, m_alpha);
     n_alpha_fixes += sanitize_alpha(m_alpha);
 
-    Real rho = clamp_rho_union(U[+HydroDef::ConsIdx::Density]);
+    last_repair = false;
+
+    const Real rho_raw = U[+HydroDef::ConsIdx::Density];
+    Real rho = clamp_rho_union(rho_raw);
     Real mx = U[+HydroDef::ConsIdx::Xmom];
     Real my = U[+HydroDef::ConsIdx::Ymom];
     Real mz = U[+HydroDef::ConsIdx::Zmom];
@@ -666,6 +673,34 @@ bool MixtureEOS::cons2prim(Vector<Real>& U, Vector<Real>& Q) const
     Real v = my * rhoinv;
     Real w = mz * rhoinv;
     Real e_int = ed * rhoinv - 0.5 * (u * u + v * v + w * w);
+
+    // ---- B: floor-time momentum handling (doc/t4_fix_plan_floorB_cavitation.md
+    // Part I). The bare clamp above resurrects an annihilated cell at
+    // rho_floor while KEEPING its momentum, i.e. u = m/rho_floor -- the
+    // measured 1e19..1e28 velocity runaway of the T4 failure chain. A cell
+    // that lost more mass than it had has no meaningful momentum or energy
+    // (any kept momentum manufactures KE = m^2/(2 rho_floor)), so a
+    // resurrection resets to the coldest static state at the floor. A cell
+    // floored from small-but-positive mass keeps its velocity DIRECTION and
+    // is magnitude-capped by the optional Lua `floor_u_max` (<= 0 disables).
+    if (rho_raw <= 0.0) {
+        u = v = w = 0.0;
+        e_int = 0.0;  // below every hull -> the re-driver clamps to the
+                      // T-bracket bottom (coldest representable mixture)
+        ++n_mom_fixes;
+        last_repair = true;
+    } else if (rho_raw < rho_floor && floor_u_max > 0.0) {
+        const Real speed = std::sqrt(u * u + v * v + w * w);
+        if (speed > floor_u_max) {
+            const Real s = floor_u_max / speed;
+            u *= s;
+            v *= s;
+            w *= s;
+            e_int = ed * rhoinv - 0.5 * (u * u + v * v + w * w);
+            ++n_mom_fixes;
+            last_repair = true;
+        }
+    }
 
     EosEval ev;
     EosInvertStats st;
@@ -705,6 +740,24 @@ bool MixtureEOS::cons2prim(Vector<Real>& U, Vector<Real>& Q) const
         Q[+HydroDef::PrimIdx::Temp] = effective_zero;
     }
 #endif
+
+    // ---- B: persist the repair to the CONSERVED vector. Without this the
+    // repair lives only in Q and the corrupt (or negative-mass) conserved
+    // state re-poisons every later evaluation — verified 2026-07-24: 221
+    // rho <= 0 cells stored in the post-step-1 plotfile. calc_primitives
+    // copies U back to the state fab when cons_was_repaired() reports true.
+    // The repaired state: floored mass, repaired velocity, driver-consistent
+    // energy, sanitized composition re-scaled onto the floored mass.
+    if (last_repair) {
+        U[+HydroDef::ConsIdx::Density] = rho;
+        U[+HydroDef::ConsIdx::Xmom] = rho * u;
+        U[+HydroDef::ConsIdx::Ymom] = rho * v;
+        U[+HydroDef::ConsIdx::Zmom] = rho * w;
+        U[+HydroDef::ConsIdx::Eden] = rho * e_eff + 0.5 * rho * (u * u + v * v + w * w);
+        for (int i = 0; i < n_tracers(); ++i) {
+            U[+HydroDef::ConsIdx::NUM + i] = rho * m_alpha[i];
+        }
+    }
 
     return prim_valid(Q);
 }
@@ -956,7 +1009,8 @@ RealArray MixtureEOS::get_speed_from_cons(const Vector<Real>& U) const
     get_alpha_fractions_from_cons(U, m_alpha);
     n_alpha_fixes += sanitize_alpha(m_alpha);
 
-    Real rho = U[+HydroDef::ConsIdx::Density];
+    const Real rho_raw = U[+HydroDef::ConsIdx::Density];
+    Real rho = rho_raw;
 
 #ifdef MFP_PRIM_FLOOR
     // raw conserved data that has not passed the cons2prim floors: floor to
@@ -966,11 +1020,19 @@ RealArray MixtureEOS::get_speed_from_cons(const Vector<Real>& U) const
     rho = std::max(rho, std::max(effective_zero, rho_union_min));
 #endif
 
+    // B (T4b plan): a resurrected cell (raw rho <= 0) has no meaningful
+    // momentum — dividing its leftover m by the floor is exactly the
+    // u = m/rho_floor runaway, seen here as a dt collapse (the dt sweep
+    // reads cells cons2prim has not yet repaired: fresh end-of-step
+    // corpses). Same semantics as the cons2prim repair: treat it as static.
+    const bool dead = (rho_raw <= 0.0);
+
     const Real rhoinv = 1 / rho;
-    const Real u = U[+HydroDef::ConsIdx::Xmom] * rhoinv;
-    const Real v = U[+HydroDef::ConsIdx::Ymom] * rhoinv;
-    const Real w = U[+HydroDef::ConsIdx::Zmom] * rhoinv;
-    Real e_int = U[+HydroDef::ConsIdx::Eden] * rhoinv - 0.5 * (u * u + v * v + w * w);
+    const Real u = dead ? 0.0 : U[+HydroDef::ConsIdx::Xmom] * rhoinv;
+    const Real v = dead ? 0.0 : U[+HydroDef::ConsIdx::Ymom] * rhoinv;
+    const Real w = dead ? 0.0 : U[+HydroDef::ConsIdx::Zmom] * rhoinv;
+    Real e_int =
+      dead ? 0.0 : U[+HydroDef::ConsIdx::Eden] * rhoinv - 0.5 * (u * u + v * v + w * w);
 
 #ifdef MFP_PRIM_FLOOR
     e_int = std::max(e_int, effective_zero);
@@ -1311,6 +1373,7 @@ void MixtureEOS::write_info(nlohmann::json& js) const
 
     js["type"] = tag;
     js["mixing_rule"] = "dalton";
+    js["floor_u_max"] = floor_u_max;
     for (size_t k = 0; k < tables.size(); ++k) {
         for (const auto& kv : tables[k].provenance()) {
             js["table_" + comp_names[k] + "_" + kv.first] = kv.second;
