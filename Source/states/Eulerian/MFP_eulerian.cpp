@@ -1224,7 +1224,8 @@ void EulerianState::calc_fluxes(const Box& box,
     // Blocks with no fallbacks are silent: at max_level 3 an all-blocks-always
     // report would dwarf the rest of the log. AllPrint because the degenerate
     // cells usually belong to a non-IO rank.
-#ifdef MFP_SOLVER_DIAG
+    // W29: production accounting — no longer MFP_SOLVER_DIAG-gated, so every
+    // run can attribute a contact-resolution violation (verbosity >= 2).
     if (flux_solver && (MFP::verbosity >= 2)) {
         const RiemannFallbackCounts fb = flux_solver->get_and_reset_fallback_counts();
         // fan is deliberately outside total() (it is not an HLLC guard) so it
@@ -1257,7 +1258,6 @@ void EulerianState::calc_fluxes(const Box& box,
             amrex::AllPrint() << os.str();
         }
     }
-#endif
 
     return;
 }

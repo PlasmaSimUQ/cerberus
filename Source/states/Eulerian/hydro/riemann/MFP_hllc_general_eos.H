@@ -90,6 +90,13 @@ class HydroHLLCGeneralEOS : public HydroRiemannSolver
     // relative floor for the degeneracy guards (Lua key 'fallback_eps')
     Real eps_rel = 1.0e-6;
 
+    // W29 per-guard switches (Lua keys 'fallback_guard_{eval,sound,wave}',
+    // default true = established behaviour). A disabled guard runs the
+    // star-state algebra unprotected on its mode — deliberate, see the ctor.
+    bool guard_eval = true;
+    bool guard_sound = true;
+    bool guard_wave = true;
+
     // per-rank, per-guard counts of fallback substitutions (plain increments in
     // solve; never reduced inside the per-face path)
     RiemannFallbackCounts n_fallback;

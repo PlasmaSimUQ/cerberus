@@ -11,6 +11,11 @@ Companion documents:
 - `doc/eos_implementation_plan.md` — the Cerberus-side engineering plan (Stages 1–5 done)
 - `Exec/testing/EOS-Table/README.md` — the frozen `.eostab` v1 spec + per-stage gate records
 
+> **[2026-07-27]** Requirements + acceptance gates for the next
+> (SESAME-era) table generation are consolidated in
+> `doc/eos_table_conditioning_requirements.md` — headed by the surface-
+> monotonicity requirement (H1/G1) the SS3-era gates did not cover.
+
 ## Decisions (fixed)
 
 1. **Deuterium first**, titanium second on the proven pipeline.
@@ -175,7 +180,7 @@ Tier-1 acceptance; cold-start Hugoniot from (0.171, 20 K, 1 bar): gas-gun u_s(u_
 locus; **hull-clamp counter = 0 for physical runs** and > 0 for the abusive run; conservation;
 completion; full suite (incl. untouched `EOS-Hugoniot`) green.
 
-**SS5 — Application wiring + titanium**: (a) `ciral_implosion` → tabulated gas on the spliced
+**SS5 — Application wiring + titanium**: (a) the application case → tabulated gas on the spliced
 table; smoke gates (completion, clamp budget, compression/timing baseline artifact).
 (b) Ti via `materials/titanium.py` — its own SS2′/SS3′ pass, same gate types.
 *(Tier-2 Helmholtz mode lands whenever the measured Tier-1 residual motivates it.)*
@@ -339,7 +344,7 @@ uncontrolled pending real data — its 4.8 kT alignment scatter is reported, not
 ### Next
 - **Ti v1 data**: ML-MD melt constraints (arXiv 2603.04680 — digitize or author request);
   Ti experimental Hugoniot compilation; then re-seam and gate the WDM band.
-- **SS5a**: point `Exec/testing/ciral_implosion` at `D_spliced.eostab` (Lua gas block +
+- **SS5a**: point the application case at `D_spliced.eostab` (Lua gas block +
   deuteron `ref_*`), smoke gates per §3.
 - Manual items open: experimental D₂ Hugoniot compilations (paywalled); optional iFPEOS
   author request.

@@ -289,8 +289,39 @@ remains open.
 | W24 (WF) **[DONE]** | **Mixing-rule interface + N-table binding**: a gas (`type='tabulated_mixture'`, or `tabulated` with a `components={{table=,name=},…}` list) owns N `EosTable`s bound to component names matching the αₖ tracer slots; define the mixing-rule virtual interface (forward p,e / `cons2prim` inverse / sound speed). Generalise the `set_flux` default-flux selection from a literal `TabulatedEOS::tag` compare to a `needs_general_eos_solver()` virtual | M | W6, W10 |
 | W25 (WG) **[DONE]** | **Dalton (partial-pressure) closure** — the cheap first cut: ρₖ=αₖρ, p=Σpₖ(ρₖ,T), e=Σαₖeₖ(ρₖ,T); `cons2prim` = 1-D Newton in T from total e_int (component densities known from αₖρ). Pure-cell short-circuit; per-component hull clamp+flag (+ dilute ideal-limit scaling, see status note) | M | W24 |
 | W26 (WH) **[DONE]** | **Mixture frozen sound speed + face eval**: a² = (∂p/∂ρ)\|_{s,α} via chain rule through the mixing rule (frozen composition; the wave-speed chain-rule subtlety flagged in the W12 2T memo); implement `get_face_eval_from_prim`/`get_speed_from_*` and the Gamma/SpHeat slot fill for the mixture so `HLLC_general_eos` drives it | M | W24, W25 |
-| W27 (WI) | **Amagat (additive-volume, P–T-equilibrium) closure** — the accurate mode, selectable against W24's interface: 1/ρ=Σαₖ/ρₖ(p,T), e=Σαₖeₖ(p,T); `cons2prim` = 2-D Newton in (p,T) per cell with inverse-map seeds; sound-speed chain rule for the volume-constraint form; per-component non-overlapping-hull fallback | L | W24, W26 |
+| W27 (WI) | **Amagat (additive-volume, P–T-equilibrium) closure** — the accurate mode, selectable against W24's interface: 1/ρ=Σαₖ/ρₖ(p,T), e=Σαₖeₖ(p,T); ~~`cons2prim` = 2-D Newton in (p,T)~~ nested guarded 1-D solves (outer T, inner p from the strictly-monotone volume constraint — see the plan doc §2 for the revision rationale); sound-speed chain rule for the volume-constraint form; per-component non-overlapping-hull fallback. **Detailed implementation + validation plan: `doc/eos_amagat_plan.md` (2026-07-26; AM1–AM3 done — drivers complete; AM10 solver-optimisation item added for production-scale cost: the measured mixed-cell factor is 8.4× Dalton and the drop_tol-band diffusion tails set the effective mixed fraction)** | L | W24, W26 |
 | W28 (WJ) **[Dalton subset DONE]** | **Validation**: (a) a mixture of two **identical** component tables reproduces the single-table result to round-off (mixing-rule analog of the Stage-5 G1 gate) — done, on IDENTICAL ideal-gas tables where Dalton is exact; (b) a binary-mixture shock tube — done (`EOS-Mixture/`); (c) Dalton-vs-Amagat A/B on a dilute case where they should nearly agree — needs W27; (d) mass-fraction conservation + positivity across a steepening composition gradient — done | M | W25, W26, W27 |
+
+### Note (2026-07-26) — W29 **[DONE 2026-07-26]**: contact-resolution switches + attribution for the general-EOS HLLC fallback
+
+**[Landed 2026-07-26: switches `fallback_guard_{eval,sound,wave}` + counters/report always compiled; neutrality bitwise; controls verified — record in `doc/eos_amagat_plan.md` §8 result note.]**
+
+The in-solver HLLE fallback (`doc/general_eos_hllc_fallback_plan.md`) makes
+`HLLC_general_eos` crash-proof, but every substituted face trades the
+contact-resolving three-wave flux for the two-wave HLL average — and
+contact smearing is exactly what the EOS work must not suffer *silently*:
+the mat_a/mat_b application case's ℓ≥2 drain is an HLLE-at-contact pathology
+(`doc/t4_fix_plan_floorB_cavitation.md` Part I-B), and the Amagat
+validation gates measure interface width directly. Wanted, when scheduled:
+
+1. **Per-guard Lua switches** on the fallback (enable/disable guards
+   1/2/4 individually, plus a global off; default = current behaviour), so
+   a run can (a) demonstrate where HLLC alone is genuinely singular and
+   (b) A/B contact quality with and against specific guards.
+2. **When-and-where accounting in production builds** — the per-guard,
+   per-block counts with the block-identity line (designed and working
+   under `MFP_SOLVER_DIAG`, fallback plan §5) promoted to a
+   verbosity-gated standard report, so a contact-resolution violation is
+   attributable in *every* run, not only in diagnostic builds.
+3. The same accounting contract binds **any future flux limiting (option
+   A)**: a limiter that scales a face flux must report when and where it
+   acted exactly as the fallback does, or contact-quality regressions
+   become undiagnosable.
+
+Cross-refs: fallback counters `general_eos_hllc_fallback_plan.md` §5;
+guard-2 diversion counter D-R7 in `t4_fix_plan_floorB_cavitation.md`
+§II.2.0; `doc/eos_amagat_plan.md` §5 note (the B/C-tier measurements this
+protects).
 
 ---
 

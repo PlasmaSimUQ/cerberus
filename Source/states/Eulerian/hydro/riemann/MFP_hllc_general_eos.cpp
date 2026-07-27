@@ -33,6 +33,16 @@ HydroHLLCGeneralEOS::HydroHLLCGeneralEOS(const sol::table& def)
     // embedded star-less fallback for degenerate faces, and its relative floor
     hlle = HydroHLLEGeneralEOS(def);
     eps_rel = def["fallback_eps"].get_or(1.0e-6);
+
+    // W29 (doc/eos_implementation_plan.md section 3 note): per-guard switches.
+    // Default on = the established behaviour. Disabling a guard removes the
+    // HLLE diversion for its mode — the face then runs the star-state algebra
+    // unprotected (an FPE trap at the guarded operation becomes reachable):
+    // deliberate, for (a) demonstrating where HLLC alone is genuinely
+    // singular and (b) A/B-ing contact quality against a specific guard.
+    guard_eval = def["fallback_guard_eval"].get_or(true);
+    guard_sound = def["fallback_guard_sound"].get_or(true);
+    guard_wave = def["fallback_guard_wave"].get_or(true);
 }
 
 void HydroHLLCGeneralEOS::solve(Vector<Real>& L, Vector<Real>& R, Vector<Real>& F, Real* shk)
@@ -98,11 +108,10 @@ void HydroHLLCGeneralEOS::solve(Vector<Real>& L,
     // general-EOS HLLE (reusing the face evaluations above) and return. ----
 
     // guard 1: EOS evaluation finiteness/sign (mode D — off-hull face)
-    if (!std::isfinite(eL) || !std::isfinite(eR) || !std::isfinite(aL) || !std::isfinite(aR) ||
-        (aL < 0.0) || (aR < 0.0)) {
-#ifdef MFP_SOLVER_DIAG
-        ++n_fallback.eval;
-#endif
+    if (guard_eval &&
+        (!std::isfinite(eL) || !std::isfinite(eR) || !std::isfinite(aL) || !std::isfinite(aR) ||
+         (aL < 0.0) || (aR < 0.0))) {
+        ++n_fallback.eval;  // W29: production accounting, no longer diag-gated
         hlle.solve(L, R, F, shk, eL, aL, eR, aR);
         return;
     }
@@ -113,10 +122,8 @@ void HydroHLLCGeneralEOS::solve(Vector<Real>& L,
     // blow up. Also catches the a_bar == 0 dead-cell corner.
     const Real a_bar = 0.5 * (aL + aR);
     const Real v_ref = std::max(std::max(std::abs(uL), std::abs(uR)), std::max(aL, aR));
-    if ((std::min(aL, aR) < eps_rel * v_ref) || (a_bar <= 0.0)) {
-#ifdef MFP_SOLVER_DIAG
-        ++n_fallback.sound;
-#endif
+    if (guard_sound && ((std::min(aL, aR) < eps_rel * v_ref) || (a_bar <= 0.0))) {
+        ++n_fallback.sound;  // W29
         hlle.solve(L, R, F, shk, eL, aL, eR, aR);
         return;
     }
@@ -177,10 +184,9 @@ void HydroHLLCGeneralEOS::solve(Vector<Real>& L,
     // singular. Enforcing the ordering here also guarantees coeff > 0, ruling
     // out negative star density/energy.
     const Real dS = S_R - S_L;
-    if ((dS <= 0.0) || ((S_star - S_L) < eps_rel * dS) || ((S_R - S_star) < eps_rel * dS)) {
-#ifdef MFP_SOLVER_DIAG
-        ++n_fallback.wave;
-#endif
+    if (guard_wave &&
+        ((dS <= 0.0) || ((S_star - S_L) < eps_rel * dS) || ((S_R - S_star) < eps_rel * dS))) {
+        ++n_fallback.wave;  // W29
         hlle.solve(L, R, F, shk, eL, aL, eR, aR);
         return;
     }

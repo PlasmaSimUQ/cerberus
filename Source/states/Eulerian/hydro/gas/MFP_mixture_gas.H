@@ -14,15 +14,17 @@
 //
 //   gas = {
 //       type        = 'tabulated_mixture',
-//       mixing_rule = 'dalton',            -- 'amagat' aborts until plan W27
+//       mixing_rule = 'dalton',            -- 'amagat': switch plumbed (AM1),
+//                                          --   drivers land with AM2 —
+//                                          --   doc/eos_amagat_plan.md
 //       components  = {
-//           { table = 'casing.eostab', name = 'casing', mass = 1.0, charge = 0.0 },
-//           { table = 'fuel.eostab',   name = 'fuel',   mass = 0.5, charge = 0.0 },
+//           { table = 'heavy.eostab', name = 'heavy', mass = 1.0, charge = 0.0 },
+//           { table = 'light.eostab', name = 'light', mass = 0.5, charge = 0.0 },
 //       },
 //       ttol = 1e-10, max_newton = 100,    -- inversion controls (optional)
 //       pure_tol = 1e-10, drop_tol = 1e-10,
 //   }
-//   value = { ..., alpha = alpha_casing }  -- N-1 tracers; last = 1 - sum
+//   value = { ..., alpha = alpha_heavy }   -- N-1 tracers; last = 1 - sum
 //
 // Component ORDER defines the alpha mapping: components 1..N-1 (Lua order)
 // bind to tracer slots 0..N-2 and the last component carries the derived
@@ -43,7 +45,7 @@
 // far below its table hull — constant (legitimate, per-component-tallied)
 // clamps and an unphysical partial pressure. That is intrinsic to the
 // shared-volume rule, which is exact only for ideal-gas components. Amagat
-// (W27) is the production closure for condensed casing+fuel problems; the
+// (W27) is the production closure for condensed heavy+light pairings; the
 // per-component clamp counters are the signal to prioritise it.
 //
 // The frozen mixture sound speed (composition fixed across the wave) is
@@ -163,6 +165,59 @@ class MixtureEOS : public HydroGas
                         const Vector<Real>& alpha,
                         EosEval& ev,
                         EosInvertStats& st) const;
+
+    // pure-cell short-circuit body shared by BOTH mixing rules (plan 7.1):
+    // formula-identical to the single-table TabulatedEOS driver — the
+    // mechanism behind every pure-cell round-off/bitwise gate
+    void pure_cell_eval(int kp,
+                        Real rho,
+                        Real target,
+                        bool by_e,
+                        EosEval& ev,
+                        EosInvertStats& st) const;
+
+    // --- Amagat (W27; doc/eos_amagat_plan.md). AM2 landed the rp path;
+    // AM3 the nested re-driver + the (rho,T) -> p forward. ---------------
+    // Volume sum Sum_k w_k v_k(p, T) at fixed (p, T): each retained rho_k
+    // from the guarded isotherm inversion (warm-started through m_rho_k;
+    // an unattainable p pins rho_k at the hull edge — the pin mask goes to
+    // m_pinned, and pinned components contribute zero derivative weight).
+    // Fills m_evk with the (p,T)-consistent per-component evals and
+    // returns the two slope sums (dv/dT)_p and (dv/dp)_T. `tally` controls
+    // the accounting: iteration-interior evaluations run quiet (transient
+    // pins while bracketing are not state pins — the same rule as the
+    // Dalton rho-inversion); only the final at-solution evaluation tallies
+    // per component and escalates the caller's flag.
+    Real amagat_volume_sum(Real p,
+                           Real T,
+                           bool tally,
+                           EosInvertStats& st,
+                           Real& dvdT,
+                           Real& dvdp) const;
+    // inner solve of the volume constraint at fixed T (plan eq 4): p from
+    // R_v(p) = Sum_k w_k v_k(p,T) - 1/rho, STRICTLY monotone decreasing in
+    // p (dpdrho > 0 by conditioning) — unconditionally convergent on the
+    // union bracket of the attainable per-component p-ranges (plan eq 7).
+    // p_warm carries the previous outer iterate's solution as the seed
+    // (in/out; < 0 = bracket midpoint). A no-root state (tension /
+    // over-compression) clamps to the bracket end and flags.
+    Real amagat_p_solve(Real rho, Real T, Real& p_warm, EosInvertStats& st) const;
+    // driver twin of dalton_solve_T behind `rule`: same pure-cell head;
+    // by_e = false -> guarded 1-D T-solve of the volume residual at given
+    // p (AM2); by_e = true -> nested solve, outer 1-D in T on the energy
+    // sum with the inner p-solve per iterate (AM3)
+    void amagat_solve_T(Real rho,
+                        Real target,
+                        bool by_e,
+                        const Vector<Real>& alpha,
+                        EosEval& ev,
+                        EosInvertStats& st) const;
+    // mixture EosEval from the cached per-component evals at the solution:
+    // alpha-weighted volume-derivative sums (plan section 3); reduces to
+    // gamma*p/rho for a single ideal-gas component. Pinned components
+    // carry volume + energy but no derivative weight (all-pinned states
+    // fall back to the full formulas so the sums stay bounded).
+    void amagat_assemble(Real rho, Real p, Real T, EosEval& ev, EosInvertStats& st) const;
     // given (T, p, alpha) recover the total rho — define_rho_p_T's p+T
     // branch (initial-condition fills; not a hot path)
     Real invert_rho_from_p_T(Real T, Real p, const Vector<Real>& alpha, EosInvertStats& st) const;
@@ -252,6 +307,7 @@ class MixtureEOS : public HydroGas
     mutable std::vector<Real> m_rho_k;       // clamped partial densities
     mutable std::vector<Real> m_scale_k;     // dilute-limit p/dpdT scales
     mutable std::vector<EosEval> m_evk;      // per-component evals (cached)
+    mutable std::vector<char> m_pinned;      // Amagat: hull-pinned this eval
 
     mutable long n_hull_clamps = 0;              // total-rho / aggregate clamps
     mutable std::vector<long> n_hull_clamps_k;   // per-component clamp accounting

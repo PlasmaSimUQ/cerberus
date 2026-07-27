@@ -132,14 +132,19 @@ MixtureEOS::MixtureEOS(const int global_idx, const sol::table& def)
     const std::string name = MFP::state_names[idx];
 
     const std::string rule_s = def["mixing_rule"].get_or<std::string>("dalton");
-    if (rule_s == "amagat") {
-        Abort("State: " + name + "; mixing_rule 'amagat' is not implemented yet (plan W27) — "
-              "use 'dalton'");
-    } else if (rule_s != "dalton") {
+    if (rule_s == "dalton") {
+        rule = MixRule::Dalton;
+    } else if (rule_s == "amagat") {
+        // AM1 (doc/eos_amagat_plan.md): the switch is plumbed and the full
+        // ctor parse/validation path runs (tables, hull caches, T-bracket),
+        // but the Amagat drivers land with AM2 — a config-time abort after
+        // validation keeps silently-wrong physics unreachable (the W7
+        // inert-switch precedent).
+        rule = MixRule::Amagat;
+    } else {
         Abort("State: " + name + "; unknown mixing_rule '" + rule_s +
-              "' (options are 'dalton'; 'amagat' arrives with plan W27)");
+              "' (options are 'dalton', 'amagat')");
     }
-    rule = MixRule::Dalton;
 
     ttol = def["ttol"].get_or(1.0e-10);
     max_newton = def["max_newton"].get_or(100);
@@ -251,8 +256,11 @@ MixtureEOS::MixtureEOS(const int global_idx, const sol::table& def)
     // hull starts far above the union floor is a condensed-matter table —
     // dilute fractions of it land at alpha*rho below its hull and clamp on
     // every evaluation. Legitimate under Dalton, but worth a config-time note.
+    // Not applicable under Amagat: every component evaluates at its own
+    // rho_k(p,T) on its own hull, which is the point of that rule
+    // (doc/eos_amagat_plan.md section 1.2).
     for (int k = 0; k < N; ++k) {
-        if (rho_hull_min_k[k] > 1.0e3 * rho_union_min) {
+        if (rule == MixRule::Dalton && rho_hull_min_k[k] > 1.0e3 * rho_union_min) {
             amrex::Print() << "MixtureEOS[" << name << "]: WARNING component '" << comp_names[k]
                            << "' has rho_hull_min " << rho_hull_min_k[k]
                            << " far above the union floor " << rho_union_min
@@ -268,6 +276,7 @@ MixtureEOS::MixtureEOS(const int global_idx, const sol::table& def)
     m_rho_k.resize(N, 0.0);
     m_scale_k.resize(N, 1.0);
     m_evk.resize(N);
+    m_pinned.assign(N, 0);
 
     amrex::Print() << "MixtureEOS[" << name << "]: rule=" << rule_s << " N=" << N
                    << " T-bracket (code units) [" << T_lo_all << "," << T_hi_all << "]\n";
@@ -409,6 +418,17 @@ void MixtureEOS::setup_partial_densities(Real rho, EosInvertStats& st) const
 
 Real MixtureEOS::mix_p_rho_T(Real rho, Real T, EosInvertStats& st) const
 {
+    // Amagat (rho, T) -> p: the inner p-solve of the volume constraint
+    // (plan section 2.4 — strictly monotone, one guarded 1-D solve)
+    if (rule == MixRule::Amagat) {
+        std::fill(m_rho_k.begin(), m_rho_k.end(), -1.0);
+        Real p_warm = -1.0;
+        const Real p = amagat_p_solve(rho, T, p_warm, st);
+        Real dvdT, dvdp;
+        amagat_volume_sum(p, T, true, st, dvdT, dvdp);  // at-solution accounting
+        return p;
+    }
+
     // forward Dalton pressure at the prepared weights (m_w/m_retained)
     setup_partial_densities(rho, st);
     Real p = 0.0;
@@ -424,6 +444,25 @@ Real MixtureEOS::mix_p_rho_T(Real rho, Real T, EosInvertStats& st) const
 // the Dalton shared-T drivers
 // ===========================================================================
 
+// pure-cell short-circuit (plan 7.1), shared by both mixing rules:
+// FORMULA-IDENTICAL to the single-table TabulatedEOS driver (same inverter
+// call, same eval_rt) — a hard requirement, not an optimisation: it is what
+// makes the identical-tables round-off validation gates meaningful, and pure
+// cells are the bulk of a mat_a/mat_b application domain (the primary cost saver).
+void MixtureEOS::pure_cell_eval(int kp,
+                                Real rho,
+                                Real target,
+                                bool by_e,
+                                EosEval& ev,
+                                EosInvertStats& st) const
+{
+    const Real rho_c = clamp_rho_k(kp, rho, st);
+    const Real T =
+      by_e ? EosTable::invert_T_from_e(tvs[kp], rho_c, target, -1.0, ttol, max_newton, st)
+           : EosTable::invert_T_from_p(tvs[kp], rho_c, target, -1.0, ttol, max_newton, st);
+    EosTable::eval_rt(tvs[kp], rho_c, T, ev);
+}
+
 void MixtureEOS::dalton_solve_T(Real rho,
                                 Real target,
                                 bool by_e,
@@ -435,17 +474,8 @@ void MixtureEOS::dalton_solve_T(Real rho,
 
     const int kp = prepare_weights(alpha);
 
-    // pure-cell short-circuit (plan 7.1): FORMULA-IDENTICAL to the
-    // single-table TabulatedEOS driver (same inverter call, same eval_rt) —
-    // a hard requirement, not an optimisation: it is what makes the
-    // identical-tables round-off validation gates meaningful, and pure cells
-    // are the bulk of a capsule domain (the primary cost saver).
     if (kp >= 0) {
-        const Real rho_c = clamp_rho_k(kp, rho, st);
-        const Real T =
-          by_e ? EosTable::invert_T_from_e(tvs[kp], rho_c, target, -1.0, ttol, max_newton, st)
-               : EosTable::invert_T_from_p(tvs[kp], rho_c, target, -1.0, ttol, max_newton, st);
-        EosTable::eval_rt(tvs[kp], rho_c, T, ev);
+        pure_cell_eval(kp, rho, target, by_e, ev, st);
         return;
     }
 
@@ -558,13 +588,313 @@ void MixtureEOS::dalton_solve_T(Real rho,
     ev.dpdr_e = ev.dpdrho - ev.dpde * ev.dedrho;
 }
 
+// ===========================================================================
+// the Amagat volume-constraint drivers (W27, doc/eos_amagat_plan.md — AM2)
+// ===========================================================================
+
+Real MixtureEOS::amagat_volume_sum(Real p,
+                                   Real T,
+                                   bool tally,
+                                   EosInvertStats& st,
+                                   Real& dvdT,
+                                   Real& dvdp) const
+{
+    // Sum_k w_k v_k(p, T) over the retained set: each rho_k(p, T) from the
+    // guarded isotherm inversion (the density axis IS the rho hull, so an
+    // inversion clamp = hull-edge pin). Warm-started through m_rho_k within
+    // a call; the caller resets m_rho_k to -1 on entry. Pinned components
+    // contribute zero slope in BOTH directions (their rho_k no longer
+    // follows p or T); the pin mask is kept for the assembly.
+    const Real tiny = std::numeric_limits<Real>::min();
+    Real vsum = 0.0;
+    dvdT = 0.0;
+    dvdp = 0.0;
+    for (const int k : m_retained) {
+        EosInvertStats stk;
+        const Real rk =
+          EosTable::invert_rho_from_p(tvs[k], T, p, m_rho_k[k], ttol, max_newton, stk);
+        m_rho_k[k] = rk;
+        EosTable::eval_rt(tvs[k], rk, T, m_evk[k]);
+        vsum += m_w[k] / rk;
+        m_pinned[k] = (stk.flag != 0);
+        if (stk.flag != 0) {
+            if (tally) {
+                ++n_hull_clamps_k[k];
+                st.flag = std::max(st.flag, 1);
+            }
+        } else {
+            // (dv_k/dT)_p = dpdT_k / (rho_k^2 dpdrho_k),
+            // (dv_k/dp)_T = -1  / (rho_k^2 dpdrho_k) — through the isotherm
+            // inversion; dpdrho > 0 by conditioning
+            const Real rk2D = rk * rk * std::max(m_evk[k].dpdrho, tiny);
+            dvdT += m_w[k] * m_evk[k].dpdT / rk2D;
+            dvdp -= m_w[k] / rk2D;
+        }
+    }
+    return vsum;
+}
+
+Real MixtureEOS::amagat_p_solve(Real rho, Real T, Real& p_warm, EosInvertStats& st) const
+{
+    // Inner solve of the volume constraint at fixed T (plan eq 4), in
+    // log10 p. Strictly monotone decreasing on the unpinned interior, so
+    // the guarded solve is unconditionally convergent; a target volume
+    // outside the attainable range (tension / over-compression) clamps to
+    // the bracket end with flag = 1 via the existing same-sign branch.
+    const Real tiny = std::numeric_limits<Real>::min();
+
+    // union bracket of the attainable per-component p-ranges (plan eq 7):
+    // p_k monotone in rho_k along the isotherm
+    Real p_lo = std::numeric_limits<Real>::max(), p_hi = 0.0;
+    EosEval evb;
+    for (const int k : m_retained) {
+        EosTable::eval_rt(tvs[k], rho_hull_min_k[k], T, evb);
+        p_lo = std::min(p_lo, evb.p);
+        EosTable::eval_rt(tvs[k], rho_hull_max_k[k], T, evb);
+        p_hi = std::max(p_hi, evb.p);
+    }
+    const Real lp_lo = std::log10(std::max(p_lo, tiny));
+    const Real lp_hi = std::log10(std::max(p_hi, tiny));
+
+    // quiet iteration: transient pins while bracketing are not state pins
+    EosInvertStats stq;
+    auto fval = [&](Real lp, Real& slope) {
+        const Real p = std::pow((Real)10.0, lp);
+        Real dvdT, dvdp;
+        const Real vsum = amagat_volume_sum(p, T, false, stq, dvdT, dvdp);
+        slope = std::log((Real)10.0) * p * dvdp;
+        return vsum;
+    };
+
+    const Real lp0 = (p_warm > 0.0) ? std::log10(p_warm) : 0.5 * (lp_lo + lp_hi);
+    const Real lp = guarded_solve(fval, lp_lo, lp_hi, 1.0 / rho, lp0, ttol, max_newton, st);
+    const Real p = std::pow((Real)10.0, lp);
+    p_warm = p;
+    return p;
+}
+
+void MixtureEOS::amagat_assemble(Real rho, Real p, Real T, EosEval& ev, EosInvertStats& st) const
+{
+    // Mixture EosEval from the cached per-component evals at the shared
+    // (p, T) (plan section 3): all mixture quantities are alpha-weighted
+    // volume-derivative sums. For one ideal-gas component this reduces to
+    // a^2 = gamma p / rho (self-test check). dvdp < 0 strictly, since
+    // dpdrho > 0 by table conditioning — the sign guard below is a backstop.
+    const Real tiny = std::numeric_limits<Real>::min();
+
+    ev = EosEval();
+    ev.rho = rho;
+    ev.T = T;
+    ev.p = p;
+
+    Real dvdp = 0.0, dvdT = 0.0, cp = 0.0, dedp = 0.0;
+    bool clamped = (st.flag != 0);
+    bool any_unpinned = false;
+    for (const int k : m_retained) {
+        // volume + energy from every component; derivative weight only from
+        // the unpinned ones (a pinned rho_k no longer responds to p or T)
+        ev.e += m_w[k] * m_evk[k].e;
+        clamped |= m_evk[k].clamped;
+        any_unpinned |= (m_pinned[k] == 0);
+    }
+    for (const int k : m_retained) {
+        const EosEval& evk = m_evk[k];
+        if (any_unpinned && m_pinned[k]) {
+            // pinned: rho_k frozen -> no volume response, no p-response of
+            // e_k, but the frozen-density heat capacity cv_k remains (the
+            // T-dependence is not pinned)
+            cp += m_w[k] * evk.cv;
+            continue;
+        }
+        // all-pinned states fall back to the full formulas (bounded, since
+        // dpdrho >= its conditioning floor) so the sums cannot vanish
+        const Real rk = m_rho_k[k];
+        const Real rk2D = rk * rk * std::max(evk.dpdrho, tiny);
+        dvdp -= m_w[k] / rk2D;
+        dvdT += m_w[k] * evk.dpdT / rk2D;
+        cp += m_w[k] * (evk.cv + T * evk.dpdT * evk.dpdT / rk2D);
+        dedp += m_w[k] * evk.dedrho / std::max(evk.dpdrho, tiny);
+    }
+    ev.clamped = clamped;
+
+    dvdp = std::min(dvdp, -tiny);  // strictly negative (backstop)
+    const Real v = 1.0 / rho;
+
+    ev.dpdrho = -v * v / dvdp;                              // (dp/drho)|_T
+    ev.dpdT = -dvdT / dvdp;                                 // (dp/dT)|_rho
+    const Real cv = cp + T * dvdT * dvdT / dvdp;            // dvdp < 0: subtracts
+    ev.cv = std::max(cv, tiny);
+    Real cs2 = std::max(-v * v * cp / (ev.cv * dvdp), (Real)0.0);
+    if (!any_unpinned) {
+        // ALL-pinned degenerate state (p unattainable by every component at
+        // this T — flag = 1 upstream): the fallback derivative sums are
+        // formula artifacts of pinned densities and can reach absurd
+        // stiffness (measured cs ~ 1e145 in the self-test abuse case),
+        // which would collapse the CFL time step if it ever reached the
+        // speed sweep. Bound the degenerate state by the stiffest
+        // component's own response — table-real values, never larger.
+        Real cs2_cap = 0.0, dpdrho_cap = 0.0;
+        for (const int k : m_retained) {
+            cs2_cap = std::max(cs2_cap, m_evk[k].cs * m_evk[k].cs);
+            dpdrho_cap = std::max(dpdrho_cap, m_evk[k].dpdrho);
+        }
+        cs2 = std::min(cs2, cs2_cap);
+        ev.dpdrho = std::min(ev.dpdrho, dpdrho_cap);
+    }
+    ev.cs = std::sqrt(cs2);
+    ev.gam1 = rho * cs2 / std::max(p, tiny);
+    ev.dpde = ev.dpdT / ev.cv;
+    ev.dedrho = ev.dpdrho * dedp;  // (de/drho)|_T = (dp/drho)|_T Sum w_k dedrho_k/D_k
+    ev.dpdr_e = ev.dpdrho - ev.dpde * ev.dedrho;
+}
+
+void MixtureEOS::amagat_solve_T(Real rho,
+                                Real target,
+                                bool by_e,
+                                const Vector<Real>& alpha,
+                                EosEval& ev,
+                                EosInvertStats& st) const
+{
+    const Real tiny = std::numeric_limits<Real>::min();
+
+    const int kp = prepare_weights(alpha);
+    if (kp >= 0) {
+        pure_cell_eval(kp, rho, target, by_e, ev, st);
+        return;
+    }
+
+    // T bracket: intersection of the RETAINED components' T-hulls (superset
+    // of the ctor's full intersection — never empty), as the Dalton driver
+    Real T_lo = 0.0, T_hi = std::numeric_limits<Real>::max();
+    for (const int k : m_retained) {
+        T_lo = std::max(T_lo, T_min_k[k]);
+        T_hi = std::min(T_hi, T_max_k[k]);
+    }
+    const Real lt_lo = std::log10(T_lo);
+    const Real lt_hi = std::log10(T_hi);
+
+    // warm-start reset: first residual evaluation seeds each component
+    // inversion from its axis midpoint, later ones from the previous iterate
+    std::fill(m_rho_k.begin(), m_rho_k.end(), -1.0);
+
+    // dominant (largest-weight) component for the outer seed — its inverse
+    // map at the TOTAL density clamped into its hull: excellent for a
+    // nearly-pure cell, heuristic otherwise; the guarded solve owns
+    // convergence
+    int kd = m_retained[0];
+    for (const int k : m_retained) {
+        if (m_w[k] > m_w[kd]) kd = k;
+    }
+    const Real rho_d = std::min(std::max(rho, rho_hull_min_k[kd]), rho_hull_max_k[kd]);
+
+    Real lt = 0.0;
+    Real p_sol = 0.0;
+    EosInvertStats stq;  // quiet stats for iteration-interior evaluations
+
+    if (!by_e) {
+        // ---- rp path (AM2): 1-D in T of the volume residual at given p.
+        // Monotonicity in T is NOT guaranteed (the slope follows the
+        // thermal expansivity, whose sign conditioning leaves free — plan
+        // section 2.3); the guarded bracket + bisection owns non-monotone
+        // stretches, and convergence is on the volume residual, never the
+        // T step.
+        const Real p = target;
+        p_sol = p;
+        auto fval = [&](Real lt_, Real& slope) {
+            const Real T = std::pow((Real)10.0, lt_);
+            Real dvdT, dvdp;
+            const Real vsum = amagat_volume_sum(p, T, false, stq, dvdT, dvdp);
+            slope = std::log((Real)10.0) * T * dvdT;
+            return vsum;
+        };
+        Real lt0 = 0.5 * (lt_lo + lt_hi);
+        const Real Ts = seed_from_map(tvs[kd], tvs[kd].T_of_p, tvs[kd].lp_min, tvs[kd].dlp,
+                                      tvs[kd].n_p, rho_d, p);
+        if (Ts > 0.0) {
+            lt0 = std::log10(std::max(Ts, tiny));
+            st.seeded = true;
+        }
+        lt = guarded_solve(fval, lt_lo, lt_hi, 1.0 / rho, lt0, ttol, max_newton, st);
+    } else {
+        // ---- re path (AM3): nested — outer 1-D in T on the energy sum
+        // along the volume constraint, inner p-solve per outer iterate
+        // (plan eq 6). The outer slope is the constrained heat capacity
+        // c_v_eff = c_p + T (dv/dT)^2 / (dv/dp) (dv/dp < 0: subtracts;
+        // pinned components contribute their frozen-density cv), positive
+        // for thermodynamically stable components — the bracket owns
+        // exceptions. Inner-solve no-root clamps are escalated only from
+        // the FINAL outer evaluation (transients are not state flags).
+        const Real e_int = target;
+        Real p_warm = -1.0;
+        int inner_flag = 0;
+        Real last_lt = std::numeric_limits<Real>::quiet_NaN();
+        auto fval = [&](Real lt_, Real& slope) {
+            const Real T = std::pow((Real)10.0, lt_);
+            last_lt = lt_;
+            EosInvertStats stp;
+            p_sol = amagat_p_solve(rho, T, p_warm, stp);
+            inner_flag = stp.flag;
+            // refresh the cached evals at (p*, T) (the inner solve's last
+            // interior evaluation is not necessarily at p*)
+            Real dvdT, dvdp;
+            amagat_volume_sum(p_sol, T, false, stq, dvdT, dvdp);
+            Real esum = 0.0, cv_eff = 0.0;
+            for (const int k : m_retained) {
+                esum += m_w[k] * m_evk[k].e;
+                if (m_pinned[k]) {
+                    cv_eff += m_w[k] * m_evk[k].cv;
+                } else {
+                    const Real rk = m_rho_k[k];
+                    const Real rk2D = rk * rk * std::max(m_evk[k].dpdrho, tiny);
+                    cv_eff += m_w[k] * (m_evk[k].cv +
+                                        T * m_evk[k].dpdT * m_evk[k].dpdT / rk2D);
+                }
+            }
+            if (dvdp < 0.0) cv_eff += T * dvdT * dvdT / dvdp;  // constraint term
+            slope = std::log((Real)10.0) * T * cv_eff;
+            return esum;
+        };
+        Real lt0 = 0.5 * (lt_lo + lt_hi);
+        const Real Ts = seed_from_map(tvs[kd], tvs[kd].T_of_e, tvs[kd].le_min, tvs[kd].dle,
+                                      tvs[kd].n_e, rho_d, e_int);
+        if (Ts > 0.0) {
+            lt0 = std::log10(std::max(Ts, tiny));
+            st.seeded = true;
+        }
+        lt = guarded_solve(fval, lt_lo, lt_hi, e_int, lt0, ttol, max_newton, st);
+        // endpoint clamp / bracket collapse: p_sol belongs to the LAST
+        // evaluated T — re-solve the inner constraint at the returned one
+        if (lt != last_lt) {
+            Real slope;
+            fval(lt, slope);
+        }
+        st.flag = std::max(st.flag, inner_flag);
+    }
+
+    const Real T = std::pow((Real)10.0, lt);
+
+    // final AT-SOLUTION evaluation with accounting: per-component pin
+    // tallies + flag escalation happen exactly once, at the returned state
+    // (warm-started, so each inner inversion converges in ~1 iteration)
+    {
+        Real dvdT, dvdp;
+        amagat_volume_sum(p_sol, T, true, st, dvdT, dvdp);
+    }
+
+    amagat_assemble(rho, p_sol, T, ev, st);
+}
+
 void MixtureEOS::eval_from_rho_e(Real rho,
                                  Real e_int,
                                  const Vector<Real>& alpha,
                                  EosEval& ev,
                                  EosInvertStats& st) const
 {
-    dalton_solve_T(rho, e_int, true, alpha, ev, st);
+    if (rule == MixRule::Amagat) {
+        amagat_solve_T(rho, e_int, true, alpha, ev, st);
+    } else {
+        dalton_solve_T(rho, e_int, true, alpha, ev, st);
+    }
 }
 
 void MixtureEOS::eval_from_rho_p(Real rho,
@@ -573,7 +903,11 @@ void MixtureEOS::eval_from_rho_p(Real rho,
                                  EosEval& ev,
                                  EosInvertStats& st) const
 {
-    dalton_solve_T(rho, p, false, alpha, ev, st);
+    if (rule == MixRule::Amagat) {
+        amagat_solve_T(rho, p, false, alpha, ev, st);
+    } else {
+        dalton_solve_T(rho, p, false, alpha, ev, st);
+    }
 }
 
 Real MixtureEOS::invert_rho_from_p_T(Real T,
@@ -587,6 +921,15 @@ Real MixtureEOS::invert_rho_from_p_T(Real T,
     const int kp = prepare_weights(alpha);
     if (kp >= 0) {
         return EosTable::invert_rho_from_p(tvs[kp], T, p, -1.0, ttol, max_newton, st);
+    }
+
+    // Amagat (p, T) given -> rho is DIRECT (plan section 2.4): no
+    // iteration — one isotherm inversion per retained component
+    if (rule == MixRule::Amagat) {
+        std::fill(m_rho_k.begin(), m_rho_k.end(), -1.0);
+        Real dvdT, dvdp;
+        const Real vsum = amagat_volume_sum(p, T, true, st, dvdT, dvdp);
+        return 1.0 / vsum;
     }
 
     // bracket in total rho: below min_k(rho_hull_min_k) every partial
@@ -1093,7 +1436,7 @@ int MixtureEOS::apply_prim_floor(Vector<Real>& Q) const
     // in the drivers (setup_partial_densities), which keeps W8.1 finite
     // sound speeds down to the union edge; flooring to the max over
     // components would destroy any ambient state below the densest
-    // component's hull (e.g. a rough vacuum next to a solid casing).
+    // component's hull (e.g. a rough vacuum next to a solid heavy component).
     int n = 0;
     const Real rho_fl = std::max(effective_zero, rho_floor);
     const Real p_fl = std::max(effective_zero, p_floor);
@@ -1140,6 +1483,307 @@ void MixtureEOS::run_self_test(int n_sweep) const
         alpha[0] = a0;
         for (int k = 1; k < N; ++k) { alpha[k] = (1.0 - a0) / (N - 1); }
     };
+
+    // ---- Amagat rp slice (AM2; the full branch incl. re round-trips lands
+    // with AM7). The forward reference is generated in (p, T) — where the
+    // closure is explicit — so the reference is exact by construction:
+    // rho = 1/(Sum_k w_k v_k(p,T)), then the rp-driver must recover a T at
+    // which the volume constraint closes to tolerance. T identifiability is
+    // monitored, not gated (flat-in-T surfaces, plan section 2.3).
+    if (rule == MixRule::Amagat) {
+        int total = 0, nonconv = 0;
+        Real max_res_v = 0.0, max_Terr = 0.0;
+        Real max_res_e = 0.0, max_pmis = 0.0, max_Terr_re = 0.0;
+        for (const Real a0 : a_grid) {
+            set_alpha(a0);
+            if (prepare_weights(alpha) >= 0) continue;  // pure: rule-independent path
+            for (int b = 0; b < n_sweep; ++b) {
+                const Real T =
+                  std::pow(10.0, std::log10(T_lo_all) + (0.1 + 0.8 * (b + 0.5) / n_sweep) *
+                                                          (std::log10(T_hi_all) - std::log10(T_lo_all)));
+                // intersection of the attainable p-ranges on this isotherm
+                // (p_k monotone in rho_k) — every component invertible, no
+                // hull pins inside the sample set
+                Real p_lo = 0.0, p_hi = std::numeric_limits<Real>::max();
+                EosEval evb;
+                for (const int k : m_retained) {
+                    EosTable::eval_rt(tvs[k], rho_hull_min_k[k], T, evb);
+                    p_lo = std::max(p_lo, evb.p);
+                    EosTable::eval_rt(tvs[k], rho_hull_max_k[k], T, evb);
+                    p_hi = std::min(p_hi, evb.p);
+                }
+                if (!(p_lo < p_hi)) continue;
+                for (int a = 0; a < n_sweep; ++a) {
+                    const Real p =
+                      std::pow(10.0, std::log10(p_lo) + (0.1 + 0.8 * (a + 0.5) / n_sweep) *
+                                                          (std::log10(p_hi) - std::log10(p_lo)));
+
+                    // forward reference: (p, T) -> (rho, e), exact by
+                    // construction
+                    prepare_weights(alpha);
+                    std::fill(m_rho_k.begin(), m_rho_k.end(), -1.0);
+                    EosInvertStats stf;
+                    Real dvdT, dvdp;
+                    const Real vsum = amagat_volume_sum(p, T, false, stf, dvdT, dvdp);
+                    bool pinned = false;
+                    for (const int k : m_retained) pinned |= (m_pinned[k] != 0);
+                    if (pinned) continue;  // pinned territory: skip
+                    const Real rho = 1.0 / vsum;
+                    Real e_f = 0.0;
+                    for (const int k : m_retained) e_f += m_w[k] * m_evk[k].e;
+                    ++total;
+
+                    // rp-driver round trip (AM2)
+                    EosEval ev;
+                    EosInvertStats st1;
+                    eval_from_rho_p(rho, p, alpha, ev, st1);
+                    if (st1.flag == 2) ++nonconv;
+                    max_Terr = std::max(max_Terr, std::abs(ev.T - T) / T);
+
+                    // volume-constraint residual at the recovered T
+                    prepare_weights(alpha);
+                    std::fill(m_rho_k.begin(), m_rho_k.end(), -1.0);
+                    EosInvertStats st2;
+                    const Real vsum2 = amagat_volume_sum(p, ev.T, false, st2, dvdT, dvdp);
+                    max_res_v = std::max(max_res_v, std::abs(vsum2 * rho - 1.0));
+
+                    // re-driver round trip (AM3): recover from (rho, e_f);
+                    // the driver's own convergence is the e-residual —
+                    // p/T recovery monitored (identifiability, plan 2.3)
+                    EosEval ev3;
+                    EosInvertStats st3;
+                    eval_from_rho_e(rho, e_f, alpha, ev3, st3);
+                    if (st3.flag == 2) ++nonconv;
+                    max_res_e = std::max(max_res_e, std::abs(ev3.e - e_f) /
+                                                      std::max(std::abs(e_f), tiny));
+                    max_pmis = std::max(max_pmis, std::abs(ev3.p - p) / std::max(p, tiny));
+                    max_Terr_re = std::max(max_Terr_re, std::abs(ev3.T - T) / T);
+                }
+            }
+        }
+        std::ostringstream d;
+        d << "n=" << total << " max_res_v=" << max_res_v << " max_res_e=" << max_res_e
+          << " max_p_mismatch(monitored)=" << max_pmis << " max_Terr_rp(monitored)=" << max_Terr
+          << " max_Terr_re(monitored)=" << max_Terr_re << " nonconv=" << nonconv;
+        verdict("amagat-roundtrip", total > 0 && nonconv == 0 && max_res_v <= 10 * ttol &&
+                                      max_res_e <= 10 * ttol,
+                d.str());
+
+        // ---- AM7: pure-cell formula parity (the rule-independent
+        // short-circuit, verified on the constructed Amagat object) ----
+        {
+            set_alpha(1.0);
+            bool ok = true;
+            const Real rho_lo = rho_hull_min_k[0], rho_hi = rho_hull_max_k[0];
+            for (int a = 0; a < n_sweep; ++a) {
+                const Real rho =
+                  std::pow(10.0, std::log10(rho_lo) + (a + 0.5) / n_sweep *
+                                                        (std::log10(rho_hi) - std::log10(rho_lo)));
+                const Real T = std::sqrt(T_min_k[0] * T_max_k[0]);
+                EosEval ev_ref;
+                EosTable::eval_rt(tvs[0], rho, T, ev_ref);
+                if (ev_ref.clamped) continue;
+                EosEval ev_tab;
+                EosInvertStats st_tab;
+                const Real T_tab = EosTable::invert_T_from_e(tvs[0], rho, ev_ref.e, -1.0, ttol,
+                                                             max_newton, st_tab);
+                EosTable::eval_rt(tvs[0], rho, T_tab, ev_tab);
+                EosEval ev_mix;
+                EosInvertStats st_mix;
+                eval_from_rho_e(rho, ev_ref.e, alpha, ev_mix, st_mix);
+                ok &= (ev_mix.p == ev_tab.p) && (ev_mix.T == ev_tab.T) && (ev_mix.cs == ev_tab.cs);
+            }
+            verdict("amagat-pure-parity", ok, "alpha={1,0,...} bitwise vs the single-table driver");
+        }
+
+        // ---- AM4: assembled frozen sound speed vs a centred finite
+        // difference of the Amagat mixture pressure along the isentrope.
+        // Isentrope direction dT/drho = T (dp/dT)_rho / (rho^2 cv) with the
+        // MIXTURE-level slots from the assembly; each perturbed pressure is
+        // an inner volume p-solve. Gate p95, monitor max (M2 discipline).
+        {
+            Real max_err = 0.0;
+            int total_fd = 0;
+            std::vector<Real> errs;
+            for (const Real a0 : {0.25, 0.5, 0.75}) {
+                set_alpha(a0);
+                prepare_weights(alpha);
+                for (int b = 0; b < n_sweep; ++b) {
+                    const Real T =
+                      std::pow(10.0, std::log10(T_lo_all) + (0.1 + 0.8 * (b + 0.5) / n_sweep) *
+                                                              (std::log10(T_hi_all) - std::log10(T_lo_all)));
+                    Real p_lo = 0.0, p_hi = std::numeric_limits<Real>::max();
+                    EosEval evb;
+                    for (const int k : m_retained) {
+                        EosTable::eval_rt(tvs[k], rho_hull_min_k[k], T, evb);
+                        p_lo = std::max(p_lo, evb.p);
+                        EosTable::eval_rt(tvs[k], rho_hull_max_k[k], T, evb);
+                        p_hi = std::min(p_hi, evb.p);
+                    }
+                    if (!(p_lo < p_hi)) continue;
+                    for (int a = 0; a < n_sweep; ++a) {
+                        const Real p =
+                          std::pow(10.0, std::log10(p_lo) + (0.1 + 0.8 * (a + 0.5) / n_sweep) *
+                                                              (std::log10(p_hi) - std::log10(p_lo)));
+                        prepare_weights(alpha);
+                        std::fill(m_rho_k.begin(), m_rho_k.end(), -1.0);
+                        EosInvertStats stf;
+                        Real dvdT, dvdp;
+                        const Real vsum = amagat_volume_sum(p, T, false, stf, dvdT, dvdp);
+                        bool pinned = false;
+                        for (const int k : m_retained) pinned |= (m_pinned[k] != 0);
+                        if (pinned) continue;
+                        const Real rho = 1.0 / vsum;
+
+                        EosEval ev;
+                        EosInvertStats st1;
+                        eval_from_rho_p(rho, p, alpha, ev, st1);
+                        if (st1.flag != 0) continue;
+
+                        const Real drho = 1.0e-4 * rho;
+                        const Real dTdrho =
+                          ev.T * ev.dpdT / (rho * rho * std::max(ev.cv, tiny));
+                        // a degenerate assembled state (non-monotone-table
+                        // branch inconsistency) can make the isentrope
+                        // direction unusable — skip, never trap (2026-07-26
+                        // Ti-sawtooth finding, plan section 7)
+                        if (!std::isfinite(dTdrho) || !(std::abs(dTdrho) * drho < 1.0e3 * ev.T))
+                            continue;
+                        Real p_pm[2];
+                        bool okfd = true;
+                        for (int s = 0; s < 2; ++s) {
+                            const Real sgn = (s == 0) ? -1.0 : 1.0;
+                            prepare_weights(alpha);
+                            std::fill(m_rho_k.begin(), m_rho_k.end(), -1.0);
+                            Real p_warm = p;
+                            EosInvertStats stp;
+                            p_pm[s] = amagat_p_solve(rho + sgn * drho, ev.T + sgn * dTdrho * drho,
+                                                     p_warm, stp);
+                            okfd &= (stp.flag == 0);
+                        }
+                        if (!okfd) continue;
+                        const Real cs2_fd = (p_pm[1] - p_pm[0]) / (2.0 * drho);
+                        const Real cs2 = ev.cs * ev.cs;
+                        const Real err = std::abs(cs2_fd - cs2) / std::max(cs2, tiny);
+                        max_err = std::max(max_err, err);
+                        errs.push_back(err);
+                        ++total_fd;
+                    }
+                }
+            }
+            Real p95_err = 0.0;
+            if (!errs.empty()) {
+                std::sort(errs.begin(), errs.end());
+                p95_err = errs[(size_t)(0.95 * (errs.size() - 1))];
+            }
+            std::ostringstream dd;
+            dd << "n=" << total_fd << " p95_cs2_err=" << p95_err
+               << " max_cs2_err(monitored)=" << max_err;
+            verdict("amagat-cs-isentrope-fd", total_fd > 0 && p95_err <= 5.0e-2, dd.str());
+        }
+
+        // ---- AM7: kink-free drop_tol crossing. Under Amagat the dropped
+        // component's volume share is O(drop_tol), so the (rho, T) -> p
+        // solve must move by the same order across the threshold.
+        {
+            set_alpha(0.5);
+            prepare_weights(alpha);
+            const Real T = std::sqrt(T_lo_all * T_hi_all);
+            Real p_lo = 0.0, p_hi = std::numeric_limits<Real>::max();
+            EosEval evb;
+            for (const int k : m_retained) {
+                EosTable::eval_rt(tvs[k], rho_hull_min_k[k], T, evb);
+                p_lo = std::max(p_lo, evb.p);
+                EosTable::eval_rt(tvs[k], rho_hull_max_k[k], T, evb);
+                p_hi = std::min(p_hi, evb.p);
+            }
+            const Real p_mid = std::sqrt(p_lo * p_hi);
+            std::fill(m_rho_k.begin(), m_rho_k.end(), -1.0);
+            EosInvertStats stm;
+            Real dvdT, dvdp;
+            const Real rho = 1.0 / amagat_volume_sum(p_mid, T, false, stm, dvdT, dvdp);
+            Real p_side[2];
+            for (int s = 0; s < 2; ++s) {
+                set_alpha(s == 0 ? 0.5 * drop_tol : 2.0 * drop_tol);
+                prepare_weights(alpha);
+                EosInvertStats st_;
+                p_side[s] = mix_p_rho_T(rho, T, st_);
+            }
+            const Real jump = std::abs(p_side[1] - p_side[0]) / std::max(p_side[0], tiny);
+            std::ostringstream dd;
+            dd << "p_jump_rel=" << jump << " at alpha_0 = drop_tol/2 vs 2*drop_tol";
+            verdict("amagat-drop-kink", jump <= 1.0e-6, dd.str());
+        }
+
+        // ---- AM6: no-root / all-pinned semantics (E3 + the assembly
+        // fallback). E1-proper (ONE component pinned, another live) needs
+        // differing component hulls and gates at AM8/B2 — on these
+        // identical-hull pairs every pin is collective. Checks: tension
+        // (volume target above the attainable range) and over-compression
+        // clamp+flag with finite outputs; an all-pinned rp evaluation
+        // exercises the assembly fallback; the per-component tallies move.
+        {
+            set_alpha(0.5);
+            prepare_weights(alpha);
+            const Real T = std::sqrt(T_lo_all * T_hi_all);
+            Real p_lo_u = std::numeric_limits<Real>::max(), p_hi_u = 0.0;
+            EosEval evb;
+            for (const int k : m_retained) {
+                EosTable::eval_rt(tvs[k], rho_hull_min_k[k], T, evb);
+                p_lo_u = std::min(p_lo_u, evb.p);
+                EosTable::eval_rt(tvs[k], rho_hull_max_k[k], T, evb);
+                p_hi_u = std::max(p_hi_u, evb.p);
+            }
+            EosInvertStats stq;
+            Real dvdT, dvdp;
+            std::fill(m_rho_k.begin(), m_rho_k.end(), -1.0);
+            const Real v_max = amagat_volume_sum(p_lo_u, T, false, stq, dvdT, dvdp);
+            std::fill(m_rho_k.begin(), m_rho_k.end(), -1.0);
+            const Real v_min = amagat_volume_sum(p_hi_u, T, false, stq, dvdT, dvdp);
+
+            long c0 = 0;
+            for (const long ck : n_hull_clamps_k) c0 += ck;
+
+            bool ok = true;
+            // tension: the cell wants twice the maximum attainable volume
+            EosInvertStats st1;
+            prepare_weights(alpha);
+            const Real p1 = mix_p_rho_T(0.5 / v_max, T, st1);
+            ok &= (st1.flag >= 1) && std::isfinite(p1);
+            // over-compression: half the minimum attainable volume
+            EosInvertStats st2;
+            prepare_weights(alpha);
+            const Real p2 = mix_p_rho_T(2.0 / v_min, T, st2);
+            ok &= (st2.flag >= 1) && std::isfinite(p2);
+            // all-pinned rp evaluation: p below the attainable range at
+            // EVERY bracket T (computed at the bracket bottom)
+            Real p_all_lo = std::numeric_limits<Real>::max();
+            for (const int k : m_retained) {
+                EosTable::eval_rt(tvs[k], rho_hull_min_k[k], T_lo_all, evb);
+                p_all_lo = std::min(p_all_lo, evb.p);
+            }
+            EosEval ev3;
+            EosInvertStats st3;
+            eval_from_rho_p(1.0 / v_max, 0.3 * p_all_lo, alpha, ev3, st3);
+            ok &= (st3.flag >= 1) && std::isfinite(ev3.p) && std::isfinite(ev3.cs) &&
+                  std::isfinite(ev3.e) && (ev3.cs >= 0.0);
+
+            long c1 = 0;
+            for (const long ck : n_hull_clamps_k) c1 += ck;
+            ok &= (c1 > c0);
+
+            std::ostringstream dd;
+            dd << "tension flag=" << st1.flag << " overcomp flag=" << st2.flag
+               << " all-pinned flag=" << st3.flag << " cs=" << ev3.cs
+               << " pin tallies +" << (c1 - c0)
+               << " (E1-proper needs differing hulls: gates at AM8/B2)";
+            verdict("amagat-freeze-noroot", ok, dd.str());
+        }
+
+        amrex::Print() << "MIXEOS-SELFTEST OVERALL " << (all_pass ? "PASS" : "FAIL")
+                       << " state=" << name << "\n";
+        return;
+    }
 
     // sample range where every retained partial density is inside its hull
     // (the round-trip checks probe the solver, not the clamp handling)
@@ -1372,7 +2016,7 @@ void MixtureEOS::write_info(nlohmann::json& js) const
     HydroGas::write_info(js);
 
     js["type"] = tag;
-    js["mixing_rule"] = "dalton";
+    js["mixing_rule"] = (rule == MixRule::Amagat) ? "amagat" : "dalton";
     js["floor_u_max"] = floor_u_max;
     for (size_t k = 0; k < tables.size(); ++k) {
         for (const auto& kv : tables[k].provenance()) {

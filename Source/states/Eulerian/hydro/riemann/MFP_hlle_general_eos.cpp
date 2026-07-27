@@ -111,9 +111,7 @@ void HydroHLLEGeneralEOS::solve(Vector<Real>& L,
         const Real mid = 0.5 * (sL + sR);
         sL = mid - 0.5 * ds_min;
         sR = mid + 0.5 * ds_min;
-#ifdef MFP_SOLVER_DIAG
-        ++n_fan_widened;
-#endif
+        ++n_fan_widened;  // W29: production accounting
     }
 
     if (sL >= 0.0) {

@@ -17,9 +17,10 @@ using namespace amrex;
 // hitting the cold table hull, whereas 'wave' points at the wave-speed
 // estimate. See Section 4 of doc/general_eos_hllc_fallback_plan.md.
 //
-// Compiled in only under MFP_SOLVER_DIAG (follows DEBUG; see the Makefile) —
-// the increments sit in the per-face inner loop. The type itself is always
-// defined so the accessor signatures do not change between builds.
+// W29: counters and the per-block report are ALWAYS compiled (production
+// accounting — a contact-resolution violation must be attributable in every
+// run); the increments are plain per-face integer adds. The report itself
+// stays verbosity >= 2. Other MFP_SOLVER_DIAG diagnostics are unaffected.
 struct RiemannFallbackCounts {
     long eval = 0;   // guard 1: non-finite or negative EOS evaluation
     long sound = 0;  // guard 2: relative sound-speed floor (cold hull)
