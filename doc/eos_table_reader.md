@@ -10,6 +10,9 @@ Related documents:
   referenced here as D1–D10, work items W1–W15).
 - `Exec/testing/EOS-Table/README.md` — the frozen `.eostab` file-format
   specification and the Stage-1 data-conditioning results.
+- `doc/eos_sesame_plan.md` + `Exec/testing/EOS-Sesame/Quickstart.md` —
+  producing `.eostab` tables from LANL SESAME ASCII2 data (the `sesame`
+  subcommand: Maxwell + monotone-crossover conditioning, no tension clip).
 
 ---
 

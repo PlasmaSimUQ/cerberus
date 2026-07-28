@@ -192,3 +192,25 @@ sources:
     notes: >
       Reference state rho0 = 0.171 g/cc cryogenic liquid, ~20 K. Per-point
       provenance column required.
+
+  - id: sesame-unc
+    citation: >
+      D. G. Sheppard, D. A. Pimentel, "SESAME: The Los Alamos National
+      Laboratory's Tabulated Equation of State Database Description with
+      Extensions for Multi-phase Representations", LA-UR-25-26258 (2025);
+      ASCII2 format LA-UR-25-26256. Production unclassified distribution,
+      git 465e025f (2026-02-05).
+    url: https://laws.lanl.gov/projects/data/eos  (request/download portal)
+    retrieved: 2026-07-26
+    license: >
+      LANL distribution terms; the 244 MB library file is NOT committed.
+      Consumers record its identity per-table: every emitted .eostab
+      carries the file sha256 prefix in its source line. Full sha256:
+      209d562920631a544d3723155fb27a07f0d630661777108dbcb7afddbad7a5ee
+    acquisition: manual
+    notes: >
+      sesame-unc.ascii2 — consumed by the `sesame` subcommand
+      (Exec/testing/EOS-Sesame/Quickstart.md, doc/eos_sesame_plan.md).
+      No relative file entry: the file lives outside the repository; the
+      sha256 above is the verification record.
+    files: []

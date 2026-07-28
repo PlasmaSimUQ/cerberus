@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+# One-zone self-test of the committed SESAME-extracted tables
+# (doc/eos_sesame_plan.md WS4/WS5). DEBUG build: eos_table_self_test is
+# compiled only with AMREX_DEBUG (the EOS-Table pattern). DIM=1 keeps the
+# build cheapest; the EOS code is dimension-independent.
+#
+# Table REGENERATION is a separate, manual step — it needs the LANL
+# sesame-unc.ascii2 library file (not committed; sha256 in README.md):
+#   python3 ../../python_analysis/eos_table_prep.py sesame \
+#       --src $SES --mat <id> --qa qa
+# See Quickstart.md. This script only verifies the committed tables.
+
+set -e
+for t in data/copper_3337_s311.eostab data/deuterium_5267_s301.eostab \
+         data/diamond_7834_s301.eostab data/hydrogen_5251_s301.eostab \
+         data/ti-beta-21s_2963_s311.eostab; do
+    [ -f "$t" ] || { echo "missing committed table $t (see Quickstart.md)"; exit 1; }
+done
+# Track-P table is committed gzipped (33 MB decompressed, gitignored)
+[ -f data/ti-beta-21s_2963_trackP.eostab ] || \
+    gunzip -k data/ti-beta-21s_2963_trackP.eostab.gz
+
+(cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE DEBUG=TRUE)
+
+EXE=../../local/MFP.1d.gnu.DEBUG.MPI.ex
+
+rm -rf plt* chk*
+
+mpirun -n 1 ${EXE} onezone.inputs 2>&1 | tee run_log.txt
+
+python3 check.py

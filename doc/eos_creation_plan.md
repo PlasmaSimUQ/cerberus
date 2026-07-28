@@ -10,6 +10,10 @@ Companion documents:
 - `doc/shock-initialization-notes.md` — the acceptance physics (cold-start Hugoniot, C¹ seams, global convexity)
 - `doc/eos_implementation_plan.md` — the Cerberus-side engineering plan (Stages 1–5 done)
 - `Exec/testing/EOS-Table/README.md` — the frozen `.eostab` v1 spec + per-stage gate records
+- `doc/eos_sesame_plan.md` — **supersedes decisions 3 and 4 below** (2026-07-27):
+  real SESAME data is now available (sesame-unc ASCII2 release) and ingested by the
+  `sesame` subcommand; the tension clip is replaced by the Maxwell + monotone-crossover
+  conditioning per `doc/eos_table_conditioning_requirements.md` (tension_clip = 0)
 
 > **[2026-07-27]** Requirements + acceptance gates for the next
 > (SESAME-era) table generation are consolidated in

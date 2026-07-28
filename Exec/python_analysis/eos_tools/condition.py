@@ -7,10 +7,42 @@ from scipy.interpolate import PchipInterpolator
 from .constants import KB, M_D
 
 
-def condition(lrho, lT, p, e, cv_floor_frac=1e-3):
+def monotonise_T(F, rel_eps=1e-12):
+    """Enforce strictly nondecreasing F(T) along every rho-row.
+
+    The v1 inversion contract (single-branch invert_T_from_e/p) needs
+    monotone value surfaces; the conditioning already floors cv > 0, so
+    this makes the values consistent with the derivative blocks. Measured
+    magnitudes are small (worst p dip 1.2e-2 relative, e 3.6e-4, in the
+    REOS.3 near-melt rows). Returns (F', n_changed, max_rel_change).
+    (Moved here from splice.py so surface conditioning needs no splice
+    imports; splice.py re-exports it.)
+    """
+    Fm = np.maximum.accumulate(F, axis=1)
+    # strictify flats with a monotone epsilon ramp (invisible at 1e-12;
+    # sign-safe: added, not multiplied — e is negative before e_shift)
+    scale = np.maximum(np.abs(Fm), 1e-300)
+    Fm = np.maximum.accumulate(
+        Fm + rel_eps * scale * np.arange(F.shape[1])[None, :], axis=1)
+    tol = 10.0 * rel_eps * F.shape[1] * np.maximum(np.abs(F), 1e-300)
+    changed = (Fm - F) > tol
+    max_rel = float(((Fm - F) / np.maximum(np.abs(F), 1e-300)).max())
+    return Fm, int(changed.sum()), max_rel
+
+
+def monotonise_rho(F, rel_eps=1e-12):
+    """Enforce strictly nondecreasing F(rho) along every isotherm (the H1
+    surface contract, in-ρ direction). Same construction as monotonise_T."""
+    Fm, n, mrel = monotonise_T(np.ascontiguousarray(F.T), rel_eps)
+    return np.ascontiguousarray(Fm.T), n, mrel
+
+
+def condition(lrho, lT, p, e, cv_floor_frac=1e-3, m_ref=M_D):
     """Derivative blocks from PCHIP slopes on the conditioned surfaces.
 
-    cv floored at cv_floor_frac * (3/2 kB / m_D) (ideal-gas fraction);
+    cv floored at cv_floor_frac * (3/2 kB / m_ref) (ideal-gas fraction;
+    m_ref defaults to the deuterium mass for the existing D pipelines —
+    pass the material's mean particle mass for other materials);
     dpdrho monotonised >= tiny positive. Counts recorded for provenance.
     Derivatives are wrt LINEAR rho/T (chain rule from the log axes).
     """
@@ -33,7 +65,7 @@ def condition(lrho, lT, p, e, cv_floor_frac=1e-3):
     # expected loop-free — implement construction only if this trips)
     n_loops = int(np.sum(dpdrho < 0))
 
-    cv_min = cv_floor_frac * 1.5 * KB / M_D
+    cv_min = cv_floor_frac * 1.5 * KB / m_ref
     n_cv = int(np.sum(cv < cv_min))
     cv = np.maximum(cv, cv_min)
     tiny = 1e-30

@@ -255,25 +255,9 @@ def blend_all(srcs, W, lT):
     return p, e, hull.astype(float), kept
 
 
-def monotonise_T(F, rel_eps=1e-12):
-    """Enforce strictly nondecreasing F(T) along every rho-row.
-
-    The v1 inversion contract (single-branch invert_T_from_e/p) needs
-    monotone value surfaces; the conditioning already floors cv > 0, so
-    this makes the values consistent with the derivative blocks. Measured
-    magnitudes are small (worst p dip 1.2e-2 relative, e 3.6e-4, in the
-    REOS.3 near-melt rows). Returns (F', n_changed, max_rel_change).
-    """
-    Fm = np.maximum.accumulate(F, axis=1)
-    # strictify flats with a monotone epsilon ramp (invisible at 1e-12;
-    # sign-safe: added, not multiplied — e is negative before e_shift)
-    scale = np.maximum(np.abs(Fm), 1e-300)
-    Fm = np.maximum.accumulate(
-        Fm + rel_eps * scale * np.arange(F.shape[1])[None, :], axis=1)
-    tol = 10.0 * rel_eps * F.shape[1] * np.maximum(np.abs(F), 1e-300)
-    changed = (Fm - F) > tol
-    max_rel = float(((Fm - F) / np.maximum(np.abs(F), 1e-300)).max())
-    return Fm, int(changed.sum()), max_rel
+# monotonise_T moved to condition.py (surface conditioning shared with the
+# SESAME pipeline); re-exported here for existing callers/tests.
+from .condition import monotonise_T  # noqa: E402,F401
 
 
 def splice_deuterium(n_rho=None, n_T=None, use_coolprop=True,
@@ -301,7 +285,19 @@ def splice_deuterium(n_rho=None, n_T=None, use_coolprop=True,
     # monotone-in-T value surfaces (single-branch inversion contract)
     p, n_mono_p, mrel_p = monotonise_T(p)
     e, n_mono_e, mrel_e = monotonise_T(e)
-    mono_stats = dict(n_p=n_mono_p, rel_p=mrel_p, n_e=n_mono_e, rel_e=mrel_e)
+
+    # monotone-in-rho p surface + G1 acceptance (requirements H1/G1: the
+    # convexity gate provably misses folds; D v1 carried 5/40 rippled
+    # isotherms — cleared here by construction, then gated)
+    from .condition import monotonise_rho
+    from .scan import g1_scan, report as g1_report
+    p, n_mono_rho, mrel_rho = monotonise_rho(p)
+    g1 = g1_scan(p)
+    g1_report(g1, "spliced")
+    if not (g1["ok_rho"] and g1["ok_T"] and p.min() > 0.0):
+        raise RuntimeError("G1 gate FAILED on the spliced surface")
+    mono_stats = dict(n_p=n_mono_p, rel_p=mrel_p, n_e=n_mono_e, rel_e=mrel_e,
+                      n_rho=n_mono_rho, rel_rho=mrel_rho)
 
     e, e_shift = shift_energy(e, hull)
     dpdT, dpdrho, cv, dedrho, stats = condition(lrho, lT, p, e)
@@ -331,11 +327,13 @@ def write_spliced(res, out_path, generator_line):
         ("e_shift", "%.10e" % res["e_shift"]),
         ("conditioning", "cv_floor=%.4e cv_floored=%d monotonised=%d "
          "maxwell=%s tension_clip=%d monoT_p=%d(%.1e) monoT_e=%d(%.1e) "
-         "align_e=%s"
+         "monoRho_p=%d(%.1e) align_e=%s"
          % (st["cv_floor"], st["cv_floored"], st["monotonised"],
             st["maxwell"], res["n_clip"],
             res["mono_stats"]["n_p"], res["mono_stats"]["rel_p"],
             res["mono_stats"]["n_e"], res["mono_stats"]["rel_e"],
+            res["mono_stats"].get("n_rho", 0),
+            res["mono_stats"].get("rel_rho", 0.0),
             ",".join("%.4e" % a["cE"] for a in res["align_stats"]))),
     ]
     write_eostab(out_path, prov, res["lrho"], res["lT"], res["blocks"],
