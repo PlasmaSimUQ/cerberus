@@ -1525,9 +1525,13 @@ void MixtureEOS::run_self_test(int n_sweep) const
                     EosInvertStats stf;
                     Real dvdT, dvdp;
                     const Real vsum = amagat_volume_sum(p, T, false, stf, dvdT, dvdp);
-                    bool pinned = false;
-                    for (const int k : m_retained) pinned |= (m_pinned[k] != 0);
-                    if (pinned) continue;  // pinned territory: skip
+                    bool skip = false;
+                    for (const int k : m_retained)
+                        skip |= (m_pinned[k] != 0) || m_evk[k].clamped;
+                    if (skip) continue;  // pinned or hull-0 (conditioned/
+                                         // floored band) territory: the
+                                         // round-trips probe the solver on
+                                         // trusted cells, as the Dalton sweep
                     const Real rho = 1.0 / vsum;
                     Real e_f = 0.0;
                     for (const int k : m_retained) e_f += m_w[k] * m_evk[k].e;
@@ -1630,9 +1634,13 @@ void MixtureEOS::run_self_test(int n_sweep) const
                         EosInvertStats stf;
                         Real dvdT, dvdp;
                         const Real vsum = amagat_volume_sum(p, T, false, stf, dvdT, dvdp);
-                        bool pinned = false;
-                        for (const int k : m_retained) pinned |= (m_pinned[k] != 0);
-                        if (pinned) continue;
+                        bool skip = false;
+                        for (const int k : m_retained)
+                            skip |= (m_pinned[k] != 0) || m_evk[k].clamped;
+                        if (skip) continue;  // in-hull samples only (floored
+                                             // response blocks are hull-0 and
+                                             // disagree with the value-surface
+                                             // FD by design)
                         const Real rho = 1.0 / vsum;
 
                         EosEval ev;
@@ -1712,7 +1720,9 @@ void MixtureEOS::run_self_test(int n_sweep) const
             const Real jump = std::abs(p_side[1] - p_side[0]) / std::max(p_side[0], tiny);
             std::ostringstream dd;
             dd << "p_jump_rel=" << jump << " at alpha_0 = drop_tol/2 vs 2*drop_tol";
-            verdict("amagat-drop-kink", jump <= 1.0e-6, dd.str());
+            // the kink is O(drop_tol) by design: gate scales with the
+            // configured threshold (1e-6 matches the 1e-10 default)
+            verdict("amagat-drop-kink", jump <= std::max(1.0e-6, 10.0 * drop_tol), dd.str());
         }
 
         // ---- AM6: no-root / all-pinned semantics (E3 + the assembly

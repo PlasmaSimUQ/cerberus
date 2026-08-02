@@ -323,6 +323,62 @@ guard-2 diversion counter D-R7 in `t4_fix_plan_floorB_cavitation.md`
 §II.2.0; `doc/eos_amagat_plan.md` §5 note (the B/C-tier measurements this
 protects).
 
+### Note (2026-07-30) — W31 (BUG, blocks the flight case): `gam1` overflow on a non-positive face pressure
+
+`amagat_assemble` closes with
+
+    ev.gam1 = rho * cs2 / std::max(p, tiny);   // tiny = DBL_MIN = 2.2e-308
+
+(`MFP_mixture_gas.cpp:745`). The `max(p, tiny)` guard prevents division by
+ZERO but **guarantees OVERFLOW** for any normal numerator: a face arriving
+with p <= 0 divides by 2.2e-308 and exceeds DBL_MAX. Measured: the flight
+case at l=2 traps here on the FIRST advance (exit 8) under
+`amrex.fpe_trap_overflow=1`, reached via
+`correct_face_prim` (the transverse CTU corrector, `MFP_eulerian.cpp:1375`)
+-> `prim2cons` -> `eval_from_rho_p` (`:907`) -> `amagat_assemble` (`:745`).
+
+Note the trap only FIRES where the inputs enable it: `flight.inputs` sets
+all three amrex FPE traps, while the init/static inputs of the current
+mixture cases do not. The same line will have been producing a silent `inf`
+gam1 in those runs wherever a face reached it with p <= 0 — so this is not
+a flight-only defect, it is a flight-only *detection*. Any run that has
+been treated as clean should be re-checked for non-finite gam1 before its
+numbers are trusted.
+
+Fix options (not applied — needs a decision, since gam1 feeds wave speeds):
+(a) **relative floor**: `max(p, eps * rho * cs2)` — bounds gam1 by 1/eps
+    with no new branch, and is dimensionally consistent;
+(b) **clamp the result**: compute then `gam1 = min(gam1, gam1_max)`, with
+    gam1_max a documented constant, keeping the p floor absolute;
+(c) **reject upstream**: treat p <= 0 at a face as a degenerate state and
+    divert before assembly — most principled, but the corrector calls
+    `prim2cons` before the pre-Riemann clamp, so it needs a call-site audit
+    of every path that reaches `eval_from_rho_p` with an unclamped p.
+Whichever is chosen, add a counter: a face at p <= 0 entering the assembly
+is information the W29 attribution scheme should surface, not swallow.
+
+Cross-ref: the measured failure and its context are recorded in
+`Exec/testing/ciral_fusion_mixture_amagat_sesame/CASE_PLAN.md` §6
+(flight l=2 entry, 2026-07-30).
+
+### Note (2026-07-29) — W30 (FUTURE/DEFERRED): cold-curve split for condensed-material tables
+
+Any density tabulation carries ~B_S·(Δρ/ρ) of pressure per cell near a
+condensed material's ambient density — measured ≈ 4 GPa/cell on the
+current grids, with ~2×10⁷ uniform points needed to represent 1 bar at
+ρ₀ (SESAME's own clustered native grids sit at ~1 GPa/cell: the
+weakness is tabulation-vs-stiffness, not the log-uniform axis choice).
+The designated remedy, if ever needed, is the **cold-curve split**:
+p = p_cold(ρ) [analytic Vinet/BM, exact] + tabulated thermal residual —
+a `.eostab` v2 item on the W18/W19 version-bump pattern; a purpose-built
+graded axis (~+25 % points, O(1) index-map locate) is the recorded
+alternative. Deferred on arrival with trigger conditions (low-pressure
+Hugoniot anchors; weak-drive applications; true ambient-equilibrium
+init at natural density): scoping note + decision record in
+`doc/eos_cold_curve_split.md`. Current operating points deliberately
+initialize at representable pressures, where the offset is 2–4×10⁻⁵ of
+the target drives.
+
 ---
 
 ## 4. Staged implementation

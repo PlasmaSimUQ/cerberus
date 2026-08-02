@@ -760,6 +760,11 @@ class ReadBoxLib:
         """
 
         o = a.repeat(r, axis=0)
+        if self.dim == 3:
+            # piecewise-constant prolongation (no spline smoothing in 3-D);
+            # sufficient for field gates — previously this path crashed on
+            # an unset variable
+            return o.repeat(r, axis=1).repeat(r, axis=2)
         if self.dim == 1:
             ni = a.size
         elif self.dim == 2:
