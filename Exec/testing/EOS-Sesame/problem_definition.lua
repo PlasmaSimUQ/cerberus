@@ -32,6 +32,7 @@ eos_table_self_test('data/diamond_7834_s301.eostab', 48)
 eos_table_self_test('data/hydrogen_5251_s301.eostab', 48)
 eos_table_self_test('data/ti-beta-21s_2963_s311.eostab', 48)
 eos_table_self_test('data/ti-beta-21s_2963_trackP.eostab', 48)
+eos_table_self_test('data/ti-beta-21s_2963_coldext.eostab', 48)
 
 -- === MINIMAL STATE (so the config is valid; never advanced) ===
 

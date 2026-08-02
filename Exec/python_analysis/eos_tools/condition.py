@@ -37,7 +37,8 @@ def monotonise_rho(F, rel_eps=1e-12):
     return np.ascontiguousarray(Fm.T), n, mrel
 
 
-def condition(lrho, lT, p, e, cv_floor_frac=1e-3, m_ref=M_D):
+def condition(lrho, lT, p, e, cv_floor_frac=1e-3, m_ref=M_D,
+              cs_floor_cms=None):
     """Derivative blocks from PCHIP slopes on the conditioned surfaces.
 
     cv floored at cv_floor_frac * (3/2 kB / m_ref) (ideal-gas fraction;
@@ -45,6 +46,13 @@ def condition(lrho, lT, p, e, cv_floor_frac=1e-3, m_ref=M_D):
     pass the material's mean particle mass for other materials);
     dpdrho monotonised >= tiny positive. Counts recorded for provenance.
     Derivatives are wrt LINEAR rho/T (chain rule from the log axes).
+
+    cs_floor_cms (W-B, ti_splice_plan_v2 §0.3): OPT-IN sound-speed safety
+    net in cm/s (never code units — those are refs-dependent). Implemented
+    as dpdrho >= cs_floor^2; since cs^2 = dpdrho + T*dpdT^2/(rho^2 cv) and
+    the added term is >= 0 once cv is floored positive, this guarantees
+    cs >= cs_floor everywhere. Off by default: a default-on floor would
+    silently break the trackP byte-identity baseline (T1).
     """
     rho = 10.0 ** lrho
     T = 10.0 ** lT
@@ -71,10 +79,33 @@ def condition(lrho, lT, p, e, cv_floor_frac=1e-3, m_ref=M_D):
     tiny = 1e-30
     n_mono = int(np.sum(dpdrho < tiny))
     dpdrho = np.maximum(dpdrho, tiny)
+    n_cs = 0
+    if cs_floor_cms:
+        c2 = float(cs_floor_cms) ** 2
+        n_cs = int(np.sum(dpdrho < c2))
+        dpdrho = np.maximum(dpdrho, c2)
     # dpdT >= 0 is thermodynamically typical but not guaranteed; leave it.
     stats = dict(cv_floor=cv_min, cv_floored=n_cv, monotonised=n_mono,
+                 cs_floor=(float(cs_floor_cms) if cs_floor_cms else 0.0),
+                 cs_floored=n_cs,
                  maxwell=("none-needed" if n_loops == 0 else "LOOPS=%d" % n_loops))
     return dpdT, dpdrho, cv, dedrho, stats
+
+
+def thermal_floor(dpdrho, lT, m_ref):
+    """Ideal-gas isothermal stiffness floor (W-B): no single-phase fluid is
+    isothermally softer than ideal gas, dpdrho >= kB*T/m.
+
+    Returns (dpdrho_floored, kTm, sub_mask). SCOPE POLICY IS THE CALLER'S:
+    the SESAME path applies the test to all cells and demotes failures to
+    band/hull-0 (correct there — failures are tie-line residue); a splice
+    path with in-hull data softer than the ATOMIC bound (e.g. molecular D2)
+    must restrict the test to band/hull-0 cells (ti_splice_plan_v2 B7).
+    """
+    lT = np.asarray(lT, float)
+    kTm = KB * (10.0 ** lT)[None, :] / m_ref * np.ones((dpdrho.shape[0], 1))
+    sub = dpdrho < kTm
+    return np.maximum(dpdrho, kTm), kTm, sub
 
 
 def inverse_maps(lrho, lT, p, e, n_e=None, n_p=None):

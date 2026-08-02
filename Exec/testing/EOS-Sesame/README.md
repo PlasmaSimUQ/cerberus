@@ -168,6 +168,48 @@ extension below SESAME's 4.9e-6 g/cc floor toward the air table's 1e-8
 rationale, since SESAME's native floor already meets the recorded 1e-5
 compromise.
 
+## T3 record (2026-08-02) — cold-extended casing table
+
+**`data/ti-beta-21s_2963_coldext.eostab(.gz)`** — the Track-P backbone
+plus the `doc/ti_splice_plan_v2.md` cold extension (`--cold-extend`):
+the sub-hull cold fill replaced by a solid model fitted to 2963's own
+306 cold curve (Vinet fit over ρ ∈ [4, 12] g/cc, n=42, rms 4.7e-2:
+ρ₀(0K)=4.974, B0=109.2 GPa vs raw-306 slope 110.6, B0p=3.856, Slater θ₀
+543 K), capped at 0.9× the 411 melt line, blended into SESAME over
+≥10-cell tanh half-bands (R3), bridged across SESAME's own gap at
+expanded ρ, tension foot repaired by a second crossover pass. Extension
+restricted to the fit window ρ ≤ 12 (measured validity: the H5 e-offset
+is constant to ~3.5 kT inside it, drifting to 1.2e12 erg/g by 50 g/cc).
+H5: one constant offset cE = −1.26e7 erg/g, std/kT = 1.006 over 690
+overlap cells (gate ≤ 5). Generation: the §3b Quickstart command with
+`--cold-extend`; committed form is the `.gz`.
+
+Measured against the trackP before-state (`region_survey.py --health`):
+
+| isochore | metric | trackP | coldext |
+|---|---|---|---|
+| 6.00 g/cc | sub-hull flat fraction | 90 % (28/31) | **0 %** |
+| 6.00 g/cc | max adjacent dpdT log10 jump | 7.55 | **1.55** |
+| 6.00 g/cc | dp/de at the T floor | 1.5e-4 | **6.8** |
+| 4.93 g/cc | sub-hull flat fraction | 35 % | 14 % |
+| 4.93 g/cc | dp/de at the T floor | 3.5e-6 | 4.2 |
+| 4.40 g/cc | sub-hull flat fraction | 48 % | 27 % |
+| 4.40 g/cc | dp/de at the T floor | 2.2e-8 | 3.8e-2 |
+
+**Honest limits (recorded, not hidden):** (1) at ρ < ρ₀ the gap columns
+remain anchor-driven — a per-column T-re-grade was tried and removed
+because `monotonise_rho`'s cummax against the vapor-side fill overwrites
+it (2-D monotonicity squeeze); the plan-v2 decisive-gate target
+dp/de ~ 1e2 at (4.40, 30 K) is *not* reached (3.8e-2; six orders above
+the before-state) and cannot be without the deferred R1 vapor-branch
+model. (2) The blend's p-mismatch near ρ₀ (H5 shifts e only; max 54 %
+relative at small p) plus the honest hull policy shrink the in-hull
+edge at 4.40 from 3776 K to 5232 K and at 4.93 from 850 K to 2370 K —
+demoted cells are altered cells. (3) The exact-flat cells that remain
+below ~72 K at compressed ρ are largely physical (a Debye solid at
+T ≪ θ has dp/dT → 0). The §2.2 operating-point lever (initialise at
+ρ ≥ 5.02) composes with this table exactly as recorded in plan v2.
+
 ## Harness
 
 `sh run` — builds the DIM=1 DEBUG executable, runs the one-zone config

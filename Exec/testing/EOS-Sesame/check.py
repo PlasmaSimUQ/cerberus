@@ -19,6 +19,7 @@ TABLES = [
     "data/hydrogen_5251_s301.eostab",
     "data/ti-beta-21s_2963_s311.eostab",
     "data/ti-beta-21s_2963_trackP.eostab",
+    "data/ti-beta-21s_2963_coldext.eostab",
 ]
 GATED = {"reader", "roundtrip-e", "roundtrip-p", "identities", "hull",
          "corner"}

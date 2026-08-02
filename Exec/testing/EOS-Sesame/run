@@ -17,9 +17,12 @@ for t in data/copper_3337_s311.eostab data/deuterium_5267_s301.eostab \
          data/ti-beta-21s_2963_s311.eostab; do
     [ -f "$t" ] || { echo "missing committed table $t (see Quickstart.md)"; exit 1; }
 done
-# Track-P table is committed gzipped (33 MB decompressed, gitignored)
+# Track-P + cold-extended tables are committed gzipped (33 MB decompressed
+# each, gitignored)
 [ -f data/ti-beta-21s_2963_trackP.eostab ] || \
     gunzip -k data/ti-beta-21s_2963_trackP.eostab.gz
+[ -f data/ti-beta-21s_2963_coldext.eostab ] || \
+    gunzip -k data/ti-beta-21s_2963_coldext.eostab.gz
 
 (cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE DEBUG=TRUE)
 

@@ -201,6 +201,39 @@ def cmd_sesame(args):
     if args.mat is None:
         raise SystemExit("--mat is required (use --list to browse materials)")
 
+    # --- stage 0: source identity (S1, ti_splice_plan_v2) ----------------
+    # One hash pass, reused for provenance. Verified against any 64-hex
+    # sha256 recorded in the sources.yaml manifest (the sesame-unc entry
+    # keeps its hash in free text, so we scan each entry's text).
+    with open(args.src, "rb") as f:
+        h = hashlib.sha256()
+        for chunk in iter(lambda: f.read(1 << 22), b""):
+            h.update(chunk)
+    src_sha = h.hexdigest()
+    if not args.no_verify_src:
+        from .sources import default_manifest, load_manifest
+        manifest = default_manifest()
+        known = {}
+        if os.path.exists(manifest):
+            try:
+                for ent in load_manifest(manifest)["sources"]:
+                    for hx in re.findall(r"\b[0-9a-f]{64}\b", str(ent)):
+                        known[hx] = ent.get("id", "?")
+            except Exception as ex:
+                print("WARNING: could not read manifest %s (%s); source "
+                      "hash not verified" % (manifest, ex))
+        if src_sha in known:
+            print("source sha256 verified against sources.yaml (id: %s)"
+                  % known[src_sha])
+        elif known:
+            raise SystemExit(
+                "source hash GATE FAILED: %s\n  sha256 %s\n  matches no "
+                "manifest entry in %s\n  (pass --no-verify-src to use an "
+                "unmanifested library)" % (args.src, src_sha, manifest))
+        else:
+            print("WARNING: no sha256 records found in %s; source hash "
+                  "not verified" % manifest)
+
     # --- stage 1: ingest (default table: 311 if present, else 301) -------
     table = args.table
     if table is None:
@@ -291,6 +324,14 @@ def cmd_sesame(args):
     band_g = band[np.ix_(ii, jj)]
     hull = np.where(band_g, 0.0, hull)
 
+    # --- stage 7b (opt-in): solid-model cold extension (T3/T4, plan v2) --
+    ce = None
+    if args.cold_extend:
+        from .coldext import cold_extend_stage
+        p, e, hull, band_g, ce = cold_extend_stage(
+            args.src, args.mat, raw, lrho, lT, p, e, hull, band_g,
+            f_melt=args.melt_frac, align_tol=args.align_tol)
+
     # post-regrid enforcement (PCHIP can ripple): rho first, then T —
     # cummax along T preserves rho-monotonicity elementwise
     p_pre, e_pre = p.copy(), e.copy()
@@ -312,21 +353,26 @@ def cmd_sesame(args):
         e += extra
         e_shift += extra
     m_ref = (raw["abar"] * AMU_G) if raw["abar"] else M_D
-    dpdT, dpdrho, cv, dedrho, stats = condition(lrho, lT, p, e, m_ref=m_ref)
+    dpdT, dpdrho, cv, dedrho, stats = condition(
+        lrho, lT, p, e, m_ref=m_ref,
+        cs_floor_cms=(args.cs_floor * 1e5 if args.cs_floor else None))
+    if stats["cs_floored"]:
+        print("cs floor (W-B): dpdrho >= (%.3g km/s)^2 on %d cells"
+              % (args.cs_floor, stats["cs_floored"]))
 
     # thermal stiffness floor: no single-phase fluid is isothermally softer
     # than ideal gas, dpdrho >= kB*T/m. Cells below it are tie-line residue
     # the band mapping missed (measured on 2963: dome-top cells flattened
     # by the regrid) -> floored, joined to the band, hull 0. Cells between
     # kT/m and c_cav^2 outside the band are GENUINE near-critical
-    # softening and are left untouched.
-    kTm = KB * (10.0 ** lT)[None, :] / m_ref * np.ones((len(lrho), 1))
-    sub = dpdrho < kTm
+    # softening and are left untouched. (Scope: all cells, demote failures
+    # — correct for SESAME sources; see condition.thermal_floor.)
+    from .condition import thermal_floor
+    dpdrho, _, sub = thermal_floor(dpdrho, lT, m_ref)
     n_sub = int(sub.sum())
     if n_sub:
         band_g = band_g | sub
         hull = np.where(sub, 0.0, hull)
-        dpdrho = np.maximum(dpdrho, kTm)
         print("thermal floor: %d sub-thermal cells (dpdrho < kT/m) floored, "
               "banded, hull 0" % n_sub)
 
@@ -361,15 +407,33 @@ def cmd_sesame(args):
     # QA tag follows the actual output name (an --out rename like the
     # Track-P table must not overwrite another table's QA plots)
     base = os.path.splitext(os.path.basename(out))[0]
-    with open(args.src, "rb") as f:
-        h = hashlib.sha256()
-        for chunk in iter(lambda: f.read(1 << 22), b""):
-            h.update(chunk)
     comment = " ".join(raw["comment101"].split())[:160]
+    cond = ("cv_floor=%.4e cv_floored=%d monotonised=%d "
+            "maxwell=constructed:%d/flats:%d/ramp:%d band_cells=%d "
+            "c_cav=%.4e resp_floored=%d thermal_floored=%d tension_clip=0 "
+            "monoT_p=%d(%.1e) monoT_e=%d(%.1e) monoRho_p=%d(%.1e)"
+            % (stats["cv_floor"], stats["cv_floored"], stats["monotonised"],
+               mx["n_maxwell"], mx["n_flat"], mx["n_ramp"], mx["n_band_cells"],
+               c_cav, n_resp, n_sub, nTp + nTp2, rTp, nTe + nTe2, rTe,
+               nRp, rRp))
+    if stats.get("cs_floored"):
+        cond += " cs_floor=%.4e cs_floored=%d" % (stats["cs_floor"],
+                                                  stats["cs_floored"])
+    if ce:
+        v0, B0, B0p = ce["fit"]["vinet"]
+        cond += (" cold_extend=vinet306(rho0K=%.4f,B0=%.4e,B0p=%.3f,"
+                 "rms=%.2e,n=%d,theta0=%.0fK) melt_cap=411 f=%.2f "
+                 "rho_max=%g cols=%d zone1=%d blend=%d bridge=%d trunc=%d "
+                 "align_e=%.6e align_stdkT=%.3f pmis=%.2e cx2_band=%d"
+                 % (1.0 / v0, B0, B0p, ce["fit"]["rms"], ce["fit"]["n"],
+                    ce["model"]["theta0"], ce["f_melt"], ce["rho_max"],
+                    ce["cols"], ce["zone1"], ce["blend"], ce["bridge"],
+                    ce["blend_trunc"], ce["align_cE"], ce["align_std_kT"],
+                    ce["p_mismatch_max"], ce["cx2_new_band"]))
     prov = [
         ("material", name),
         ("source", "SESAME ASCII2 %s (sha256 %s) material %d table %d; "
-         "101: %s" % (os.path.basename(args.src), h.hexdigest()[:12],
+         "101: %s" % (os.path.basename(args.src), src_sha[:12],
                       args.mat, table, comment)),
         ("generator", "eos_table_prep.py %s, run %s" % (
             git_sha(), datetime.date.today().isoformat())),
@@ -377,14 +441,7 @@ def cmd_sesame(args):
             raw["abar"], raw["zbar"], raw["rho0"])),
         ("units", "cgs"),
         ("e_shift", "%.10e" % e_shift),
-        ("conditioning", "cv_floor=%.4e cv_floored=%d monotonised=%d "
-         "maxwell=constructed:%d/flats:%d/ramp:%d band_cells=%d "
-         "c_cav=%.4e resp_floored=%d thermal_floored=%d tension_clip=0 "
-         "monoT_p=%d(%.1e) monoT_e=%d(%.1e) monoRho_p=%d(%.1e)"
-         % (stats["cv_floor"], stats["cv_floored"], stats["monotonised"],
-            mx["n_maxwell"], mx["n_flat"], mx["n_ramp"], mx["n_band_cells"],
-            c_cav, n_resp, n_sub, nTp + nTp2, rTp, nTe + nTe2, rTe,
-            nRp, rRp)),
+        ("conditioning", cond),
     ]
     write_eostab(out, prov, lrho, lT, blocks, {"le": le, "lp": lp})
     print("hull coverage %.1f%%; conditioning: %s"
@@ -480,6 +537,22 @@ def main():
                    help="cavitated-response sound speed in km/s (default: "
                         "sqrt(BS/rho0) from the 201 table, else cold-curve "
                         "slope at rho0)")
+    s.add_argument("--cs-floor", type=float, default=None,
+                   help="opt-in W-B sound-speed safety net in km/s "
+                        "(dpdrho >= floor^2 on ALL cells); off by default "
+                        "to preserve baseline byte-identity")
+    s.add_argument("--no-verify-src", action="store_true",
+                   help="skip the S1 sha256 gate against sources.yaml")
+    s.add_argument("--cold-extend", action="store_true",
+                   help="T3/T4 (ti_splice_plan_v2): replace the sub-hull "
+                        "cold fill with the 306-fitted solid model, capped "
+                        "at the 411 melt line, bridged to the hull edge")
+    s.add_argument("--melt-frac", type=float, default=0.9,
+                   help="solid-model weight ends at this fraction of "
+                        "T_m(rho) (default 0.9)")
+    s.add_argument("--align-tol", type=float, default=5.0,
+                   help="H5 offset-constancy gate: max std(e-offset)/kT "
+                        "over the solid<->SESAME overlap (default 5.0)")
     s.add_argument("--lrho", type=float, nargs=3, default=None,
                    metavar=("LO", "HI", "N"),
                    help="prescribed log10-rho axis (Track P); cells outside "

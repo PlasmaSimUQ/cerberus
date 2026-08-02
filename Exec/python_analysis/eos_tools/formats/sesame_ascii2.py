@@ -35,6 +35,14 @@ MJKG_CGS = 1.0e10  # MJ/kg -> erg/g
 # 2-D (rho, T) EOS families this reader can hand to the eostab pipeline
 TWO_D_TABLES = (301, 303, 304, 305, 311)
 
+# 1-D (NT = 1) families and their function-array names, layout measured on
+# sesame-unc 2963 (doc/ti_splice_plan_v2.md §0.3):
+#   306 cold curve: P_c [GPa], E_c [MJ/kg], A_c [MJ/kg]
+#   411/412 melt (solidus/liquidus): T_m [K], P_m [GPa], U_m, A_m [MJ/kg]
+ONE_D_TABLES = {306: ("p", "e", "a"),
+                411: ("Tm", "Pm", "Um", "Am"),
+                412: ("Tm", "Pm", "Um", "Am")}
+
 
 def _is_comment(tid):
     return 101 <= tid <= 199 or 10101 <= tid <= 10199
@@ -170,8 +178,8 @@ def read_sesame(path, mat_id, table_id):
     if table_id not in TWO_D_TABLES:
         raise ValueError(
             "table %d is not a 2-D (rho,T) EOS table; supported: %s "
-            "(306 is a 1-D cold curve, 4xx are phase boundaries — neither "
-            "can populate a (rho,T) .eostab)" % (table_id, TWO_D_TABLES))
+            "(306 cold curve and 411/412 melt lines are 1-D — use "
+            "read_sesame_1d)" % (table_id, TWO_D_TABLES))
     out = {"mat_id": mat_id, "table_id": table_id,
            "src": os.path.basename(path), "zbar": None, "abar": None,
            "rho0": None, "bs0": None, "comment101": "", "a": None}
@@ -228,6 +236,67 @@ def read_sesame(path, mat_id, table_id):
             raise ValueError("material %d table %d: %s axis not "
                              "monotonically increasing" % (mat_id, table_id, ax))
     return out
+
+
+def read_sesame_1d(path, mat_id, table_id):
+    """Extract one 1-D (NT = 1) curve table: 306 cold curve, 411/412
+    melt lines. Same on-disk layout as the 2-D families with NT = 1:
+
+        NR NT rho[NR] T[1] f0[NR] f1[NR] ...
+
+    Returns a dict with rho [g/cc], T0 (the single T value, usually 0),
+    arrays (list of the function arrays, SESAME units), n_arrays, and the
+    per-family named keys from ONE_D_TABLES (e.g. 411 -> Tm, Pm, Um, Am).
+    Unlike read_sesame this does not collect 201/101 metadata — callers
+    pairing a 306/411 with a 301/311 already hold those.
+    """
+    if table_id not in ONE_D_TABLES:
+        raise ValueError(
+            "table %d is not a supported 1-D curve table; supported: %s"
+            % (table_id, sorted(ONE_D_TABLES)))
+    gen = _walk(path)
+    try:
+        for f, mat, tid, nw in gen:
+            if mat != mat_id or tid != table_id:
+                if _is_comment(tid):
+                    _read_comment(f, nw)
+                else:
+                    _skip_floats(f, nw)
+                continue
+            v = _read_floats(f, nw)
+            nr, nt = int(v[0]), int(v[1])
+            if nt != 1:
+                raise ValueError(
+                    "material %d table %d: expected NT=1, got NT=%d (a 2-D "
+                    "table? use read_sesame)" % (mat_id, table_id, nt))
+            if nr < 2:
+                raise ValueError("material %d table %d: degenerate NR=%d"
+                                 % (mat_id, table_id, nr))
+            k = 2 + nr + 1
+            n_arr = (nw - k) / nr
+            if n_arr != int(n_arr) or int(n_arr) < 1:
+                raise ValueError(
+                    "material %d table %d: n_words=%d inconsistent with "
+                    "NR=%d NT=1 (implies %.3f function arrays)"
+                    % (mat_id, table_id, nw, nr, n_arr))
+            n_arr = int(n_arr)
+            out = {"mat_id": mat_id, "table_id": table_id,
+                   "src": os.path.basename(path),
+                   "rho": v[2:2 + nr].copy(), "T0": float(v[2 + nr]),
+                   "n_arrays": n_arr,
+                   "arrays": [v[k + a * nr:k + (a + 1) * nr].copy()
+                              for a in range(n_arr)]}
+            for name, arr in zip(ONE_D_TABLES[table_id], out["arrays"]):
+                out[name] = arr
+            d = np.diff(out["rho"])
+            if not np.all(d >= 0.0):
+                raise ValueError("material %d table %d: rho axis not "
+                                 "monotonically increasing" % (mat_id, table_id))
+            return out
+    finally:
+        gen.close()
+    raise ValueError("material %d has no table %d in %s"
+                     % (mat_id, table_id, path))
 
 
 def sesame_to_cgs(raw):

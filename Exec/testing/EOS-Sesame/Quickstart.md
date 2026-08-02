@@ -39,8 +39,8 @@ produce an EOS closure.** Read the table IDs like this:
 | 301 | total EOS: P, U(, A) on a (ρ,T) grid | yes — the normal source |
 | 311 | total EOS, Maxwell-constructed (equilibrium tie lines built in) | yes — preferred when present |
 | 303/304/305 | ion+cold / electron / ion component EOS | accepted with a warning: a *partial* EOS, physically incomplete as a single-table closure (future two-temperature feed) |
-| 306 | T=0 cold curve (1-D) | no — cannot populate a (ρ,T) table |
-| 401/411/412 | vapor dome / melt boundaries | not used (v1) |
+| 306 | T=0 cold curve (1-D) | not a closure by itself; consumed by `--cold-extend` (Vinet fit input, approximation 12) |
+| 401/411/412 | vapor dome / melt boundaries | 411 consumed by `--cold-extend` (melt cap); 401/412 not used |
 | 5xx/6xx | opacity / conductivity | not EOS data |
 
 ID families: 3xxx-9xxx EOS proper; 1xxxx opacity; 2xxxx conductivity;
@@ -156,10 +156,25 @@ structure is deliberately traded away. In pipeline order:
     finite-difference of the p surface *inside the band* (confined,
     reported-not-gated). `dpdT` and `cv` are untouched, so inversion
     behaviour is unchanged.
-11. **Alloy caveat.** 2963 is Ti-Beta-21S (an alloy): Z̄≈21.1, Ā≈45.9 from
-    its 201 table are the *alloy* constants and are what the emitted
-    `composition:` line carries. Do not expect pure-Ti transition
-    pressures from it.
+11. **Alloy caveat.** 2963 is Ti-Beta-21S (an alloy): Z̄ = 23.17602,
+    Ā = 50.74763, ρ₀ = 4.93 from its 201 table are the *alloy* constants
+    and are what the emitted `composition:` line carries. Do not expect
+    pure-Ti transition pressures from it. (An earlier revision of this
+    note quoted Z̄≈21.1/Ā≈45.9 — those belong to material **2962**, a
+    different unnamed Ti alloy; see `doc/ti_splice_plan_v2.md` B1.)
+12. **Cold extension (opt-in, `--cold-extend`).** Replaces the sub-hull
+    cold fill with a solid model fitted to the material's own 306 cold
+    curve (Vinet + Slater–Debye ions + Sommerfeld electrons), capped at
+    0.9× the 411 melt line (never evaluated in the liquid), blended into
+    SESAME over ≥10-cell tanh half-bands where they overlap, and bridged
+    (linear in log T, hull-0, declared) across SESAME's own gap where
+    they don't. Restricted to the Vinet fit window (ρ ≤ 12 g/cc for
+    2963 — measured validity, see `doc/ti_splice_plan_v2.md` T3); one
+    constant e-offset aligns the energy zeros (H5, gated on constancy);
+    p is never shifted (overlap mismatch reported). A second crossover
+    pass repairs the solid model's tension foot (ρ < ρ₀) with the
+    standard monotone ramp + lever-rule e. All model-supplied and bridge
+    cells are hull-0.
 
 Every count above is recorded in the emitted header's `conditioning:`
 line, e.g.:
@@ -192,6 +207,13 @@ Cells outside the SESAME source span (e.g. below its 72.5 K T-floor)
 are nearest-filled (constant-in-T) and marked hull-0 — an *extension*,
 not data. Pin `--c-cav` for reproducibility across grids (the fallback
 samples a grid-dependent cell; record the value you pin and why).
+
+```sh
+# the cold-extended casing table (approximation 12; plan v2 T3-T5):
+$PREP sesame --src $SES --mat 2963 --lT 1.25 9.0 384 \
+    --lrho -5.30 1.69897 576 --c-cav 5.34 --cold-extend \
+    --out data/ti-beta-21s_2963_coldext.eostab --qa qa
+```
 
 ## 4. Checking what you produced
 

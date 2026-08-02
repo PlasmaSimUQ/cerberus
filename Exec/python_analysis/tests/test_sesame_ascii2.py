@@ -11,7 +11,7 @@ import pytest
 
 from eos_tools.constants import GPA_CGS
 from eos_tools.formats.sesame_ascii2 import (
-    MJKG_CGS, index, read_sesame, sesame_to_cgs)
+    MJKG_CGS, index, read_sesame, read_sesame_1d, sesame_to_cgs)
 
 RHO = np.array([1.0, 2.0, 3.0, 4.0])       # Mg/m^3
 TEMP = np.array([10.0, 20.0, 30.0])        # K
@@ -64,12 +64,27 @@ def fixture(tmp_path_factory):
     v3 = stream_301(3)
     body.append(" 1\t42\t301 %d 20240101 20240101 1" % len(v3))
     body.append(five_per_line(v3, sep="\t"))
+    # 306 cold curve: the 2-D layout with NT=1, T=[0] (plan v2 §0.3)
+    v306 = ([NR, 1] + list(RHO) + [0.0]
+            + [p_of(i, 0) for i in range(NR)]        # P_c
+            + [e_of(i, 0) for i in range(NR)]        # E_c
+            + [a_of(i, 0) for i in range(NR)])       # A_c
+    body.append(" 1 42 306 %d 20240101 20240101 1" % len(v306))
+    body.append(five_per_line(v306))
     # material 43: generic comment + 301 without Helmholtz, terse floats
     body.append(" 0 43 102 %d 20240101 20240101 1" % len(generic))
     body.append(generic)
     v2 = stream_301(2)
     body.append(" 1 43 301 %d 20240101 20240101 1" % len(v2))
     body.append(five_per_line(v2))
+    # 411 melt line: NT=1 with FOUR arrays {Tm, Pm, Um, Am}
+    v411 = ([NR, 1] + list(RHO) + [0.0]
+            + [100.0 + i for i in range(NR)]         # Tm
+            + [2.0 * i - 1.0 for i in range(NR)]     # Pm (crosses zero)
+            + [5.0 + i for i in range(NR)]           # Um
+            + [-3.0 - i for i in range(NR)])         # Am
+    body.append(" 1 43 411 %d 20240101 20240101 1" % len(v411))
+    body.append(five_per_line(v411))
     path = tmp_path_factory.mktemp("ses") / "mini.ascii2"
     path.write_text("\n".join(body) + "\n")
     return str(path)
@@ -79,9 +94,9 @@ def test_index(fixture):
     mats = index(fixture)
     assert set(mats) == {42, 43}
     assert mats[42]["name"] == "testium (z=1.0, a=2.0)"
-    assert set(mats[42]["tables"]) == {101, 201, 301}
+    assert set(mats[42]["tables"]) == {101, 201, 301, 306}
     assert mats[43]["name"] is None       # no 101 table
-    assert set(mats[43]["tables"]) == {102, 301}
+    assert set(mats[43]["tables"]) == {102, 301, 411}
 
 
 def test_read_with_helmholtz_and_transpose(fixture):
@@ -116,10 +131,33 @@ def test_cgs_conversion(fixture):
     assert pts["e"][k] == e_of(1, 2) * MJKG_CGS
 
 
+def test_read_1d_cold_curve(fixture):
+    cc = read_sesame_1d(fixture, 42, 306)
+    assert cc["T0"] == 0.0 and cc["n_arrays"] == 3
+    assert np.array_equal(cc["rho"], RHO)
+    for i in range(NR):
+        assert cc["p"][i] == p_of(i, 0)
+        assert cc["e"][i] == e_of(i, 0)
+        assert cc["a"][i] == a_of(i, 0)
+
+
+def test_read_1d_melt_line(fixture):
+    ml = read_sesame_1d(fixture, 43, 411)
+    assert ml["n_arrays"] == 4
+    assert np.array_equal(ml["Tm"], 100.0 + np.arange(NR))
+    assert np.array_equal(ml["Pm"], 2.0 * np.arange(NR) - 1.0)
+    assert np.array_equal(ml["Um"], 5.0 + np.arange(NR))
+    assert np.array_equal(ml["Am"], -3.0 - np.arange(NR))
+
+
 def test_errors(fixture):
     with pytest.raises(ValueError, match="no table 304"):
         read_sesame(fixture, 42, 304)
     with pytest.raises(ValueError, match="not a 2-D"):
         read_sesame(fixture, 42, 306)
+    with pytest.raises(ValueError, match="not a supported 1-D"):
+        read_sesame_1d(fixture, 42, 301)
+    with pytest.raises(ValueError, match="no table 411"):
+        read_sesame_1d(fixture, 42, 411)
     with pytest.raises(ValueError, match="not a SESAME ASCII2"):
         index(__file__)
