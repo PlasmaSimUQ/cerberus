@@ -133,8 +133,36 @@ def inverse_maps(lrho, lT, p, e, n_e=None, n_p=None):
 
 
 def shift_energy(e, hull):
-    """Return (shifted e, shift) so min(e) on the hull is safely > 0."""
+    """Return (shifted e, shift) so min(e) on the hull is safely > 0.
+
+    The shift is a per-table gauge constant. A table used ALONE can take
+    any value here; tables consumed as a MIXTURE SET must share one gauge
+    (common physical reference state + ONE shared shift), because the
+    mixture's component-drop renormalisation compares energies ACROSS
+    tables — see the --e-ref-state/--e-shift flags in cli.cmd_sesame.
+    """
     emin = e[hull > 0.5].min()
     span = e[hull > 0.5].max() - emin
     shift = -emin + 1e-3 * span if emin <= 0 else 0.0
     return e + shift, shift
+
+
+def sample_bilinear(lrho, lT, F, rho, T):
+    """Sample block F at linear (rho, T) with the C++ reader's convention:
+    bilinear in (log10 rho, log10 T) on the uniform axes, LINEAR in the
+    block value (MFP_eos_table.cpp locate() + bilin() — not log-log).
+    Raises ValueError if the point is outside the axes."""
+    x, y = np.log10(rho), np.log10(T)
+    if not (lrho[0] <= x <= lrho[-1]) or not (lT[0] <= y <= lT[-1]):
+        raise ValueError("sample point (%g g/cc, %g K) is outside the table "
+                         "axes rho [%g, %g] T [%g, %g]"
+                         % (rho, T, 10.0 ** lrho[0], 10.0 ** lrho[-1],
+                            10.0 ** lT[0], 10.0 ** lT[-1]))
+    i = min(int((x - lrho[0]) / (lrho[1] - lrho[0])), len(lrho) - 2)
+    j = min(int((y - lT[0]) / (lT[1] - lT[0])), len(lT) - 2)
+    fx = (x - lrho[i]) / (lrho[i + 1] - lrho[i])
+    fy = (y - lT[j]) / (lT[j + 1] - lT[j])
+    return float((1.0 - fx) * (1.0 - fy) * F[i, j]
+                 + fx * (1.0 - fy) * F[i + 1, j]
+                 + (1.0 - fx) * fy * F[i, j + 1]
+                 + fx * fy * F[i + 1, j + 1])

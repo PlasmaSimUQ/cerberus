@@ -14,9 +14,18 @@ other):
                                       #   rho g/cc, T K, p erg/cc, e erg/g
                                       # Cerberus nondimensionalises at load
     e_shift:     <erg/g>              # constant added to raw specific
-                                      # internal energy so min(e) > 0 on the
-                                      # hull (zero-point is arbitrary; must
-                                      # be used consistently, and is)
+                                      # internal energy so min(e) > 0 (the
+                                      # log10(e) inverse axis requires it).
+                                      # The zero-point is arbitrary WITHIN
+                                      # one table; a MIXTURE compares e
+                                      # ACROSS tables, so a mixture set
+                                      # must share one gauge: common
+                                      # physical reference + ONE shared
+                                      # shift (cli.py --e-ref-state /
+                                      # --e-shift; e_ref_state: records it)
+    e_ref_state: rho=<g/cc> T=<K> e_ref=<erg/g>   # OPTIONAL: common-gauge
+                                      # reference; stored e reads exactly
+                                      # e_shift at this state
     conditioning: cv_floor=<v> monotonised=<n> cv_floored=<n> maxwell=<status>
     # grid (uniform in log10); axes reconstructed by reader, never stored
     grid: n_rho=<Nr> n_T=<Nt>

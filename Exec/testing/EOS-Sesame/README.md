@@ -48,6 +48,14 @@ gzip -k9f data/ti-beta-21s_2963_trackP.eostab   # committed form is the .gz
 sh run    # acceptance: DEBUG one-zone self-test on all six tables
 ```
 
+The common-gauge mixture set (solid + interior + air on one shared
+energy zero — see the eref295 record below) has its own one-batch
+driver:
+
+```sh
+SES=... bash make_eref295_set.sh   # probe -> shared S -> emit + QA + spread gate
+```
+
 Regeneration gate (SS1 precedent): byte-identical to the committed
 tables modulo the `generator:` provenance line.
 
@@ -209,6 +217,87 @@ demoted cells are altered cells. (3) The exact-flat cells that remain
 below ~72 K at compressed ρ are largely physical (a Debye solid at
 T ≪ θ has dp/dT → 0). The §2.2 operating-point lever (initialise at
 ρ ≥ 5.02) composes with this table exactly as recorded in plan v2.
+
+## eref295 record (2026-08-10) — common-energy-reference set + real air
+
+**`data/{ti-beta-21s_2963_coldext_eref295, deuterium_5267_s301_eref295,
+dry-air_5031_s301_eref295}.eostab(.gz)`** — the three mixture members
+(solid / interior / air) on ONE shared energy gauge, per
+`HANDOFF_common_energy_reference.md` + its 2026-08-10 addendum. The
+defect being removed: `MixtureEOS::prepare_weights` drops trace
+components without adjusting the energy target, so independently-gauged
+tables inject a spurious `w_j·(e_j − <e>)` of order the *gauge spread* —
+measured 32.7 code units, ~2e6× Ti's cold-range thermal span, railing
+inversions at the T-axis bottom at `drop_tol = 1e-4`. (The old shifts
+were dominated by each table's own `1e-3·span` positivity margin — pure
+per-table arbitrariness.)
+
+Recipe (`make_eref295_set.sh`, one batch, generator 90dd55f):
+`--e-ref-state <rho_fill> 295` per material (solid 4.1856, interior
+0.14775, air 2.361e-4 g/cc — e sampled off the finished surface with
+the C++ reader's bilinear convention, then subtracted), then ONE shared
+`--e-shift S`, `S = max deficit + 2e13 erg/g = 2.0017551224e13`
+(4.85 code — the addendum's O(1)–O(10)-code target band; forced shifts
+hard-fail on `min(e) ≤ 0`, no silent top-up). Post-reference deficits:
+Ti −9.03e8, D2 −1.755e10, air −3.29e9 erg/g. **Achieved design-point
+gauge spread: 4.29e-11 code units (target < 0.15) — PASS.** Every
+table's hull minimum lands at 4.84–4.85 code; `e_ref_state:` header
+records the anchor.
+
+**The air table is the first real air EOS in the set** (replaces the
+synthetic γ=1.4 table): SESAME **5031 dry air** (D. Sheppard 2018,
+N₂ 0.7809 / O₂ 0.2195 / Ar 0.0096, built to fix 5030's numerical
+issues; 5030 is not in this library). **Native hull only — no flank
+extension** (deliberate; supersedes the handoff's lrho/lT prescription;
+addendum §5 endorses no-fill-first): 576×384 over ρ 1e-7..15 g/cc,
+T 100..3.4815e8 K exactly. Source is exceptionally clean: ONE
+non-monotone isotherm (100 K, near the ~133 K critical point) → 1
+Maxwell construction, 2 band cells; zero monotonise interventions; LOO
+p rel median 3.3e-4; hull coverage **99.1%**. Ambient verification
+(2.361e-4 g/cc, 295 K): in-hull, p = 0.1993 bar, dpdrho/(p/ρ) = 1.0034,
+**cs = 341 m/s**. Health: zero flat isochore segments in the whole
+table, dpdT > 0 everywhere.
+
+**Molecular thermal floor (`--floor-mass-amu`)**: the D-g floor used the
+201 table's per-ATOM ā, which over-floors cold molecular fluids by the
+association factor (air ~2×) and would have demoted the ambient itself
+to hull-0 (the shipped `deuterium_5267_s301` carries exactly this
+artifact: 28% of cells). With the molecular mass (air 28.97, D₂ 4.028)
+an ideal molecular gas sits ON the bound, so only cells < 0.95·kT/m are
+demoted: air 1942 (0.9%), D2 12580 (5.7% at the new resolution). D2 is
+also raised 208×97 → 576×384 (native bracket lρ −10..3, lT 0.602..9).
+
+Gates this side: T1 re-baseline (flag-free re-emission at head
+content-identical to the shipped coldext table); Ti gauge-mechanism gate
+(p/hull/dpdrho/dpdT byte-identical, e one constant to 1.6e-11, cv/dedrho
+1e-11 scale-normed); G1 clean ×3; `sh run` **check.py PASS all ten
+tables** — air roundtrips at max_res 2.7e-15 with iters_max 11 / p99 9 /
+1 bisection / nonconv 0 (the shared-pedestal cost on the collapsed cold
+`le` range: mild), D2 9.0e-11 / iters_max 23 / nonconv 0.
+
+Caveats (standing): (1) tables + runs regenerate TOGETHER — the gauge
+change invalidates old checkpoints, plotfiles, and any stored-energy
+baseline; do not mix eref295 and non-eref295 tables in one mixture set.
+(2) An explicit `flux = 'HLLC'|'HLLE'|'AUSMDV'` on a tabulated state
+rides the gauge-dependent Γ slot → different fluxes under any
+re-reference; the mixture deck's default `HLLC_general_eos` is
+gauge-clean.
+(3) Air-retaining cells narrow the mixture T-bracket to
+[100, 3.4815e8] K (retained-set bracketing; air-free cells keep
+[17.78, 1e9]); watch a 100 K-rail counter separately from hull pins in
+the 1D reproducers. (4) Under Amagat every retained component evaluates
+at the mixture (p,T): expect and *attribute* air ceiling pins (the
+addendum's 2.91 GPa / 667 K state wants air at ~15 g/cc) — they are the
+instrument that decides whether a v2 high-ρ armor flank is ever needed,
+not a failure of this work. (5) Ti's reference state sits on constructed
+bridge fill (hull weight 0) — deterministic and solver-consistent, but
+any future bridge change silently moves Ti's gauge; the `e_ref_state:`
+header is the check. (6) `MFP_CTU_Braginskii.cpp` `check_invalid` tests
+ABSOLUTE energy against a constant (the only rk4 rejection test) — out
+of scope here, but it will bite re-referenced TiD Braginskii cases;
+follow-up item. Acceptance still pending: MIXEOS self-tests + the
+run-side 1D reproducers at production drop_tol (zero Riemann fallbacks;
+pin/rail counters recorded).
 
 ## Harness
 

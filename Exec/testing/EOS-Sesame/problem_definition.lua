@@ -34,6 +34,13 @@ eos_table_self_test('data/ti-beta-21s_2963_s311.eostab', 48)
 eos_table_self_test('data/ti-beta-21s_2963_trackP.eostab', 48)
 eos_table_self_test('data/ti-beta-21s_2963_coldext.eostab', 48)
 
+-- common-energy-reference set (eref295): the three mixture members on one
+-- shared energy gauge (e re-referenced to each material's 295 K fill
+-- state + ONE shared positivity shift; HANDOFF_common_energy_reference.md)
+eos_table_self_test('data/ti-beta-21s_2963_coldext_eref295.eostab', 48)
+eos_table_self_test('data/deuterium_5267_s301_eref295.eostab', 48)
+eos_table_self_test('data/dry-air_5031_s301_eref295.eostab', 48)
+
 -- === MINIMAL STATE (so the config is valid; never advanced) ===
 
 states = {

@@ -23,6 +23,12 @@ done
     gunzip -k data/ti-beta-21s_2963_trackP.eostab.gz
 [ -f data/ti-beta-21s_2963_coldext.eostab ] || \
     gunzip -k data/ti-beta-21s_2963_coldext.eostab.gz
+# eref295 common-gauge set (make_eref295_set.sh; kept as .gz beside the
+# .eostab)
+for t in ti-beta-21s_2963_coldext_eref295 deuterium_5267_s301_eref295 \
+         dry-air_5031_s301_eref295; do
+    [ -f data/$t.eostab ] || gunzip -k data/$t.eostab.gz
+done
 
 (cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE DEBUG=TRUE)
 

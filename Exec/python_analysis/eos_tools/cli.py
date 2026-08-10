@@ -346,12 +346,51 @@ def cmd_sesame(args):
     if not (out_scan["ok_rho"] and out_scan["ok_T"] and p.min() > 0.0):
         raise SystemExit("G1 gate FAILED on the emitted surface")
 
-    # --- stage 8: shift, derivative blocks, cavitated response, maps -----
-    e, e_shift = shift_energy(e, hull)
-    if e.min() <= 0.0:  # hull-0 fills may undershoot the hull-based shift
-        extra = -e.min() + 1e-6 * (e.max() - e.min())
-        e += extra
-        e_shift += extra
+    # --- stage 8: gauge (common e-ref + shift), blocks, response, maps ---
+    # Common-energy-reference recipe (HANDOFF addendum, 2026-08-10):
+    #   (i)  e -> e - e(rho_ref, T_ref)   one common physical state
+    #   (ii) e -> e + S                   ONE shared S for the whole set
+    # e_shift in the header is documentary — the C++ reader never applies
+    # it; the gauge must be baked into the stored values here.
+    e_ref_val = None
+    if args.e_ref_state:
+        from .condition import sample_bilinear
+        rho_ref, T_ref = args.e_ref_state
+        try:
+            e_ref_val = sample_bilinear(lrho, lT, e, rho_ref, T_ref)
+        except ValueError as ex:
+            raise SystemExit("--e-ref-state GATE FAILED: %s" % ex)
+        h_ref = sample_bilinear(lrho, lT, hull, rho_ref, T_ref)
+        e = e - e_ref_val
+        print("e-ref (common gauge): e(%g g/cc, %g K) = %.10e erg/g "
+              "subtracted; ref-point hull weight %.2f%s"
+              % (rho_ref, T_ref, e_ref_val, h_ref,
+                 "" if h_ref > 0.99 else
+                 " (WARNING: reference sits on constructed fill — the "
+                 "gauge is generator-dependent there)"))
+    if args.probe_shift:
+        # machine-readable minima for the set driver: the inverse-map le
+        # axis takes log10 of the FULL-array minimum (hull-0 fills
+        # included), so S must clear min_full, not just min_hull
+        print("PROBE-SHIFT min_full=%.10e min_hull=%.10e max=%.10e"
+              % (e.min(), e[hull > 0.5].min(), e.max()))
+        return
+    if args.e_shift is not None:
+        e_shift = float(args.e_shift)
+        if e.min() + e_shift <= 0.0:
+            # NEVER silently top up a forced shift: a per-table top-up
+            # would re-break the common gauge this flag exists to enforce
+            raise SystemExit(
+                "forced --e-shift GATE FAILED: min(e) + S = %.6e <= 0 "
+                "(full-array min %.6e; re-probe the set and raise S)"
+                % (e.min() + e_shift, e.min()))
+        e = e + e_shift
+    else:
+        e, e_shift = shift_energy(e, hull)
+        if e.min() <= 0.0:  # hull-0 fills may undershoot the hull-based shift
+            extra = -e.min() + 1e-6 * (e.max() - e.min())
+            e += extra
+            e_shift += extra
     m_ref = (raw["abar"] * AMU_G) if raw["abar"] else M_D
     dpdT, dpdrho, cv, dedrho, stats = condition(
         lrho, lT, p, e, m_ref=m_ref,
@@ -367,14 +406,28 @@ def cmd_sesame(args):
     # kT/m and c_cav^2 outside the band are GENUINE near-critical
     # softening and are left untouched. (Scope: all cells, demote failures
     # — correct for SESAME sources; see condition.thermal_floor.)
+    #
+    # MOLECULAR fluids (air, D2): the 201 abar is per ATOM, so kT/m_atom
+    # over-floors the cold molecular region by the association factor
+    # (air: 28.97/14.80 ~ 2x) and would demote the ambient itself.
+    # --floor-mass-amu supplies the molecular mass; an ideal molecular gas
+    # then sits ON the bound (dpdrho == kT/m exactly), so demotion is
+    # restricted to cells genuinely below it (5% tolerance) — marginal
+    # cells are floored to the exact bound but stay in-hull.
     from .condition import thermal_floor
-    dpdrho, _, sub = thermal_floor(dpdrho, lT, m_ref)
-    n_sub = int(sub.sum())
-    if n_sub:
-        band_g = band_g | sub
-        hull = np.where(sub, 0.0, hull)
-        print("thermal floor: %d sub-thermal cells (dpdrho < kT/m) floored, "
-              "banded, hull 0" % n_sub)
+    m_floor = (args.floor_mass_amu * AMU_G) if args.floor_mass_amu else m_ref
+    dpdrho_f, kTm, sub = thermal_floor(dpdrho, lT, m_floor)
+    demote = (dpdrho < 0.95 * kTm) if args.floor_mass_amu else sub
+    dpdrho = dpdrho_f
+    n_sub = int(demote.sum())
+    if args.floor_mass_amu:
+        print("thermal floor mass: %.4g amu (molecular, cli) vs abar %.4g"
+              % (args.floor_mass_amu, raw["abar"] or 0.0))
+    if n_sub or sub.any():
+        band_g = band_g | demote
+        hull = np.where(demote, 0.0, hull)
+        print("thermal floor: %d cells floored to kT/m, %d sub-thermal "
+              "(banded, hull 0)" % (int(sub.sum()), n_sub))
 
     if args.c_cav:
         c_cav = args.c_cav * 1e5  # km/s -> cm/s
@@ -419,6 +472,9 @@ def cmd_sesame(args):
     if stats.get("cs_floored"):
         cond += " cs_floor=%.4e cs_floored=%d" % (stats["cs_floor"],
                                                   stats["cs_floored"])
+    if args.floor_mass_amu:
+        cond += (" floor_mass_amu=%g floor_floored=%d floor_demote_tol=0.95"
+                 % (args.floor_mass_amu, int(sub.sum())))
     if ce:
         v0, B0, B0p = ce["fit"]["vinet"]
         cond += (" cold_extend=vinet306(rho0K=%.4f,B0=%.4e,B0p=%.3f,"
@@ -443,6 +499,13 @@ def cmd_sesame(args):
         ("e_shift", "%.10e" % e_shift),
         ("conditioning", cond),
     ]
+    if e_ref_val is not None:
+        # common-gauge record: stored e = e_raw - e_ref + e_shift, so the
+        # emitted table reads e = e_shift exactly at the reference state
+        prov.insert(6, ("e_ref_state",
+                        "rho=%.10g T=%.10g e_ref=%.10e"
+                        % (args.e_ref_state[0], args.e_ref_state[1],
+                           e_ref_val)))
     write_eostab(out, prov, lrho, lT, blocks, {"le": le, "lp": lp})
     print("hull coverage %.1f%%; conditioning: %s"
           % (100.0 * (hull > 0.5).mean(), prov[-1][1]))
@@ -541,6 +604,30 @@ def main():
                    help="opt-in W-B sound-speed safety net in km/s "
                         "(dpdrho >= floor^2 on ALL cells); off by default "
                         "to preserve baseline byte-identity")
+    s.add_argument("--e-ref-state", type=float, nargs=2, default=None,
+                   metavar=("RHO", "T"),
+                   help="common-energy-reference state (g/cc, K): subtract "
+                        "e(RHO,T), sampled bilinearly off the finished "
+                        "surface with the C++ reader's convention, before "
+                        "the positivity shift — step (i) of the mixture-set "
+                        "common-gauge recipe")
+    s.add_argument("--e-shift", type=float, default=None,
+                   help="FORCE the positivity constant S (erg/g) instead of "
+                        "the per-table automatic shift — step (ii): one "
+                        "shared S across the set. Hard-fails if min(e)+S "
+                        "<= 0 anywhere (no silent per-table top-up)")
+    s.add_argument("--probe-shift", action="store_true",
+                   help="print the post-reference e minima (PROBE-SHIFT "
+                        "line: full array + hull) and exit before the "
+                        "derivative/inverse-map build; used by the set "
+                        "driver to choose the shared S")
+    s.add_argument("--floor-mass-amu", type=float, default=None,
+                   help="mass (amu) for the thermal stiffness floor kT/m "
+                        "(default: 201 abar). Pass the MOLECULAR mass for "
+                        "molecular fluids (air 28.97, D2 4.028) — the "
+                        "atomic abar over-floors the cold molecular region "
+                        "by ~2x and demotes the ambient; with this flag "
+                        "only cells < 0.95*kT/m are demoted")
     s.add_argument("--no-verify-src", action="store_true",
                    help="skip the S1 sha256 gate against sources.yaml")
     s.add_argument("--cold-extend", action="store_true",

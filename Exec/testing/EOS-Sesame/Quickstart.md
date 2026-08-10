@@ -137,7 +137,9 @@ structure is deliberately traded away. In pipeline order:
    in-hull LOO is too large, raise `--n-rho/--n-T`.
 8. **e-shift.** First-principles/chemical-model energies are negative at
    low T; a constant (recorded as `e_shift:` in the header) makes e > 0.
-   Physically inert if every quantity comes from the same table.
+   Physically inert if every quantity comes from the same table — but a
+   `tabulated_mixture` compares energies ACROSS tables (its component-drop
+   renormalisation), so a mixture set must share ONE gauge: see §3c.
 9. **cv floor.** cv = ∂e/∂T is floored at 1e-3 · (3/2 k_B/m̄) (m̄ from the
    201 table); floored-cell count recorded.
 9b. **Thermal stiffness floor.** The emitted `dpdrho` block is floored
@@ -146,6 +148,14 @@ structure is deliberately traded away. In pipeline order:
     mapping missed; they are floored, joined to the band, and hull-0
     (`thermal_floored=` count in the provenance line). Genuine
     near-critical softening above the thermal floor is left untouched.
+    **Molecular fluids need `--floor-mass-amu`** (air 28.97, D₂ 4.028):
+    the 201 ā is per *atom*, so k_B·T/m_atom over-floors the cold
+    molecular region by the association factor (air ~2×) and would
+    demote the ambient itself to hull-0. With the flag, an ideal
+    molecular gas sits exactly ON the bound, so only cells below
+    0.95·k_B·T/m are demoted; marginal cells are floored but stay
+    in-hull (`floor_mass_amu= floor_floored= floor_demote_tol=` in the
+    provenance line).
 10. **Cavitated-response stiffness (decided D-e).** On band cells the
     emitted `dpdrho` derivative block is floored at c_cav² — the
     material's own bulk sound speed (√(B_S/ρ₀), e.g. Cu 3.37, diamond
@@ -214,6 +224,32 @@ $PREP sesame --src $SES --mat 2963 --lT 1.25 9.0 384 \
     --lrho -5.30 1.69897 576 --c-cav 5.34 --cold-extend \
     --out data/ti-beta-21s_2963_coldext.eostab --qa qa
 ```
+
+## 3c. Common-energy-reference sets (`--e-ref-state` / `--e-shift`)
+
+Each table's `e_shift` is an independent gauge constant, and the
+`tabulated_mixture` component-drop renormalisation takes weighted
+*differences of energies across tables* — so a mixture set built from
+independently-gauged tables carries an O(10 code units) spurious energy
+term at any finite `drop_tol` (measured: inversions rail at the T-axis
+bottom). The fix is one shared gauge, applied at generation time (the
+header `e_shift` is documentary; the C++ reader never applies it):
+
+1. `--e-ref-state RHO T` — subtract `e(RHO, T)` (each material at its own
+   fill density, one common T, sampled off the finished surface with the
+   C++ reader's bilinear convention) — the common physical zero;
+2. `--e-shift S` — ONE shared positivity constant for the whole set,
+   chosen from `--probe-shift` output so every table's minimum lands
+   O(1)–O(10) code units above zero (never epsilon-positive: the
+   log₁₀(e) inverse axis, the γₑ overflow guard, and dead-cell
+   resurrection all assume e = 0 sits comfortably below every hull).
+   A forced shift that leaves `min(e) <= 0` hard-fails — there is no
+   silent per-table top-up, by design.
+
+`make_eref295_set.sh` runs the whole recipe for the solid/interior/air set
+(probe pass → shared S → emit + QA → design-point spread check, target
+< 0.15 code units). The emitted `e_ref_state:` header line records the
+anchor; e reads exactly `e_shift` at that state.
 
 ## 4. Checking what you produced
 

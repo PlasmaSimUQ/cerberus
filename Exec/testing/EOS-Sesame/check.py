@@ -20,6 +20,11 @@ TABLES = [
     "data/ti-beta-21s_2963_s311.eostab",
     "data/ti-beta-21s_2963_trackP.eostab",
     "data/ti-beta-21s_2963_coldext.eostab",
+    # common-energy-reference set (eref295): one shared gauge across the
+    # three mixture members (HANDOFF_common_energy_reference.md + addendum)
+    "data/ti-beta-21s_2963_coldext_eref295.eostab",
+    "data/deuterium_5267_s301_eref295.eostab",
+    "data/dry-air_5031_s301_eref295.eostab",
 ]
 GATED = {"reader", "roundtrip-e", "roundtrip-p", "identities", "hull",
          "corner"}
