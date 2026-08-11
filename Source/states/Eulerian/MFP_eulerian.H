@@ -91,6 +91,8 @@ class EulerianState : public State
     // calc_primitives under verbosity >= 2
     virtual long get_and_reset_thermo_clamps() const { return 0; }
     virtual long get_and_reset_alpha_fixes() const { return 0; }
+    // TEMPORARY DIAGNOSTIC (W31 investigation): Amagat pin accounting
+    virtual std::string get_and_reset_pin_report() const { return {}; }
     // B (T4b plan): floor-time momentum repairs + the per-call write-back
     // indicator (see HydroGas for semantics)
     virtual long get_and_reset_mom_fixes() const { return 0; }

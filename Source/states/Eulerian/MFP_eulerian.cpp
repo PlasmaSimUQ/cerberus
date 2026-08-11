@@ -494,6 +494,11 @@ void EulerianState::calc_primitives(const Box& box,
             amrex::AllPrint() << "[" << name << "] composition (alpha) repaired in " << n_alpha
                               << " evaluations\n";
         }
+        // TEMPORARY DIAGNOSTIC (W31 investigation): Amagat pin accounting
+        const std::string pin_rep = get_and_reset_pin_report();
+        if (!pin_rep.empty()) {
+            amrex::AllPrint() << "[" << name << "] PIN " << pin_rep << "\n";
+        }
         const long n_mom = get_and_reset_mom_fixes();
         if (n_mom > 0) {
             amrex::AllPrint() << "[" << name << "] floor momentum repaired in " << n_mom

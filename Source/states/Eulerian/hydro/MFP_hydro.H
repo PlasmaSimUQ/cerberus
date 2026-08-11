@@ -82,6 +82,12 @@ class HydroState : public EulerianState
         return gas->get_and_reset_mom_fixes();
     }
 
+    // TEMPORARY DIAGNOSTIC (W31 investigation): Amagat pin accounting
+    virtual std::string get_and_reset_pin_report() const override
+    {
+        return gas->get_and_reset_pin_report();
+    }
+
     virtual bool cons_was_repaired() const override { return gas->cons_was_repaired(); }
 
     virtual const Vector<int> get_cons_vector_idx() const override

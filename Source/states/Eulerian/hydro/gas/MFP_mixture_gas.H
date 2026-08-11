@@ -122,6 +122,38 @@ class MixtureEOS : public HydroGas
         return n;
     }
 
+    // TEMPORARY DIAGNOSTIC (W31 investigation) -- see the counter block below
+    virtual std::string get_and_reset_pin_report() const override
+    {
+        if (n_asm == 0) return {};
+        std::ostringstream o;
+        o << "asm=" << n_asm << " partial=" << n_asm_partial
+          << " allpin=" << n_asm_allpin << " partial_ovf(rho*cs2>4)=" << n_asm_ovf
+          << " p<=0=" << n_asm_nonpos_p << " max_rho_cs2 partial=" << max_rcs2_partial
+          << " nopin=" << max_rcs2_nopin
+          << " edge_flag1=" << n_edge_flag1 << " edge_flag2=" << n_edge_flag2
+          << " cap_cs2=" << n_cap_cs2 << " cap_K=" << n_cap_K
+          << " cap_dpdrho=" << n_cap_dpdrho;
+        if (n_asm_partial > 0) {
+            o << " | partial pin/live by component:";
+            for (size_t k = 0; k < n_pin_partial_k.size(); ++k) {
+                o << " " << k << ":" << n_pin_partial_k[k] << "/" << n_live_partial_k[k];
+            }
+            o << " | worst partial: rho=" << worst_rho << " p=" << worst_p
+              << " T=" << worst_T << " w={";
+            for (size_t k = 0; k < worst_w.size(); ++k) {
+                o << (k ? "," : "") << worst_w[k];
+            }
+            o << "}";
+        }
+        n_asm = n_asm_partial = n_asm_allpin = n_asm_ovf = n_asm_nonpos_p = 0;
+        n_edge_flag1 = n_edge_flag2 = n_cap_cs2 = n_cap_K = n_cap_dpdrho = 0;
+        max_rcs2_partial = max_rcs2_nopin = 0.0;
+        std::fill(n_pin_partial_k.begin(), n_pin_partial_k.end(), 0L);
+        std::fill(n_live_partial_k.begin(), n_live_partial_k.end(), 0L);
+        return o.str();
+    }
+
     // B (T4b plan Part I): floor-time momentum repairs performed by
     // cons2prim (resurrections zeroed + soft hits capped)
     virtual long get_and_reset_mom_fixes() const override
@@ -181,8 +213,14 @@ class MixtureEOS : public HydroGas
     // Volume sum Sum_k w_k v_k(p, T) at fixed (p, T): each retained rho_k
     // from the guarded isotherm inversion (warm-started through m_rho_k;
     // an unattainable p pins rho_k at the hull edge — the pin mask goes to
-    // m_pinned, and pinned components contribute zero derivative weight).
-    // Fills m_evk with the (p,T)-consistent per-component evals and
+    // m_pinned, the raw table flag to m_pin_flag, and pinned components
+    // contribute zero derivative weight IN THIS SOLVE — amagat_p_solve's
+    // unconditional convergence relies on that. This is a DIFFERENT
+    // convention from amagat_assemble, which (pinned_compliance_fix_plan.md
+    // Step 1) gives pinned components their edge compliance instead of
+    // dropping them; the pin flag therefore carries two meanings depending
+    // on which function reads it. Fills m_evk with the (p,T)-consistent
+    // per-component evals and
     // returns the two slope sums (dv/dT)_p and (dv/dp)_T. `tally` controls
     // the accounting: iteration-interior evaluations run quiet (transient
     // pins while bracketing are not state pins — the same rule as the
@@ -214,9 +252,15 @@ class MixtureEOS : public HydroGas
                         EosInvertStats& st) const;
     // mixture EosEval from the cached per-component evals at the solution:
     // alpha-weighted volume-derivative sums (plan section 3); reduces to
-    // gamma*p/rho for a single ideal-gas component. Pinned components
-    // carry volume + energy but no derivative weight (all-pinned states
-    // fall back to the full formulas so the sums stay bounded).
+    // gamma*p/rho for a single ideal-gas component. Pinned components carry
+    // their EDGE compliance (Remedy A, pinned_compliance_fix_plan.md Step
+    // 1) rather than being dropped — the table's (dp/drho)_k etc. at the
+    // clamped rho_k, using the same m_rho_k/m_evk the volume sum cached,
+    // so the sums stay bounded and mutually consistent. The assembled
+    // modulus is then capped from above by the stiffest retained
+    // component's own modulus (Remedy B, Step 2; upper bound only — see
+    // mixture_stiffness_bounds_and_pinning.md section 3 for why no lower
+    // bound is sound here).
     void amagat_assemble(Real rho, Real p, Real T, EosEval& ev, EosInvertStats& st) const;
     // given (T, p, alpha) recover the total rho — define_rho_p_T's p+T
     // branch (initial-condition fills; not a hot path)
@@ -308,9 +352,51 @@ class MixtureEOS : public HydroGas
     mutable std::vector<Real> m_scale_k;     // dilute-limit p/dpdT scales
     mutable std::vector<EosEval> m_evk;      // per-component evals (cached)
     mutable std::vector<char> m_pinned;      // Amagat: hull-pinned this eval
+    mutable std::vector<int> m_pin_flag;     // Amagat: raw stk.flag per component
+                                              // this eval (0/1/2); m_pinned is
+                                              // just (flag != 0) — the W31
+                                              // counters need the split between
+                                              // flag==1 (true hull edge) and
+                                              // flag==2 (Newton-exhausted
+                                              // bracket midpoint)
 
     mutable long n_hull_clamps = 0;              // total-rho / aggregate clamps
     mutable std::vector<long> n_hull_clamps_k;   // per-component clamp accounting
+
+    // ---- TEMPORARY DIAGNOSTIC (W31 investigation) ----------------------
+    // amagat_assemble pin accounting. The question these answer: of the
+    // assemblies that pin at all, how many are PARTIAL (some pinned, one or
+    // more live) -- originally the only branch that truncated the dvdp sum
+    // (pre pinned_compliance_fix_plan.md; Remedy A now retains the pinned
+    // term instead) -- which component is the pinned one, and how stiff the
+    // assembled mixture gets. rho*cs2 > 4 (= DBL_MAX*DBL_MIN) is the
+    // threshold above which gam1 overflows once p reaches 0. Delete this
+    // block and its use sites to revert.
+    mutable long n_asm = 0;             // amagat_assemble calls
+    mutable long n_asm_partial = 0;     // partially pinned (some retained, some not)
+    mutable long n_asm_allpin = 0;      // all pinned
+    mutable long n_asm_ovf = 0;         // partial AND rho*cs2 > 4
+    mutable long n_asm_nonpos_p = 0;    // assembled with p <= 0
+    mutable std::vector<long> n_pin_partial_k;  // per-component, partial only
+    mutable std::vector<long> n_live_partial_k; // per-component, partial only
+    // pinned_compliance_fix_plan.md Step 5: Remedy A / Remedy B accounting,
+    // extending the block above rather than replacing it. n_edge_flag1/2
+    // count every retained pinned component (partial or all-pin), split by
+    // the §1 caveat (flag 1 = true hull edge, flag 2 = Newton-exhausted
+    // midpoint) — both now feed the assembly via Remedy A, but they are not
+    // the same table state. n_cap_* count Remedy B cap hits, separately per
+    // cap, so a cap that fires on a supposedly-healthy cell is visible
+    // rather than silent (a self-test gate on these, asserting zero on
+    // unpinned sweeps, is Step 7 — out of scope here).
+    mutable long n_edge_flag1 = 0;      // retained pin, flag==1 (hull edge)
+    mutable long n_edge_flag2 = 0;      // retained pin, flag==2 (midpoint)
+    mutable long n_cap_cs2 = 0;         // cap 1 hits: cs2 <= max_k cs_k^2
+    mutable long n_cap_K = 0;           // cap 2 hits: rho*cs2 <= max_k K_k
+    mutable long n_cap_dpdrho = 0;      // dpdrho <= max_k dpdrho_k hits
+    mutable Real max_rcs2_partial = 0.0;
+    mutable Real max_rcs2_nopin = 0.0;
+    mutable std::vector<Real> worst_w;  // weights at the worst partial event
+    mutable Real worst_p = 0.0, worst_rho = 0.0, worst_T = 0.0;
     mutable long n_alpha_fixes = 0;              // sanitize_alpha repairs
     mutable long n_mom_fixes = 0;                // B: floor-time momentum repairs
     mutable bool last_repair = false;            // B: last cons2prim repaired U in place

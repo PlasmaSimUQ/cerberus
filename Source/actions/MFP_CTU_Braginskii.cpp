@@ -2795,6 +2795,32 @@ bool BraginskiiCTU::check_invalid(Array<Real, +VectorIdx::NUM>& y, Array<Real, +
 {
     BL_PROFILE("BraginskiiCTU::check_invalid");
 
+    // KNOWN-UNSOUND FOR TABULATED SPECIES (noted 2026-08-10, not yet fixed).
+    // These are ABSOLUTE total-energy tests against a fixed constant, and
+    // unlike the gamma-law pressure bailouts further down they are NOT skipped
+    // when the species is tabulated. Specific internal energy in an .eostab is
+    // defined only up to an arbitrary per-material additive constant, baked
+    // into the stored values at generation time (the header's e_shift is
+    // documentary only -- MFP_eos_table.cpp:461 merely prints it as
+    // provenance). Eden therefore carries an energy gauge and its sign has no
+    // physical meaning, so this threshold tests the table's zero-point rather
+    // than the state.
+    //
+    // Both failure directions are live:
+    //   - Tables whose offsets are large and positive (those in use at the
+    //     time of writing sit at +14.70 and +32.68 in code units) hold Eden
+    //     far above effective_zero, so these tests silently provide NO
+    //     protection for a tabulated species.
+    //   - A re-referenced table whose stored e sits near zero flips this to
+    //     tripping on physically valid cold states. Because check_invalid is
+    //     the ONLY rejection test driving rk4_adaptive (MFP_rk4.H carries no
+    //     error norm), that means recursive step-halving and ultimately
+    //     "exceeded time step refinement limitiation in rk4_adaptive()".
+    //
+    // The repair is a positivity test routed through the EOS (temperature
+    // against the hull minimum, or pressure via the gas model), NOT the skip
+    // used for the gamma-law tests below: skipping here would leave a
+    // tabulated species with only the finiteness guard.
     if (y[+VectorIdx::IonEden] < effective_zero) { return true; }
 
     if (y[+VectorIdx::ElectronEden] < effective_zero) { return true; }

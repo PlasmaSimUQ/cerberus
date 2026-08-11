@@ -161,6 +161,11 @@ class HydroGas
     virtual long get_and_reset_mom_fixes() const { return 0; }
     virtual bool cons_was_repaired() const { return false; }
 
+    // TEMPORARY DIAGNOSTIC (W31 investigation): per-component pin accounting
+    // for the mixture assembly. Empty string = nothing to report, which is
+    // every model except MixtureEOS under the Amagat rule.
+    virtual std::string get_and_reset_pin_report() const { return {}; }
+
     int idx;
     bool mass_const, charge_const;
     Vector<Real> mass, charge;

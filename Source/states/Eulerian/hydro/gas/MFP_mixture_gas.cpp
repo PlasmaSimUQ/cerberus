@@ -271,12 +271,17 @@ MixtureEOS::MixtureEOS(const int global_idx, const sol::table& def)
     }
 
     n_hull_clamps_k.assign(N, 0);
+    // TEMPORARY DIAGNOSTIC (W31 investigation)
+    n_pin_partial_k.assign(N, 0);
+    n_live_partial_k.assign(N, 0);
+    worst_w.assign(N, 0.0);
     m_alpha.resize(N, 0.0);
     m_w.resize(N, 0.0);
     m_rho_k.resize(N, 0.0);
     m_scale_k.resize(N, 1.0);
     m_evk.resize(N);
     m_pinned.assign(N, 0);
+    m_pin_flag.assign(N, 0);
 
     amrex::Print() << "MixtureEOS[" << name << "]: rule=" << rule_s << " N=" << N
                    << " T-bracket (code units) [" << T_lo_all << "," << T_hi_all << "]\n";
@@ -617,6 +622,17 @@ Real MixtureEOS::amagat_volume_sum(Real p,
         EosTable::eval_rt(tvs[k], rk, T, m_evk[k]);
         vsum += m_w[k] / rk;
         m_pinned[k] = (stk.flag != 0);
+        // The pin flag now carries two different meanings after the
+        // pinned-compliance fix (pinned_compliance_fix_plan.md section 2):
+        // zero slope HERE, in the volume-constraint solve — amagat_p_solve's
+        // unconditional-convergence guarantee depends on the residual
+        // staying monotone on the unpinned interior, so nothing below this
+        // point changes. But edge compliance in amagat_assemble, which
+        // needs the raw flag value (1 = true hull edge, 2 = Newton-
+        // exhausted bracket midpoint — both real table values, but not the
+        // same thing) to tally the two cases separately. Capture it here,
+        // alongside m_pinned, for that use.
+        m_pin_flag[k] = stk.flag;
         if (stk.flag != 0) {
             if (tally) {
                 ++n_hull_clamps_k[k];
@@ -691,23 +707,31 @@ void MixtureEOS::amagat_assemble(Real rho, Real p, Real T, EosEval& ev, EosInver
     bool clamped = (st.flag != 0);
     bool any_unpinned = false;
     for (const int k : m_retained) {
-        // volume + energy from every component; derivative weight only from
-        // the unpinned ones (a pinned rho_k no longer responds to p or T)
+        // volume + energy from every component. any_unpinned no longer
+        // gates derivative weight in the loop below (Remedy A retains a
+        // pinned component's edge compliance instead of dropping it) — it
+        // is kept here only for the partial/all-pinned split the W31
+        // diagnostics and the unconditional cap below still need.
         ev.e += m_w[k] * m_evk[k].e;
         clamped |= m_evk[k].clamped;
         any_unpinned |= (m_pinned[k] == 0);
     }
     for (const int k : m_retained) {
+        // Remedy A (pinned_compliance_fix_plan.md Step 1): every retained
+        // component takes the full derivative formula below, pinned or not.
+        // A pinned rho_k is frozen in the SOLVE (amagat_volume_sum, above,
+        // keeps contributing zero slope there by design), but the table
+        // still reports a finite (dp/drho)_k at the clamped density — the
+        // clamp froze the LOOKUP, not the material. Compliances add in
+        // series (Wood's law: the softest component dominates), so deleting
+        // a pinned term does not soften the mixture, it deletes what is
+        // usually the largest compliance in the sum and makes the assembly
+        // artificially rigid — the W31 failure. m_rho_k[k]/m_evk[k] are the
+        // values the final volume-sum call left cached (nothing overwrites
+        // them between there and here), so this is bounded exactly like the
+        // formerly-"all-pinned-only" fallback below used to be: dpdrho >=
+        // its conditioning floor, so the sums cannot vanish.
         const EosEval& evk = m_evk[k];
-        if (any_unpinned && m_pinned[k]) {
-            // pinned: rho_k frozen -> no volume response, no p-response of
-            // e_k, but the frozen-density heat capacity cv_k remains (the
-            // T-dependence is not pinned)
-            cp += m_w[k] * evk.cv;
-            continue;
-        }
-        // all-pinned states fall back to the full formulas (bounded, since
-        // dpdrho >= its conditioning floor) so the sums cannot vanish
         const Real rk = m_rho_k[k];
         const Real rk2D = rk * rk * std::max(evk.dpdrho, tiny);
         dvdp -= m_w[k] / rk2D;
@@ -725,24 +749,110 @@ void MixtureEOS::amagat_assemble(Real rho, Real p, Real T, EosEval& ev, EosInver
     const Real cv = cp + T * dvdT * dvdT / dvdp;            // dvdp < 0: subtracts
     ev.cv = std::max(cv, tiny);
     Real cs2 = std::max(-v * v * cp / (ev.cv * dvdp), (Real)0.0);
-    if (!any_unpinned) {
-        // ALL-pinned degenerate state (p unattainable by every component at
-        // this T — flag = 1 upstream): the fallback derivative sums are
-        // formula artifacts of pinned densities and can reach absurd
-        // stiffness (measured cs ~ 1e145 in the self-test abuse case),
-        // which would collapse the CFL time step if it ever reached the
-        // speed sweep. Bound the degenerate state by the stiffest
-        // component's own response — table-real values, never larger.
-        Real cs2_cap = 0.0, dpdrho_cap = 0.0;
-        for (const int k : m_retained) {
-            cs2_cap = std::max(cs2_cap, m_evk[k].cs * m_evk[k].cs);
-            dpdrho_cap = std::max(dpdrho_cap, m_evk[k].dpdrho);
-        }
-        cs2 = std::min(cs2, cs2_cap);
-        ev.dpdrho = std::min(ev.dpdrho, dpdrho_cap);
+
+    // Remedy B (pinned_compliance_fix_plan.md Step 2): bound the assembled
+    // modulus from above by the stiffest retained component's own modulus,
+    // UNCONDITIONALLY — not only in the former all-pinned branch. Under P-T
+    // equilibrium the isothermal bulk modulus is a volume-fraction-weighted
+    // harmonic mean of the component moduli, and a harmonic mean never
+    // exceeds its largest input, so `K_mix <= max_k K_k` is rigorous. The
+    // assembled cs2 here is the full P-T-equilibrium speed K_S = gamma_mix *
+    // K_T, and thermal equilibration only ADDS compliance (K_equilibrium <=
+    // K_frozen always), so the upper bound survives through gamma_mix even
+    // though gamma_mix itself is not bracketed by the component gammas.
+    // There is deliberately NO lower bound (mixture_stiffness_bounds_and_
+    // pinning.md section 3): the two-sided harmonic-mean bracket holds only
+    // for the FROZEN modulus, and the equilibrium cs_mix legitimately dips
+    // below every component's cs_k (the non-monotone Wood dip) — real
+    // physics this whole exercise exists to preserve, not a bug to clamp
+    // away. Caps 1 and 2 are independent upper bounds (neither implies the
+    // other), so apply both; cap 2 (the modulus) is the tighter one once
+    // rho enters, since cs2 alone ignores where the mixture density sits
+    // relative to the component densities.
+    Real cs2_cap = 0.0, dpdrho_cap = 0.0, K_cap = 0.0;
+    for (const int k : m_retained) {
+        cs2_cap = std::max(cs2_cap, m_evk[k].cs * m_evk[k].cs);
+        dpdrho_cap = std::max(dpdrho_cap, m_evk[k].dpdrho);
+        K_cap = std::max(K_cap, m_rho_k[k] * m_evk[k].cs * m_evk[k].cs);
     }
+    // keep the UNCAPPED modulus for the diagnostics below: once the caps are
+    // in place a post-cap rho*cs2 can never exceed max_k K_k, so measuring the
+    // post-cap value would silently retire the overflow counter and hide how
+    // far the raw assembly actually ran. The pre-cap value is also what the
+    // archived pre-fix PIN reports recorded, so it is the only apples-to-
+    // apples comparison available for the validation runs.
+    const Real rcs2_raw = rho * cs2;
+    const bool cap_cs2_hit = (cs2 > cs2_cap);
+    cs2 = std::min(cs2, cs2_cap);                  // cap 1
+    const bool cap_K_hit = (rho * cs2 > K_cap);
+    if (cap_K_hit) cs2 = K_cap / rho;              // cap 2 — modulus, tighter
+    const bool cap_dpdrho_hit = (ev.dpdrho > dpdrho_cap);
+    ev.dpdrho = std::min(ev.dpdrho, dpdrho_cap);   // isothermal companion (rigorously two-sided-safe on this side)
+
+    // ---- TEMPORARY DIAGNOSTIC (W31 investigation) -------------------------
+    // Counted HERE, after cs2 is final but before gam1 is formed, so the
+    // numbers describe the state that gam1 would overflow on. Sampling is
+    // per assemble call, i.e. it sees face and iterate states, not just the
+    // cell-centred ones a plotfile can show. A cap that fires silently would
+    // destroy the diagnostic signal that located the underlying bug, so
+    // every cap hit is counted, same as the hull-clamp tallies elsewhere.
+    {
+        ++n_asm;
+        if (cap_cs2_hit) ++n_cap_cs2;
+        if (cap_K_hit) ++n_cap_K;
+        if (cap_dpdrho_hit) ++n_cap_dpdrho;
+        if (!(p > 0.0)) ++n_asm_nonpos_p;
+        const Real rcs2 = rcs2_raw;   // PRE-cap (see above)
+        int n_pin = 0;
+        for (const int k : m_retained) {
+            if (m_pinned[k]) {
+                ++n_pin;
+                // split retained pins by table flag (§1 caveat): flag==1 is
+                // a true hull edge, flag==2 is a Newton-exhausted bracket
+                // midpoint — both feed Remedy A, but they are not the same
+                // thing and are worth telling apart when reading this report
+                if (m_pin_flag[k] == 1) {
+                    ++n_edge_flag1;
+                } else if (m_pin_flag[k] == 2) {
+                    ++n_edge_flag2;
+                }
+            }
+        }
+        const bool partial = any_unpinned && (n_pin > 0);
+        if (!any_unpinned) {
+            ++n_asm_allpin;
+        } else if (partial) {
+            ++n_asm_partial;
+            for (const int k : m_retained) {
+                if (m_pinned[k]) {
+                    ++n_pin_partial_k[k];
+                } else {
+                    ++n_live_partial_k[k];
+                }
+            }
+            if (rcs2 > 4.0) ++n_asm_ovf;
+            if (rcs2 > max_rcs2_partial) {
+                max_rcs2_partial = rcs2;
+                worst_rho = rho;
+                worst_p = p;
+                worst_T = T;
+                std::fill(worst_w.begin(), worst_w.end(), 0.0);
+                for (const int k : m_retained) worst_w[k] = m_w[k];
+            }
+        } else {
+            max_rcs2_nopin = std::max(max_rcs2_nopin, rcs2);
+        }
+    }
+    // ---- end TEMPORARY DIAGNOSTIC ----------------------------------------
+
     ev.cs = std::sqrt(cs2);
-    ev.gam1 = rho * cs2 / std::max(p, tiny);
+    // FPE-trap hygiene only (plan Step 3): gam1 has no consumer outside the
+    // gas/table files (the general-EOS Riemann solvers read e and cs via
+    // get_face_eval_from_prim), and with cs2 already capped above this
+    // floor is a backstop, not the fix. Use the established idiom for a
+    // pressure floor in this file (:1450, :1484): the union in-hull minimum
+    // p_floor, guarded by effective_zero the same way.
+    ev.gam1 = rho * cs2 / std::max(p, std::max(effective_zero, p_floor));
     ev.dpde = ev.dpdT / ev.cv;
     ev.dedrho = ev.dpdrho * dedp;  // (de/drho)|_T = (dp/drho)|_T Sum w_k dedrho_k/D_k
     ev.dpdr_e = ev.dpdrho - ev.dpde * ev.dedrho;
@@ -838,6 +948,15 @@ void MixtureEOS::amagat_solve_T(Real rho,
             // interior evaluation is not necessarily at p*)
             Real dvdT, dvdp;
             amagat_volume_sum(p_sol, T, false, stq, dvdT, dvdp);
+            // cv_eff is the OUTER SOLVE's slope estimate, not an exported
+            // quantity, so it keeps the pre-fix frozen-cv convention for
+            // pinned components on purpose (plan Step 6): this only steers
+            // the T-bracket's Newton iteration, and the guarded bracket +
+            // bisection owns convergence regardless of slope accuracy here.
+            // It now disagrees with the assembled ev.cv (amagat_assemble
+            // gives pinned components their edge-compliance cv via Remedy
+            // A) — that is expected, not a bug: the FINAL amagat_assemble
+            // call after this solve converges is what produces ev.cv.
             Real esum = 0.0, cv_eff = 0.0;
             for (const int k : m_retained) {
                 esum += m_w[k] * m_evk[k].e;
