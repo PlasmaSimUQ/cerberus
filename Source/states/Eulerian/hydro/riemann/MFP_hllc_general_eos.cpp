@@ -74,6 +74,7 @@ void HydroHLLCGeneralEOS::solve(Vector<Real>& L,
 {
     BL_PROFILE("HydroHLLCGeneralEOS::solve_reuse");
 
+
     const size_t n_alpha = L.size() - +HydroDef::PrimIdx::NUM;
     const size_t n_flux = +HydroDef::ConsIdx::NUM + n_alpha;
 

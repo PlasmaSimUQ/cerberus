@@ -11,6 +11,8 @@ CEXE_headers += MFP_hllc_general_eos.H
 CEXE_sources += MFP_hllc_general_eos.cpp
 
 CEXE_headers += MFP_hlle_general_eos.H
+# TEMPORARY diagnostic header (2026-08-12); remove with the probe.
+CEXE_headers += MFP_riemann_state_probe.H
 CEXE_sources += MFP_hlle_general_eos.cpp
 
 CEXE_headers += MFP_hybrid_hll_general_eos.H

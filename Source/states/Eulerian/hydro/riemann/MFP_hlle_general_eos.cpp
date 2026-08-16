@@ -57,6 +57,7 @@ void HydroHLLEGeneralEOS::solve(Vector<Real>& L,
 
     const int n_alpha = L.size() - +HydroDef::PrimIdx::NUM;
 
+
     // get the data out of the passed in arrays
     Real rhoL = L[+HydroDef::PrimIdx::Density];
     Real uL = L[+HydroDef::PrimIdx::Xvel];

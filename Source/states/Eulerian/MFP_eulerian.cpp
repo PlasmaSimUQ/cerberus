@@ -1,5 +1,10 @@
 #include "MFP_eulerian.H"
 
+#include "MFP_riemann_state_probe.H"
+
+#include <map>
+#include <utility>
+
 #include "MFP.H"
 #include "MFP_transforms.H"
 
@@ -1131,6 +1136,17 @@ void EulerianState::calc_fluxes(const Box& box,
     size_t ncons = n_cons();
     size_t nprim = n_prim();
 
+#ifdef MFP_RIEMANN_PROBE
+    // TEMPORARY: conserved view for the probe, and a CTU pass tag. CTU calls
+    // calc_fluxes twice per box per step (MFP_CTU_hydro.cpp: once before and
+    // once after correct_face_prim) and the signature carries no pass
+    // argument, so count per (level, grid) and fold to 1/2. Single-threaded:
+    // OpenMP is force-disabled in the Makefile and the MFIter loop is untiled.
+    Array4<const Real> const& cons4 = cons.const_array();
+    static std::map<std::pair<int, int>, int> s_ctu_calls;
+    const int ctu_pass = ((++s_ctu_calls[{level, grid_idx}] - 1) % 2) + 1;
+#endif
+
     Array<int, 3> index;
     Vector<Real> L(nprim), R(nprim);
     Vector<Real> F(ncons);
@@ -1179,6 +1195,15 @@ void EulerianState::calc_fluxes(const Box& box,
                         L[n] = hi4(i - index[0], j - index[1], k - index[2], n);
                         R[n] = lo4(i, j, k, n);
                     }
+
+                    // TEMPORARY (2026-08-12): probe the RAW gathered face --
+                    // before apply_prim_floor rewrites rho/p and before
+                    // transform_global2local permutes the velocity components.
+                    // Probing after either would hide the very pathology we are
+                    // hunting and mislabel u/v/w on y- and z-faces.
+                    MFP_PROBE_FACE_AT_CELL(0, "calc_fluxes", ctu_pass, level, grid_idx, d, i, j,
+                                           k, dx, L, R, (int)nprim, cons4, (int)ncons,
+                                           index.data());
 
                     // guard the solver against non-positive density/pressure
                     // from any face source (reconstruction, CTU corrections)
@@ -1277,6 +1302,15 @@ void EulerianState::correct_face_prim(const Box& box,
                                       const Real* dx,
                                       const Real dt) const
 {
+    // TRANSVERSE-CORRECTION GUARD (2026-08-13). The corrections below are
+    // applied to EVERY conserved component with no positivity or consistency
+    // check, then handed straight to cons2prim -- which turns a driven-negative
+    // density into u = m/rho. Measured: 200 faces per step driven to
+    // Eden < 0 or rho <= 0 in the l=2 flight case, seeding velocities of
+    // O(1e3) and a dt collapse to 1.4e-10. Counters are locals reported at the
+    // end of this function, mirroring n_floor_hits in calc_fluxes.
+    long n_rej_rho = 0, n_rej_eden = 0, n_rej_tracer = 0, n_rej_nonfinite = 0;
+    Vector<Real> L_save, R_save;
     BL_PROFILE("EulerianState::correct_face_prim");
 
     const Dim3 lo = amrex::lbound(box);
@@ -1375,6 +1409,11 @@ void EulerianState::correct_face_prim(const Box& box,
                          * | - - loF_L - - | - - loF_R - - |
                          */
 
+                        // snapshot the UNCORRECTED conserved faces so an
+                        // invalid correction can be discarded wholesale
+                        L_save = L_cons;
+                        R_save = R_cons;
+
                         // left side
                         for (int n = 0; n < n_cons(); ++n) {
                             loF = flux4(i - idx1[0], j - idx1[1], k - idx1[2], n);
@@ -1394,6 +1433,82 @@ void EulerianState::correct_face_prim(const Box& box,
                             R_cons[n] += 0.5 * dt / dx[d2] * (loF - hiF);
                         }
 
+#ifdef MFP_RIEMANN_PROBE
+                        // DIAG-B RESTORED (2026-08-13): the ORIGINAL condition and
+                        // print, run on the SAME faces as the guard below, so the
+                        // two can be compared directly. DIAG-B fired 200 times
+                        // (8 ranks x its 25/rank cap) on this case while the guard
+                        // rejected zero -- if DIAG-B fires here and the guard still
+                        // does not, the discrepancy is in the guard's condition or
+                        // its snapshot/restore, not in reachability.
+                        {
+                            static int n_rep = 0;
+                            const Real rL = L_cons[+HydroDef::ConsIdx::Density];
+                            const Real rR = R_cons[+HydroDef::ConsIdx::Density];
+                            const Real eL = L_cons[+HydroDef::ConsIdx::Eden];
+                            const Real eR = R_cons[+HydroDef::ConsIdx::Eden];
+                            if (((rL <= 0.0) || (rR <= 0.0) || (eL < 0.0) || (eR < 0.0)) &&
+                                n_rep < 25) {
+                                ++n_rep;
+                                amrex::AllPrint()
+                                  << "\n[DIAG-B correct_face_prim] rank "
+                                  << amrex::ParallelDescriptor::MyProc() << " #" << n_rep
+                                  << "  cell=(" << i << "," << j << "," << k << ")"
+                                  << " d1=" << d1 << " d2=" << d2 << " dt=" << dt
+                                  << " dx2=" << dx[d2] << "\n    POST-corr  L rho=" << rL
+                                  << " Eden=" << eL << "   R rho=" << rR << " Eden=" << eR
+                                  << "\n    PRE-corr   L rho=" << L_save[+HydroDef::ConsIdx::Density]
+                                  << " Eden=" << L_save[+HydroDef::ConsIdx::Eden]
+                                  << "   R rho=" << R_save[+HydroDef::ConsIdx::Density]
+                                  << " Eden=" << R_save[+HydroDef::ConsIdx::Eden] << "\n";
+                            }
+                        }
+#endif
+
+                        // GUARD: reject a correction that produces a
+                        // non-physical face. Falling back to the uncorrected
+                        // face is a LOCAL, conservative degradation to the plain
+                        // second-order face -- exactly the state a
+                        // corner_transport=false run uses everywhere, which
+                        // completes this case cleanly. Applied per side.
+                        for (int side = 0; side < 2; ++side) {
+                            Vector<Real>& C = (side == 0) ? L_cons : R_cons;
+                            const Vector<Real>& S0 = (side == 0) ? L_save : R_save;
+
+                            bool nonfinite = false;
+                            Real tr_sum = 0.0;
+                            for (int n = 0; n < n_cons(); ++n) {
+                                if (!std::isfinite(C[n])) { nonfinite = true; }
+                            }
+                            for (int n = +HydroDef::ConsIdx::NUM; n < n_cons(); ++n) {
+                                tr_sum += C[n];
+                            }
+                            const Real rho_c = C[+HydroDef::ConsIdx::Density];
+                            const Real eden_c = C[+HydroDef::ConsIdx::Eden];
+
+                            int why = 0;  // 0 = keep
+                            if (nonfinite) {
+                                why = 4;
+                            } else if (rho_c <= 0.0) {
+                                why = 1;
+                            } else if (eden_c < 0.0) {
+                                why = 2;
+                            } else if (tr_sum > rho_c * (1.0 + 1.0e-12)) {
+                                why = 3;
+                            }
+
+                            if (why) {
+                                C = S0;  // discard the transverse correction
+                                switch (why) {
+                                    case 1: ++n_rej_rho; break;
+                                    case 2: ++n_rej_eden; break;
+                                    case 3: ++n_rej_tracer; break;
+                                    default: ++n_rej_nonfinite; break;
+                                }
+                            }
+                        }
+
+
                         // convert to primitive
                         cons2prim(L_cons, L_prim);
                         cons2prim(R_cons, R_prim);
@@ -1408,6 +1523,18 @@ void EulerianState::correct_face_prim(const Box& box,
             }
         }
     }
+
+    // TRANSVERSE-CORRECTION GUARD report, mirroring the prim-floor report in
+    // calc_fluxes. Split by which invariant failed: that distinction says
+    // whether the tracer path needs separate attention or whether the
+    // correction is simply overdriving density/energy.
+    const long n_rej_total = n_rej_rho + n_rej_eden + n_rej_tracer + n_rej_nonfinite;
+    if ((n_rej_total > 0) && (MFP::verbosity >= 2)) {
+        amrex::AllPrint() << "[" << name << "] transverse-correction rejected " << n_rej_total
+                          << " face sides  box=" << box << "  (rho<=0: " << n_rej_rho
+                          << ", Eden<0: " << n_rej_eden << ", sum(tracer)>rho: " << n_rej_tracer
+                          << ", non-finite: " << n_rej_nonfinite << ")\n";
+    }
 }
 
 #ifdef AMREX_USE_EB
@@ -1419,6 +1546,7 @@ Real EulerianState::interp2d(
     return czm * (cym * v(0, 0) + cy0 * v(1, 0) + cyp * v(2, 0)) +
            cz0 * (cym * v(0, 1) + cy0 * v(1, 1) + cyp * v(2, 1)) +
            czp * (cym * v(0, 2) + cy0 * v(1, 2) + cyp * v(2, 2));
+
 }
 
 void EulerianState::calc_wall_fluxes(const Box& box,
