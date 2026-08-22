@@ -104,12 +104,29 @@ def _geom_bridge(x, xa, ya, xb, yb):
     return ya + (yb - ya) * t
 
 
-def crossover_isotherm(rho, p, e, flat_tol=1e-13, rel_eps=1e-12):
+KNEE_GAP = 1.5  # min anchor/foot ratio for the hug shape to engage
+
+
+def crossover_isotherm(rho, p, e, flat_tol=1e-13, rel_eps=1e-12,
+                       p_foot=None, allow_maxwell=True):
     """Condition one isotherm: strictly-monotone p(rho), lever-rule e.
 
     Returns (p2, e2, mask, info): mask flags every cell whose value was
     replaced (-> hull 0 in the emitted table); info records the route
     ('none' | 'flat' | 'maxwell' | 'ramp') and counts.
+
+    p_foot (cgs, quiet-foot plan A): when set, every rebuilt bridge whose
+    left edge is below p_foot and whose anchor exceeds KNEE_GAP*p_foot
+    hugs p_foot at the top of the replaced span (the knee), confining the
+    steep rise to the single cell before the anchor — instead of the
+    legacy log-linear ramp across the whole span, which parks
+    anchor-scale (GPa) values at the solid's own density. Legacy shape is
+    byte-identical when p_foot is None.
+
+    allow_maxwell=False routes folded isotherms to the ramp rebuild
+    without an equal-area construction — required for the post-blend
+    crossover in coldext, where negatives are construction tension and a
+    tie line is meaningless (quiet-foot plan B / Al 96.5 GPa defect).
     """
     lrho = np.log10(rho)
     p2 = p.astype(float).copy()
@@ -128,7 +145,8 @@ def crossover_isotherm(rho, p, e, flat_tol=1e-13, rel_eps=1e-12):
     # 1. Maxwell placement on folded isotherms (before any repair, while
     #    the loop is exactly representable)
     if has_dec:
-        mx = equal_area_pstar(rho, p2) if not has_nonpos else None
+        mx = (equal_area_pstar(rho, p2)
+              if allow_maxwell and not has_nonpos else None)
         if mx is not None:
             pstar, i0, i1 = mx
             p2[i0:i1 + 1] = pstar
@@ -163,8 +181,15 @@ def crossover_isotherm(rho, p, e, flat_tol=1e-13, rel_eps=1e-12):
         while j < n - 1 and pm[j + 1] <= pm[i] * (1.0 + flat_tol):
             j += 1
         if j < n - 1:
-            pm[i + 1:j + 1] = _geom_bridge(lrho[i + 1:j + 1], lrho[i], pm[i],
-                                           lrho[j + 1], pm[j + 1])
+            if (p_foot is not None and pm[i] < p_foot
+                    and pm[j + 1] > KNEE_GAP * p_foot):
+                # floor-hugging shape: knee at the top of the span holds
+                # p_foot; the rise to the anchor is the final cell only
+                pm[i + 1:j + 1] = _geom_bridge(lrho[i + 1:j + 1], lrho[i],
+                                               pm[i], lrho[j], p_foot)
+            else:
+                pm[i + 1:j + 1] = _geom_bridge(lrho[i + 1:j + 1], lrho[i],
+                                               pm[i], lrho[j + 1], pm[j + 1])
         else:  # flat run reaches the top of the grid: epsilon up-ramp
             pm[i + 1:] = pm[i] * (1.0 + rel_eps) ** np.arange(1, n - i)
         i = j
@@ -192,11 +217,19 @@ def crossover_isotherm(rho, p, e, flat_tol=1e-13, rel_eps=1e-12):
     return p2, e2, mask, info
 
 
-def condition_surface(rho, T, p, e, flat_tol=1e-13):
+P_FOOT_TILT = 1e-3  # strict-dpdT tilt on the hugged foot (quiet-foot D1)
+
+
+def condition_surface(rho, T, p, e, flat_tol=1e-13, p_foot=None,
+                      allow_maxwell=True):
     """Apply crossover_isotherm to every column of p, e (Nr, Nt).
 
     Returns (p2, e2, mask, stats); stats feed the conditioning provenance
     line (routes, replaced-cell count, tie-line pressures range).
+
+    p_foot (cgs): quiet-foot target, tilted upward by P_FOOT_TILT across
+    the T axis so the hugged foot stays strictly increasing in T (no
+    exact flats for the (rho, p) -> T inversion to trip on).
     """
     nr, nt = p.shape
     p2 = np.empty_like(p, dtype=float)
@@ -205,7 +238,11 @@ def condition_surface(rho, T, p, e, flat_tol=1e-13):
     routes = {"none": 0, "flat": 0, "maxwell": 0, "ramp": 0}
     pstars = []
     for j in range(nt):
-        pj, ej, mj, info = crossover_isotherm(rho, p[:, j], e[:, j], flat_tol)
+        pf = (p_foot * (1.0 + P_FOOT_TILT * j / max(nt - 1, 1))
+              if p_foot is not None else None)
+        pj, ej, mj, info = crossover_isotherm(rho, p[:, j], e[:, j], flat_tol,
+                                              p_foot=pf,
+                                              allow_maxwell=allow_maxwell)
         p2[:, j], e2[:, j], mask[:, j] = pj, ej, mj
         routes[info["route"]] += 1
         if info["pstar"] is not None:

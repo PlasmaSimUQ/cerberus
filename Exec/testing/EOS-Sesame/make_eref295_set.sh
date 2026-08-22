@@ -25,11 +25,17 @@ set -euo pipefail
 SES=${SES:-/mnt/c/Users/ktap0992/Downloads/sesame-unc/sesame-unc.ascii2}
 PREP="python3 ../../python_analysis/eos_table_prep.py"
 MARGIN=2.0e13   # erg/g ~ 4.8 code units (e_ref = 4.1293e12 erg/g)
+FOOT_BAR=${FOOT_BAR:-1.0}  # quiet-foot target for the SOLID member (bar)
 
 # Reference states: each material's fill density at the 295 K operating
-# point; air/D2 get the MOLECULAR floor mass.
-TI_ARGS="--mat 2963 --lT 1.25 9.0 384 --lrho -5.30 1.69897 576 \
-  --c-cav 5.34 --cold-extend --e-ref-state 4.1856 295"
+# point; air/D2 get the MOLECULAR floor mass. The solid gets the
+# quiet-foot ramp (doc/eos_quiet_foot_plan.md); gases stay legacy (D3).
+# lrho hi is chosen so log10(rho0 = 4.93) is EXACTLY a lattice node
+# (node 492 of 576): the bilinear reader then returns the quiet foot at
+# rho0 itself instead of blending across the knee cell into the
+# compression branch. rho_hi = 50.56 g/cc (~10.3x rho0, was 50).
+TI_ARGS="--mat 2963 --lT 1.25 9.0 384 --lrho -5.30 1.7038353223 576 \
+  --c-cav 5.34 --cold-extend --p-foot $FOOT_BAR --e-ref-state 4.1856 295"
 D2_ARGS="--mat 5267 --table 301 --n-rho 576 --n-T 384 \
   --floor-mass-amu 4.028 --e-ref-state 0.14775 295"
 AIR_ARGS="--mat 5031 --table 301 --n-rho 576 --n-T 384 \

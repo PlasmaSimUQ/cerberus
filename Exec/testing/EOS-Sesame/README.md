@@ -53,7 +53,8 @@ energy zero — see the eref295 record below) has its own one-batch
 driver:
 
 ```sh
-SES=... bash make_eref295_set.sh   # probe -> shared S -> emit + QA + spread gate
+SES=... bash make_eref295_set.sh      # probe -> shared S -> emit + QA + spread gate
+SES=... bash make_eref295_solids.sh   # Al + diamond onto the same gauge (S fixed)
 ```
 
 Regeneration gate (SS1 precedent): byte-identical to the committed
@@ -298,6 +299,108 @@ of scope here, but it will bite re-referenced TiD Braginskii cases;
 follow-up item. Acceptance still pending: MIXEOS self-tests + the
 run-side 1D reproducers at production drop_tol (zero Riemann fallbacks;
 pin/rail counters recorded).
+
+## eref295 solids record (2026-08-11) — aluminum + diamond on the same gauge
+
+**`data/{aluminum_3720_coldext_eref295,
+diamond_7834_s301_eref295}.eostab(.gz)`** — two alternate solid members
+emitted onto the *existing* eref295 gauge (`make_eref295_solids.sh`):
+`S = 2.0017551224e13` adopted verbatim (never recomputed — recomputing
+would re-gauge the shipped set; the driver cross-checks the D2 header),
+with the one remaining gate that post-reference minima stay in the
+O(1)–O(10)-code band: **Al 4.840, diamond 4.846 code — PASS**. Both
+referenced at their 201 ρ₀ at 295 K (Al 2.70, diamond 3.515 g/cc).
+Beryllium was the original request and is **not possible from this
+library**: sesame-unc.ascii2 carries only Be conductivity (22021/22024)
+and combined melt/shear (32020/32025, 411/431) materials — no 301/311
+pressure–energy surface (the classic 2020/2021/2023 tables are not in
+the unclassified release).
+
+**Aluminum 3720** (Crockett 2003, 311, Helmholtz-consistent) gets the
+full Ti-style cold extension on the shared mixture bracket
+(lT 1.25..9 ×384, lρ −5.56..1.4314 ×576 = native min..10×ρ₀). This
+required generalising two formerly Ti-hard-coded knobs, both opt-in and
+byte-preserving for the default path (Ti probe reproduces
+min_full = −9.0300113996e8 exactly): `--fit-rho` (Vinet window; the
+default (4, 12) extrapolates at Al's ρ₀ = 2.70 → ambient residual
++3.99 GPa, gate FAIL; the chosen (2.2, 8.0) keeps the tension foot that
+pins v₀ and gives −0.31 GPa, rms 1.06e-1, ρ₀K = 2.755, B₀ = 64 GPa vs
+raw-306 slope 74) and `--z-cond` (Sommerfeld valence, Al = 3). H5
+offset constancy 3.08 kT (gate 5.0); overlap p-mismatch max 7.28
+(report-only; Ti ships 5.45e-1 — Al's blend edge is rougher). Reference
+sits on constructed fill (hull 0), Ti caveat (5) applies identically.
+
+**Diamond 7834** (Crockett 2006, 301) has no 411 melt table → no cold
+extension possible; it gets the D2/air treatment: native hull
+(ρ 3.52e-6..7.03e4 g/cc, T 72.53..1.16e9 K), raised 112×79 → 576×384.
+Source is rough (43 looped isotherms, 1043 nonpositive cells → 3
+Maxwell + 40 ramp constructions, 1118 band cells) but emits G1-clean;
+hull 86.3%; LOO p rel median 8.0e-5. Its reference point has hull
+weight 0.92 (mostly real data). Diamond-retaining mixture cells narrow
+the T-bracket to [72.53 K, 1.16e9 K] — same class as air's 100 K rail.
+
+`--c-cav` pinned for both by the Ti convention (T-floor isotherm slope
+at the first column above the crossover tension foot, ~1.1–1.2×ρ₀):
+Al **5.82** km/s at 3.04 g/cc, diamond **12.7** km/s at 3.83 g/cc. The
+data-derived default measures ON the repaired foot and lands 2.7 (Al) /
+1.06 (diamond) km/s — far below the bulk sound speeds (~5.3 / ~11.2);
+pinning keeps the cavitated-response floor physical and
+grid-independent.
+
+Caveats (1)–(6) of the eref295 record apply unchanged; the five-table
+family {Ti, D2, air, Al, diamond} shares one gauge, so any mixture
+subset is legal — but never together with old-gauge tables.
+
+## Quiet-foot re-emission (2026-08-11) — solid ICs at ~ambient pressure
+
+All three solid tables re-emitted (`doc/eos_quiet_foot_plan.md`; D2/air
+byte-identical, S and the gauge unchanged to the last digit, five-table
+spread 6.86e-11 code). Motivation: a solid initial condition
+(fluid-represented) must not over-expand — but the emitted 295 K
+isochores at solid density read 1.45 (Ti), 96.7 (Al!), 0.58 (diamond)
+GPa where raw data and physics say ~bar scale.
+
+Two mechanism classes fixed:
+- **Ramp-level artifact (all solids)**: the raw 311s pin the whole
+  sub-solid region — vacuum THROUGH ρ₀ — at one placeholder value
+  (Al 7.9e-82, Ti 2.0e-254 GPa); H1 replaces the flat with a ramp
+  whose log-linear span parks anchor-scale pressure at ρ₀. Fix:
+  `--p-foot` floor-hugging shape (see flag table in Quickstart) —
+  opt-in, legacy byte-identical when absent.
+- **Solid-model spike below the spinodal (Al, latent for any coldext
+  material)**: a single-cell +96.3 GPa value at 1.943 g/cc — the
+  Slater theta's hard B-floor kink at the Vinet spinodal — propagated
+  table-wide by the crossover envelope (NOT the Maxwell construction;
+  ramp-only reproduced the identical plateau). Fixes, all
+  unconditional in `cold_extend_stage`: spinodal validity floor
+  (`rho_min=` in the cond string), construction right-envelope clamp
+  (hull-0 cells capped below the smallest genuine p at larger ρ on
+  their isotherm), ramp-only crossover-2, and a hull guard that
+  refuses to emit if pristine cells move > 50% (measured ladder:
+  legitimate seam/dome ripple 5–15%, the defect 3400%).
+
+**ρ₀-aligned lattices (same-day follow-up)**: the first emission left
+GPa-scale readings *at* ρ₀ although every stored node ≤ ρ₀'s cell was
+quiet — the lattice had no node at ρ₀, so the reader's linear-in-value
+bilinear blend across the single knee cell (1 bar → ~1 GPa genuine
+compression at the first node above ρ₀K) dominated any sample inside
+that gap. Fix: the Ti/Al `--lrho` upper endpoints are now chosen so
+log10(ρ₀) is EXACTLY a lattice node (Ti hi = 1.7038353223, node 492;
+Al hi = 1.4278989136, node 493 — see driver comments). Off-node sample
+densities inside the knee cell still read the blend — that smear is
+irreducible at 2.84%/cell and is precisely what the piecewise-uniform
+axis proposal would sharpen.
+
+Results at 295 K (`foot_achieved=` in each header): Ti 0.198 bar at
+its 4.1856 fill and 1 bar at ρ₀ = 4.93 exactly; Al **1 bar at ρ₀ =
+2.70 exactly** (was 96.7 GPa); diamond 5798 bar unchanged-and-correct
+(its ρ₀ node is genuine +0.32 GPa source data; fill at ≤3.50 g/cc for
+a quiet IC). All sub-ρ₀ cold isochores hug the foot to ~300 K then
+track the raw thermal rise; above ρ₀K the compression branch matches
+raw. Gates: pytest 82, T1 (D2/air), check.py PASS ×12, minima band +
+spread (1.22e-10 code) PASS. Deck fill densities should still be read
+off each table's own 295 K isotherm; ρ₀ itself is now a safe choice
+for Ti and Al.
 
 ## Harness
 

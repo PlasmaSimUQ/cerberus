@@ -268,7 +268,9 @@ def cmd_sesame(args):
     g1_report(g1_scan(p_s), "raw")
 
     # --- stages 3-4: Maxwell placement + monotone crossover --------------
-    p_c, e_c, band, mx = condition_surface(rho_s, T_s, p_s, e_s)
+    p_foot_cgs = args.p_foot * 1e6 if args.p_foot else None  # bar -> cgs
+    p_c, e_c, band, mx = condition_surface(rho_s, T_s, p_s, e_s,
+                                           p_foot=p_foot_cgs)
     print("crossover: %(n_maxwell)d maxwell / %(n_flat)d flat / "
           "%(n_ramp)d ramp isotherms; %(n_band_cells)d band cells" % mx)
 
@@ -330,7 +332,8 @@ def cmd_sesame(args):
         from .coldext import cold_extend_stage
         p, e, hull, band_g, ce = cold_extend_stage(
             args.src, args.mat, raw, lrho, lT, p, e, hull, band_g,
-            f_melt=args.melt_frac, align_tol=args.align_tol)
+            f_melt=args.melt_frac, align_tol=args.align_tol,
+            fit_rho=args.fit_rho, z_c=args.z_cond, p_foot=p_foot_cgs)
 
     # post-regrid enforcement (PCHIP can ripple): rho first, then T —
     # cummax along T preserves rho-monotonicity elementwise
@@ -475,17 +478,35 @@ def cmd_sesame(args):
     if args.floor_mass_amu:
         cond += (" floor_mass_amu=%g floor_floored=%d floor_demote_tol=0.95"
                  % (args.floor_mass_amu, int(sub.sum())))
+    if args.p_foot:
+        from .maxwell import P_FOOT_TILT
+        cond += " p_foot=%gbar foot_tilt=%g" % (args.p_foot, P_FOOT_TILT)
+        if args.e_ref_state:
+            from .condition import sample_bilinear
+            try:
+                foot = sample_bilinear(lrho, lT, p, args.e_ref_state[0],
+                                       295.0) / 1e6
+                cond += " foot_achieved=%.4gbar" % foot
+                print("quiet foot: p(%g g/cc, 295 K) = %.4g bar "
+                      "(target %g bar, approximately enforced)"
+                      % (args.e_ref_state[0], foot, args.p_foot))
+            except ValueError:
+                pass  # reference outside the axes: no foot record
     if ce:
         v0, B0, B0p = ce["fit"]["vinet"]
         cond += (" cold_extend=vinet306(rho0K=%.4f,B0=%.4e,B0p=%.3f,"
                  "rms=%.2e,n=%d,theta0=%.0fK) melt_cap=411 f=%.2f "
-                 "rho_max=%g cols=%d zone1=%d blend=%d bridge=%d trunc=%d "
+                 "rho_max=%g rho_min=%.4g cols=%d zone1=%d blend=%d bridge=%d trunc=%d "
                  "align_e=%.6e align_stdkT=%.3f pmis=%.2e cx2_band=%d"
                  % (1.0 / v0, B0, B0p, ce["fit"]["rms"], ce["fit"]["n"],
                     ce["model"]["theta0"], ce["f_melt"], ce["rho_max"],
+                    ce["rho_min"],
                     ce["cols"], ce["zone1"], ce["blend"], ce["bridge"],
                     ce["blend_trunc"], ce["align_cE"], ce["align_std_kT"],
                     ce["p_mismatch_max"], ce["cx2_new_band"]))
+        if args.fit_rho or args.z_cond:
+            cond += (" fit_rho=[%g,%g] z_cond=%g"
+                     % (ce["fit_rho"][0], ce["fit_rho"][1], ce["z_c"]))
     prov = [
         ("material", name),
         ("source", "SESAME ASCII2 %s (sha256 %s) material %d table %d; "
@@ -630,6 +651,24 @@ def main():
                         "only cells < 0.95*kT/m are demoted")
     s.add_argument("--no-verify-src", action="store_true",
                    help="skip the S1 sha256 gate against sources.yaml")
+    s.add_argument("--fit-rho", type=float, nargs=2, default=None,
+                   metavar=("LO", "HI"),
+                   help="--cold-extend Vinet fit window in g/cc (default "
+                        "4 12, the 2963-measured range-stable window; other "
+                        "materials must scale it to ~0.8-2.4x their own "
+                        "201 rho0)")
+    s.add_argument("--z-cond", type=float, default=None,
+                   help="--cold-extend conduction-electron count per atom "
+                        "for the Sommerfeld electronic term (default 4, "
+                        "titanium's valence; aluminum 3)")
+    s.add_argument("--p-foot", type=float, nargs="?", const=1.0,
+                   default=None, metavar="BAR",
+                   help="quiet-foot target pressure in bar (1.0 if the "
+                        "flag is given bare): crossover bridges hug this "
+                        "value across clipped/tension spans, confining the "
+                        "steep rise to the final cell before the data "
+                        "anchor, with a 1e-3 T-tilt so dpdT stays > 0. "
+                        "Absent = legacy full-span ramp (byte-identical)")
     s.add_argument("--cold-extend", action="store_true",
                    help="T3/T4 (ti_splice_plan_v2): replace the sub-hull "
                         "cold fill with the 306-fitted solid model, capped "

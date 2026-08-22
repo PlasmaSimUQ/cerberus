@@ -79,8 +79,27 @@ def check_cold_model(model, rho0, cc, p_tol_gpa=0.5):
     return rep
 
 
+def vinet_spinodal(vinet, rho_hi):
+    """Highest density at which the Vinet cold curve is mechanically
+    unstable (B_cold = -v dP/dv <= 0). Below this density no solid exists
+    even metastably, the Slater theta rides its hard 1e-4*B0 floor, and
+    the model's FD pressure is garbage at the floor kink — measured on Al
+    3720 as a single-cell +96 GPa spike at 1.94 g/cc that the crossover
+    envelope then propagated across the whole cold table. The solid model
+    must never be evaluated at or below this density."""
+    from .models.coldcurve import vinet_p
+    v0, B0, B0p = vinet
+    rho = np.linspace(0.05 / v0, rho_hi, 4000)
+    v = 1.0 / rho
+    h = 1e-6 * v
+    B = -v * (vinet_p(v + h, v0, B0, B0p)
+              - vinet_p(v - h, v0, B0, B0p)) / (2.0 * h)
+    bad = np.flatnonzero(B <= 0.0)
+    return float(rho[bad[-1]]) if bad.size else 0.0
+
+
 def cold_extend(lrho, lT, p, e, hull, band, model, Tm, f_melt=0.9,
-                align_tol=5.0, m_ref=None, rho_max=None):
+                align_tol=5.0, m_ref=None, rho_max=None, rho_min=None):
     """Apply the three-zone extension in place on copies; returns
     (p, e, hull, band, stats). Arrays are (Nr, Nt); hull/band as in
     cmd_sesame after the band remap. Tm is T_m on the lrho axis.
@@ -113,6 +132,10 @@ def cold_extend(lrho, lT, p, e, hull, band, model, Tm, f_melt=0.9,
     ext = (j_cap >= 0) & (j_hull >= 0)
     if rho_max is not None:
         ext &= (10.0 ** np.asarray(lrho, float)) <= rho_max
+    if rho_min is not None:
+        # solid-model validity floor (spinodal): excluded columns keep the
+        # backbone fill, exactly like the rho_max ceiling
+        ext &= (10.0 ** np.asarray(lrho, float)) >= rho_min
     if not ext.any():
         return p, e, hull, band, dict(cols=0)
 
@@ -212,10 +235,25 @@ def cold_extend(lrho, lT, p, e, hull, band, model, Tm, f_melt=0.9,
     return p, e, hull, band, stats
 
 
+HULL_GUARD_REL = 0.5  # crossover-2 may not move pristine cells > 50%
+# Measured ladder on Al 3720: legitimate repairs (rho_max seam ripple,
+# dome-edge re-repair on the finer target grid) move a handful of cells
+# by 5-15% and are hull-demoted; the defect class this guard exists for
+# (construction dragged across the genuine branch by the monotone
+# rebuild) moved cells by 3400%. 50% separates the bands with margin.
+
+
 def cold_extend_stage(src, mat_id, raw, lrho, lT, p, e, hull, band,
-                      f_melt=0.9, align_tol=5.0):
+                      f_melt=0.9, align_tol=5.0, fit_rho=None, z_c=None,
+                      p_foot=None):
     """Full T3/T4 stage for cmd_sesame: read 306/411, fit + gate the solid
     model, extend, then the second crossover pass (plan v2 §0.3).
+
+    fit_rho: Vinet fit window in g/cc (default (4, 12), the 2963-measured
+    range-stable window ~0.8-2.4x that material's rho0 — other materials
+    must scale it to their own rho0 or the gate fails on extrapolation).
+    z_c: conduction-electron count for the Sommerfeld term (default 4,
+    titanium's valence).
 
     Hull policy on the second pass: cells the crossover moves by more than
     1e-6 relative (or that were nonpositive) are banded/hull-0; smaller
@@ -232,10 +270,11 @@ def cold_extend_stage(src, mat_id, raw, lrho, lT, p, e, hull, band,
                            "(abar, rho0)")
     cc = read_sesame_1d(src, mat_id, 306)
     ml = read_sesame_1d(src, mat_id, 411)
-    fit_rho = (4.0, 12.0)             # Vinet window = extension validity
+    fit_rho = tuple(fit_rho) if fit_rho else (4.0, 12.0)  # window = extension validity
+    z_c = float(z_c) if z_c else 4.0
     vinet, rms, n_fit = fit_from_306(cc, *fit_rho)
     model = TitaniumColdModel(vinet=vinet, m_atom=float(raw["abar"]) * AMU_G,
-                              vinet_rms=rms)
+                              z_c=z_c, vinet_rms=rms)
     rep = check_cold_model(model, float(raw["rho0"]), cc)
     print("cold model (306 fit, n=%d, rms=%.2e): rho0K=%.4f g/cc  "
           "B0=%.1f GPa (raw306 %.1f)  B0p=%.3f  p(rho0,300K)=%+.3f GPa  "
@@ -243,11 +282,17 @@ def cold_extend_stage(src, mat_id, raw, lrho, lT, p, e, hull, band,
           % (n_fit, rms, rep["rho0K"], rep["B0_gpa"], rep["B306_gpa"],
              rep["B0p"], rep["p_amb_gpa"], rep["theta0"]))
 
+    rho_spin = vinet_spinodal(vinet, 1.0 / vinet[0])
+    rho_min = rho_spin * 1.06  # ~2 target cells clear of the theta kink
+    print("solid-model validity floor: spinodal %.4f g/cc -> rho_min %.4f"
+          % (rho_spin, rho_min))
+
     Tm = melt_curve_on(lrho, ml)
+    p_bb = p  # pristine backbone (cold_extend works on copies)
     p, e, hull, band, st = cold_extend(lrho, lT, p, e, hull, band, model,
                                        Tm, f_melt=f_melt,
                                        align_tol=align_tol,
-                                       rho_max=fit_rho[1])
+                                       rho_max=fit_rho[1], rho_min=rho_min)
     print("cold-extend (melt cap 411, f=%.2f, rho<=%g): %d cols; zone1=%d "
           "blend=%d bridge=%d trunc=%d; H5 cE=%.4e erg/g "
           "(std/kT %.3f, n=%d); overlap p-mismatch max %.2e"
@@ -255,17 +300,52 @@ def cold_extend_stage(src, mat_id, raw, lrho, lT, p, e, hull, band,
              st["bridge"], st["blend_trunc"], st["align_cE"],
              st["align_std_kT"], st["align_n"], st["p_mismatch_max"]))
     st["rho_max"] = fit_rho[1]
+    st["rho_min"] = rho_min
+
+    # construction must respect the genuine right-envelope on every
+    # isotherm: a hull-0 value above the smallest genuine p at larger rho
+    # would force the monotone rebuild to drag source data upward
+    # (measured on Al 3720: bridge cells at ~2.4 g/cc, 978 K exceeding
+    # the genuine liquid at 2.57 by 2.5x)
+    ceil = np.where(hull > 0.5, p, np.inf)
+    ceil = np.minimum.accumulate(ceil[::-1, :], axis=0)[::-1, :]
+    over = (hull <= 0.5) & (p > ceil)
+    if over.any():
+        p = np.where(over, ceil * (1.0 - 1e-9), p)
+        print("construction right-envelope clamp: %d cells capped below "
+              "the genuine branch" % int(over.sum()))
+    st["env_clamped"] = int(over.sum())
 
     p0 = p
+    # quiet-foot plan B: ramp-only — post-blend negatives are construction
+    # tension, never coexistence, so an equal-area tie line is meaningless
+    # here (and, measured on Al 3720, catastrophic: a 96.5 GPa flat across
+    # genuine hull cells)
     p2, e2, _mask, mx2 = condition_surface(10.0 ** np.asarray(lrho, float),
                                            10.0 ** np.asarray(lT, float),
-                                           p, e)
+                                           p, e, p_foot=p_foot,
+                                           allow_maxwell=False)
     sig = (np.abs(p2 - p0) > 1e-6 * np.maximum(np.abs(p0), 1e-300)) | (p0 <= 0.0)
+    # hull guard: PRISTINE source cells (hull-1 and untouched by the
+    # blend — zone-2 legitimately writes on hull-1 cells and its tension
+    # is crossover-2's to repair) must survive the repair
+    untouched = np.abs(p0 - p_bb) <= 1e-9 * np.maximum(np.abs(p_bb), 1e-300)
+    guard = (np.abs(p2 - p0) > HULL_GUARD_REL * np.maximum(np.abs(p0), 1e-300)) \
+        & (hull > 0.5) & untouched
+    if guard.any():
+        ii, jj = np.unravel_index(int(np.argmax(np.abs(p2 - p0) * guard)),
+                                  p0.shape)
+        raise RuntimeError(
+            "crossover-2 HULL GUARD: %d genuine (hull-1) cells moved > %g "
+            "rel; worst at rho=%.4g g/cc T=%.4g K: %.4g -> %.4g erg/cc — "
+            "construction is eating source data, refusing to emit"
+            % (int(guard.sum()), HULL_GUARD_REL,
+               10.0 ** lrho[ii], 10.0 ** lT[jj], p0[ii, jj], p2[ii, jj]))
     n_new = int((sig & ~band).sum())
     band = band | sig
     hull = np.where(sig, 0.0, hull)
-    print("crossover-2 (post-blend): %d maxwell / %d flat / %d ramp "
-          "isotherms; %d newly banded cells"
+    print("crossover-2 (post-blend, ramp-only): %d maxwell / %d flat / "
+          "%d ramp isotherms; %d newly banded cells; hull-guard clean"
           % (mx2["n_maxwell"], mx2["n_flat"], mx2["n_ramp"], n_new))
     # NOTE (measured, 2963): a post-crossover per-column re-grade of the
     # gap columns' T-structure was tried and removed — monotonise_rho's
@@ -274,5 +354,6 @@ def cold_extend_stage(src, mat_id, raw, lrho, lT, p, e, hull, band,
     # way (2-D monotonicity squeeze). A genuinely T-graded gap needs the
     # deferred R1 vapor-branch model, not a patch here.
     st.update(f_melt=f_melt, fit=dict(vinet=vinet, rms=rms, n=n_fit),
-              model=rep, cx2_new_band=n_new, cx2=mx2)
+              model=rep, cx2_new_band=n_new, cx2=mx2,
+              fit_rho=fit_rho, z_c=z_c)
     return p2, e2, hull, band, st

@@ -79,6 +79,9 @@ Options:
 | `--n-rho/--n-T` | target grid counts (source counts — the floor, not the recommendation; raise if the LOO/QA numbers say so, see §4) |
 | `--T-min K`, `--rho-min g/cc` | trim the source grid (T=0 and ρ=0 rows are always dropped — log axes cannot hold zero) |
 | `--c-cav km/s` | override the cavitated-response sound speed (default: √(B_S/ρ₀) from the 201 table, else the coldest-isotherm slope at the first non-band cell at/above ρ₀) |
+| `--fit-rho LO HI` | `--cold-extend` Vinet fit window in g/cc (default 4 12 — 2963's measured window; scale to ~0.8–2.4× the material's own ρ₀, keeping the 306 tension foot inside or v₀ is unpinned) |
+| `--z-cond N` | `--cold-extend` conduction-electron count for the Sommerfeld term (default 4 = Ti; Al 3) |
+| `--p-foot [BAR]` | quiet-foot target (1.0 if given bare; absent = legacy): crossover bridges hug this pressure across clipped/tension spans instead of the full-span log ramp that parks anchor-scale GPa at ρ₀; steep rise confined to the final cell before the data anchor; 1e-3 T-tilt keeps dpdT > 0. The achieved value at the `--e-ref-state` density is recorded as `foot_achieved=` (genuine data is never overridden — diamond's ρ₀ node carries real +0.32 GPa and reports honestly) |
 | `--out path` | output path |
 
 ## 3. What the tool does to the original data — every approximation
@@ -184,7 +187,11 @@ structure is deliberately traded away. In pipeline order:
     p is never shifted (overlap mismatch reported). A second crossover
     pass repairs the solid model's tension foot (ρ < ρ₀) with the
     standard monotone ramp + lever-rule e. All model-supplied and bridge
-    cells are hull-0.
+    cells are hull-0. The fit window and valence are per-material knobs
+    (`--fit-rho`, `--z-cond`): the defaults are 2963's, and applying them
+    to a material with a different ρ₀ makes the ambient-pressure gate
+    fail on extrapolation (measured on Al 3720: +3.99 GPa at ρ₀ under
+    the default window; −0.31 GPa with `--fit-rho 2.2 8.0`).
 
 Every count above is recorded in the emitted header's `conditioning:`
 line, e.g.:
@@ -207,7 +214,7 @@ T-bracket (the constructor intersects component T-hulls bitwise). Pass
 the axes explicitly:
 
 ```sh
-# the Ti casing table on the shared mixture bracket [17.78 K, 1e9 K]:
+# the Ti solid table on the shared mixture bracket [17.78 K, 1e9 K]:
 $PREP sesame --src $SES --mat 2963 --lT 1.25 9.0 384 \
     --lrho -5.30 1.69897 576 --c-cav 5.34 \
     --out data/ti-beta-21s_2963_trackP.eostab --qa qa
@@ -219,7 +226,7 @@ not data. Pin `--c-cav` for reproducibility across grids (the fallback
 samples a grid-dependent cell; record the value you pin and why).
 
 ```sh
-# the cold-extended casing table (approximation 12; plan v2 T3-T5):
+# the cold-extended solid table (approximation 12; plan v2 T3-T5):
 $PREP sesame --src $SES --mat 2963 --lT 1.25 9.0 384 \
     --lrho -5.30 1.69897 576 --c-cav 5.34 --cold-extend \
     --out data/ti-beta-21s_2963_coldext.eostab --qa qa
@@ -250,6 +257,14 @@ header `e_shift` is documentary; the C++ reader never applies it):
 (probe pass → shared S → emit + QA → design-point spread check, target
 < 0.15 code units). The emitted `e_ref_state:` header line records the
 anchor; e reads exactly `e_shift` at that state.
+
+Extending an existing set: new members must adopt the set's S *verbatim*
+(never recompute it — that would re-gauge the whole set); the only gate
+left is that their post-reference minima still land in the O(1)–O(10)
+band under the fixed S. `make_eref295_solids.sh` does this for the
+aluminum (3720, cold-extended — note the material-scaled `--fit-rho`
+Vinet window and `--z-cond` valence) and diamond (7834, native-hull)
+solid alternates.
 
 ## 4. Checking what you produced
 

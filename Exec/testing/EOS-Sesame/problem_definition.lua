@@ -40,6 +40,8 @@ eos_table_self_test('data/ti-beta-21s_2963_coldext.eostab', 48)
 eos_table_self_test('data/ti-beta-21s_2963_coldext_eref295.eostab', 48)
 eos_table_self_test('data/deuterium_5267_s301_eref295.eostab', 48)
 eos_table_self_test('data/dry-air_5031_s301_eref295.eostab', 48)
+eos_table_self_test('data/aluminum_3720_coldext_eref295.eostab', 48)
+eos_table_self_test('data/diamond_7834_s301_eref295.eostab', 48)
 
 -- === MINIMAL STATE (so the config is valid; never advanced) ===
 

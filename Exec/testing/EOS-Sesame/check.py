@@ -25,6 +25,9 @@ TABLES = [
     "data/ti-beta-21s_2963_coldext_eref295.eostab",
     "data/deuterium_5267_s301_eref295.eostab",
     "data/dry-air_5031_s301_eref295.eostab",
+    # eref295 solid extensions on the same gauge (make_eref295_solids.sh)
+    "data/aluminum_3720_coldext_eref295.eostab",
+    "data/diamond_7834_s301_eref295.eostab",
 ]
 GATED = {"reader", "roundtrip-e", "roundtrip-p", "identities", "hull",
          "corner"}
