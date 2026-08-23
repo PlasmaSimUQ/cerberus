@@ -30,6 +30,9 @@ for t in ti-beta-21s_2963_coldext_eref295 deuterium_5267_s301_eref295 \
          diamond_7834_s301_eref295; do
     [ -f data/$t.eostab ] || gunzip -k data/$t.eostab.gz
 done
+# sub-floor T extension of the highest-floor member (air_lowT_extension/make_air_lowT.sh)
+t=air_lowT_extension/data/dry-air_5031_s301_eref295_Tf1p25
+[ -f $t.eostab ] || gunzip -k $t.eostab.gz
 
 (cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE DEBUG=TRUE)
 

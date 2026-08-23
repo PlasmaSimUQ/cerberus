@@ -335,12 +335,54 @@ def cmd_sesame(args):
             f_melt=args.melt_frac, align_tol=args.align_tol,
             fit_rho=args.fit_rho, z_c=args.z_cond, p_foot=p_foot_cgs)
 
+    # --- stage 7c (opt-in): sub-floor T extension (plan doc) -------------
+    # A mixture is bracketed by the HIGHEST native T floor among its
+    # retained components; this stage lowers one member's floor. Rows are
+    # prepended BELOW the native T floor on the native log spacing; native
+    # nodes are never resampled (byte identity structural). New rows:
+    # anchored ideal-thermal branch off the floor row, hull 0.
+    n_ext = 0
+    tx = None
+    if args.T_floor is not None:
+        from .lowT import extend_T_floor
+        if not args.floor_mass_amu:
+            raise SystemExit("--T-floor needs --floor-mass-amu (molecular "
+                             "mass for the ideal-thermal branch)")
+        lT, p, e, hull, band_g, tx = extend_T_floor(
+            lrho, lT, p, e, hull, band_g, args.T_floor, args.floor_mass_amu)
+        n_ext = tx["rows"]
+        print("T-floor extension: %d rows prepended on native spacing %.6g "
+              "-> lT floor %.6g (%.4g K; target %g); new cells "
+              "vapor=%d anchored=%d scaled=%d; p_min %.4g cgs; cv_x %.4e "
+              "R_s %.4e"
+              % (n_ext, tx["h"], tx["lT_floor"], 10 ** tx["lT_floor"],
+                 args.T_floor, tx["n_vapor"], tx["n_anchor"], tx["n_scaled"],
+                 tx["p_min"], tx["cv_x"], tx["R_s"]))
+
     # post-regrid enforcement (PCHIP can ripple): rho first, then T —
     # cummax along T preserves rho-monotonicity elementwise
     p_pre, e_pre = p.copy(), e.copy()
     p, nRp, rRp = monotonise_rho(p)
-    p, nTp2, _ = monotonise_T(p)
-    e, nTe2, _ = monotonise_T(e)
+    if n_ext:
+        # the T-strictifier's epsilon ramp is indexed from the first row
+        # (1e-12 * j * |F|): enforcing the native block on its OWN index
+        # origin keeps every native node byte-identical to the flag-free
+        # emission (T1). The seam is strictly increasing by construction
+        # (new rows <= p0 / e0 by >= 1e-6 relative >> the 1e-12 ramps).
+        pn, nTp2, _ = monotonise_T(p[:, n_ext:])
+        px, nTpx, _ = monotonise_T(p[:, :n_ext])
+        en, nTe2, _ = monotonise_T(e[:, n_ext:])
+        ex, nTex, _ = monotonise_T(e[:, :n_ext])
+        p = np.concatenate([px, pn], axis=1)
+        e = np.concatenate([ex, en], axis=1)
+        nTp2 += nTpx
+        nTe2 += nTex
+        if not (np.all(p[:, n_ext - 1] < p[:, n_ext])
+                and np.all(e[:, n_ext - 1] < e[:, n_ext])):
+            raise SystemExit("T-floor seam not strictly increasing")
+    else:
+        p, nTp2, _ = monotonise_T(p)
+        e, nTe2, _ = monotonise_T(e)
     hull = np.where(_sig(p, p_pre) | _sig(e, e_pre), 0.0, hull)
 
     # --- stage 9a: G1 acceptance on the emitted surface ------------------
@@ -442,11 +484,15 @@ def cmd_sesame(args):
         # coldest-isotherm slope at the first NON-band cell at/above rho0
         # (sampling inside the band would measure the soft bridge, not the
         # condensed branch — circular)
+        # (j0 = first NATIVE row: a --T-floor extension must not move the
+        # sampled isotherm and silently change the material's c_cav)
+        j0 = n_ext
         i0 = int(np.abs(lrho - np.log10(raw["rho0"] or 10 ** lrho[-1])).argmin())
-        while i0 < len(lrho) - 1 and band_g[i0, 0]:
+        while i0 < len(lrho) - 1 and band_g[i0, j0]:
             i0 += 1
-        c_cav = float(np.sqrt(max(dpdrho[i0, 0], 0.0)))
-        c_src = "coldest-isotherm slope at rho=%.3g g/cc" % 10 ** lrho[i0]
+        c_cav = float(np.sqrt(max(dpdrho[i0, j0], 0.0)))
+        c_src = ("coldest-%sisotherm slope at rho=%.3g g/cc"
+                 % ("native " if n_ext else "", 10 ** lrho[i0]))
     c2 = c_cav ** 2
     n_resp = int(np.sum(band_g & (dpdrho < c2)))
     dpdrho = np.where(band_g, np.maximum(dpdrho, c2), dpdrho)
@@ -492,6 +538,13 @@ def cmd_sesame(args):
                       % (args.e_ref_state[0], foot, args.p_foot))
             except ValueError:
                 pass  # reference outside the axes: no foot record
+    if tx is not None:
+        cond += (" T_floor=%g T_ext_rows=%d T_ext_lT=%.6g T_ext_model=ideal "
+                 "T_ext_mass_amu=%g T_ext_vapor=%d T_ext_anchor=%d "
+                 "T_ext_scaled=%d"
+                 % (args.T_floor, tx["rows"], tx["lT_floor"],
+                    args.floor_mass_amu, tx["n_vapor"], tx["n_anchor"],
+                    tx["n_scaled"]))
     if ce:
         v0, B0, B0p = ce["fit"]["vinet"]
         cond += (" cold_extend=vinet306(rho0K=%.4f,B0=%.4e,B0p=%.3f,"
@@ -649,6 +702,14 @@ def main():
                         "atomic abar over-floors the cold molecular region "
                         "by ~2x and demotes the ambient; with this flag "
                         "only cells < 0.95*kT/m are demoted")
+    s.add_argument("--T-floor", type=float, default=None, metavar="LOG10T",
+                   help="extend the table BELOW its native T floor down to "
+                        "10**LOG10T K (e.g. 1.25) by prepending rows on the "
+                        "native log spacing: anchored ideal-thermal branch "
+                        "off the floor row (e = e0 - 5/2 k/m (T0-T); p = "
+                        "max(p0 - rho k/m (T0-T), p0 T/T0)), hull 0. Needs "
+                        "--floor-mass-amu. Native nodes untouched "
+                        "(doc/eos_air_lowT_extension_plan.md)")
     s.add_argument("--no-verify-src", action="store_true",
                    help="skip the S1 sha256 gate against sources.yaml")
     s.add_argument("--fit-rho", type=float, nargs=2, default=None,

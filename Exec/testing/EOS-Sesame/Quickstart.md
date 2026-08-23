@@ -81,6 +81,7 @@ Options:
 | `--c-cav km/s` | override the cavitated-response sound speed (default: √(B_S/ρ₀) from the 201 table, else the coldest-isotherm slope at the first non-band cell at/above ρ₀) |
 | `--fit-rho LO HI` | `--cold-extend` Vinet fit window in g/cc (default 4 12 — 2963's measured window; scale to ~0.8–2.4× the material's own ρ₀, keeping the 306 tension foot inside or v₀ is unpinned) |
 | `--z-cond N` | `--cold-extend` conduction-electron count for the Sommerfeld term (default 4 = Ti; Al 3) |
+| `--T-floor LOG10T` | extend BELOW the native T floor down to 10^LOG10T K by prepending rows on the native log spacing (native nodes untouched): anchored ideal-thermal branch off the floor row — e = e₀ − 5/2 (k/m)(T₀−T), p = max(p₀ − ρ(k/m)(T₀−T), p₀·T/T₀) — hull 0; needs `--floor-mass-amu` (molecular). A mixture is bracketed by the highest native floor among its retained components; this lowers one member's floor (first use: the eref295 member with a 100 K native floor → 17.7 K, `air_lowT_extension/`); see `doc/eos_air_lowT_extension_plan.md` for what it is NOT (metastable ideal vapor, gas cv at condensed density, no solid phases) |
 | `--p-foot [BAR]` | quiet-foot target (1.0 if given bare; absent = legacy): crossover bridges hug this pressure across clipped/tension spans instead of the full-span log ramp that parks anchor-scale GPa at ρ₀; steep rise confined to the final cell before the data anchor; 1e-3 T-tilt keeps dpdT > 0. The achieved value at the `--e-ref-state` density is recorded as `foot_achieved=` (genuine data is never overridden — diamond's ρ₀ node carries real +0.32 GPa and reports honestly) |
 | `--out path` | output path |
 
@@ -193,6 +194,22 @@ structure is deliberately traded away. In pipeline order:
     fail on extrapolation (measured on Al 3720: +3.99 GPa at ρ₀ under
     the default window; −0.31 GPa with `--fit-rho 2.2 8.0`).
 
+13. **Sub-floor T extension (opt-in, `--T-floor LOG10T`).** Prepends rows
+    BELOW the native T floor on the native log spacing (native nodes are
+    never resampled): per density column, anchored on the floor row
+    (T₀, p₀, e₀), e = e₀ − 5/2 (k/m)(T₀−T) and p = max(p₀ − ρ(k/m)(T₀−T),
+    p₀·T/T₀), m the `--floor-mass-amu` molecular mass, hull 0. Exact for
+    an ideal vapor, cold-curve-dominated at condensed density, merely
+    safe (positive, strictly monotone, continuous dpdT, constant cv)
+    between — there is NO condensation, latent heat, dome or solid phase
+    below the anchor row. The floor term is p₀·T/T₀ rather than ρkT/m
+    deliberately: in two-phase columns an ideal-gas floor would exceed p₀
+    and the T-enforcement would lift native rows. First used on the
+    eref295 member whose 100 K native floor set the mixture bracket
+    (100 K → 17.7 K, `air_lowT_extension/`); records
+    `T_floor= T_ext_rows= T_ext_lT= T_ext_model=ideal T_ext_vapor=
+    T_ext_anchor= T_ext_scaled=` in the header.
+
 Every count above is recorded in the emitted header's `conditioning:`
 line, e.g.:
 
@@ -264,7 +281,11 @@ left is that their post-reference minima still land in the O(1)–O(10)
 band under the fixed S. `make_eref295_solids.sh` does this for the
 aluminum (3720, cold-extended — note the material-scaled `--fit-rho`
 Vinet window and `--z-cond` valence) and diamond (7834, native-hull)
-solid alternates.
+solid alternates. A member may also be *re-emitted* on the same gauge
+with its axes extended (e.g. `air_lowT_extension/make_air_lowT.sh`,
+`--T-floor 1.25`): the gauge couples the set only through S and each
+table's own 295 K reference, so as long as the native nodes are
+byte-identical (gated) the other members need not be re-emitted.
 
 ## 4. Checking what you produced
 
@@ -310,7 +331,9 @@ table at load). See `doc/eos_table_reader.md` §9–10.
 - Not a two-temperature closure (304/305 extraction exists for the
   future 2-T track only).
 - Not valid below the coldest kept isotherm or outside the source ρ
-  span — the runtime clamps (never extrapolates) and counts.
+  span — the runtime clamps (never extrapolates) and counts. With
+  `--T-floor` the rows below the source floor exist but are construction
+  (§3 item 13, hull 0): the rail moves, it does not disappear.
 - Not a substitute for the published SESAME data in any context where
   the §3 replacements matter (dome equilibrium, tension, melt-line
   structure).

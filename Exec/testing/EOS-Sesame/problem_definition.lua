@@ -42,6 +42,8 @@ eos_table_self_test('data/deuterium_5267_s301_eref295.eostab', 48)
 eos_table_self_test('data/dry-air_5031_s301_eref295.eostab', 48)
 eos_table_self_test('data/aluminum_3720_coldext_eref295.eostab', 48)
 eos_table_self_test('data/diamond_7834_s301_eref295.eostab', 48)
+-- sub-floor T extension of the highest-floor member (air_lowT_extension/): same gauge, T floor 17.7 K
+eos_table_self_test('air_lowT_extension/data/dry-air_5031_s301_eref295_Tf1p25.eostab', 48)
 
 -- === MINIMAL STATE (so the config is valid; never advanced) ===
 

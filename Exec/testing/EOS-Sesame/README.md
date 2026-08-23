@@ -402,6 +402,44 @@ spread (1.22e-10 code) PASS. Deck fill densities should still be read
 off each table's own 295 K isotherm; ρ₀ itself is now a safe choice
 for Ti and Al.
 
+## Sub-floor T extension record (2026-08-23) — member 5031, T floor 100 K → 17.7 K
+
+Motivation: a mixture is bracketed in T by the HIGHEST native floor among
+its retained components. In the eref295 set that floor was SESAME 5031's
+100 K, so cells retaining that member bracketed on [100 K, 3.48e8 K] (the
+"100 K rail", caveat 3 above) while cells without it keep [17.78 K, 1e9 K].
+A source survey (ten sources, 2026-08-23) found NO validated EOS for this
+material below 59.75 K at any density or below 100 K above ~1 g/cc —
+Lemmon et al. 2000 (CoolProp fluid `Air`) is the only real sub-100 K data,
+fluid-only to ~1 g/cc; the local library's 5000 / 5010 component tables
+(Kerley 1981) reach 0 K but with three T nodes below 100 K and tension
+cells. So the extension is a CONSTRUCTION anchored on 5031's own 100 K
+row, exact in the vapor limit,
+cold-curve dominated at condensed density, merely safe between
+(`doc/eos_air_lowT_extension_plan.md`, all decisions recorded there).
+
+New stage `--T-floor LOG10T` (`eos_tools/lowT.py`, cli stage 7c): rows
+prepended below the native floor on the native spacing; per column
+e = e0 − 5/2 (k/m)(T0−T), p = max(p0 − ρ(k/m)(T0−T), p0·T/T0); hull 0;
+needs `--floor-mass-amu`. Emitted as a NEW file on the same gauge,
+`air_lowT_extension/data/dry-air_5031_s301_eref295_Tf1p25.eostab`
+(driver `air_lowT_extension/make_air_lowT.sh`; the shipped table of this
+member is kept — decks choose). 44 rows, 428 T nodes, floor 17.72 K. Gates all PASS:
+native nodes byte-identical in every block (dpdT/cv differ on the 100 K
+seam row only — PCHIP stencil change, reported), `e_shift` and
+e(rho_ref, 295 K) unchanged, spread 1.216e-10 code, G1 clean, c_cav
+unchanged (1.6941e4). The other members are NOT re-emitted — the gauge
+couples the set only through S and each table's own 295 K reference.
+Two generator traps closed on the way (both now in the CLI): the
+T-strictifier's epsilon ramp is indexed from the first row (prepending
+rows moved native nodes ~4e-11 → native block enforced on its own index
+origin; T1 re-verified byte-identical), and the data-derived c_cav default
+measured the coldest isotherm (now the coldest NATIVE isotherm).
+Physics report (CoolProp, report-only): vapor side agrees to 0.8 % median
+(5031's own offset from Lemmon), dense side is construction (two-phase
+pressure 4–84× lower in reality at 60–80 K; latent heat absent). Numbers,
+limitations and the rail-counter note: `air_lowT_extension/README.md`.
+
 ## Harness
 
 `sh run` — builds the DIM=1 DEBUG executable, runs the one-zone config

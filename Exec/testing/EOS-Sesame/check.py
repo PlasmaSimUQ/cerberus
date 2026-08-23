@@ -28,6 +28,10 @@ TABLES = [
     # eref295 solid extensions on the same gauge (make_eref295_solids.sh)
     "data/aluminum_3720_coldext_eref295.eostab",
     "data/diamond_7834_s301_eref295.eostab",
+    # sub-floor T extension of the eref295 member with the highest native
+    # floor (air_lowT_extension/make_air_lowT.sh): same gauge, T floor
+    # 100 K -> 17.7 K, the original table kept alongside (D5-a)
+    "air_lowT_extension/data/dry-air_5031_s301_eref295_Tf1p25.eostab",
 ]
 GATED = {"reader", "roundtrip-e", "roundtrip-p", "identities", "hull",
          "corner"}
