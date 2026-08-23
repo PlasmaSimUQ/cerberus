@@ -2,3 +2,7 @@
 	path = amrex
 	url = https://github.com/AMReX-Codes/amrex.git
   ignore = untracked
+[submodule "EBGeometry"]
+	path = EBGeometry
+	url = https://github.com/rmrsk/EBGeometry.git
+	ignore = untracked

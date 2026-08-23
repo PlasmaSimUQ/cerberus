@@ -5,9 +5,15 @@
 # enable for code development as it enables more checks, such as array out of bounds
 # DEBUG = FALSE
 
-# Location of the (header-only) EBGeometry library checkout, used for STL/SDF geometry.
-# This is machine-specific and has no default; set it to your local checkout.
+# Location of the (header-only) EBGeometry library, used for STL/SDF geometry.
+# EBGeometry is a pinned git submodule at <repo>/EBGeometry and is initialised
+# automatically by the build, so this normally needs no setting at all.
+# Uncomment only to build against a checkout kept elsewhere; doing so also
+# disables the submodule auto-init.
 # EBGEOMETRY_HOME = /path/to/EBGeometry
+
+# Skip the automatic 'git submodule update --init' for EBGeometry.
+# UPDATE_EBGEOMETRY = TRUE
 
 # Dimensionality (1, 2 or 3)
 # DIM = 2

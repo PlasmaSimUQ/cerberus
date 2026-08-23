@@ -24,9 +24,23 @@ CERBERUS_GIT_VERSION := $(shell git describe --abbrev --dirty --always --tags)
 CHECK_UPDATES ?= FALSE
 
 # Location of the (header-only) EBGeometry library, used for STL/SDF geometry.
-# Set this in Make.local (see Make.local.template) as it is machine-specific.
-ifeq ($(strip $(EBGEOMETRY_HOME)),)
-  $(error ${RED}EBGEOMETRY_HOME is not set. Copy Make.local.template to Make.local and set EBGEOMETRY_HOME to your EBGeometry checkout.${END})
+# Vendored as a pinned git submodule, so this needs no local configuration.
+# Override EBGEOMETRY_HOME in Make.local only to build against a checkout
+# elsewhere; the auto-init below is then skipped.
+EBGEOMETRY_HOME ?= $(TOP)/EBGeometry
+UPDATE_EBGEOMETRY ?= TRUE
+
+ifeq ($(UPDATE_EBGEOMETRY), TRUE) # and
+ifneq ($(BUILD_ACTUAL), TRUE) # and
+ifeq ($(EBGEOMETRY_HOME), $(TOP)/EBGeometry)
+  $(info ${GREEN}Initialising/updating the EBGeometry submodule${END})
+  $(shell git submodule update --init -- $(EBGEOMETRY_HOME))
+endif
+endif
+endif
+
+ifeq ($(wildcard $(EBGEOMETRY_HOME)/EBGeometry.hpp),)
+  $(error ${RED}EBGeometry.hpp not found under EBGEOMETRY_HOME=$(EBGEOMETRY_HOME). If you overrode it in Make.local, check the path; otherwise run 'git submodule update --init -- $(TOP)/EBGeometry'.${END})
 endif
 INCLUDE_LOCATIONS += $(EBGEOMETRY_HOME)
 
