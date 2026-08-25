@@ -179,24 +179,32 @@ class MixtureEOS : public HydroGas
     // (rho, e_int, alpha) -> full mixture evaluation via the shared-T re
     // solve; alpha must be sanitized (size N, simplex). st.flag follows the
     // EosInvertStats semantics with max-aggregation across components.
+    // T_seed (< 0 = none, matching the p_warm convention) is an optional
+    // warm start for the shared-T Newton: used only when strictly inside
+    // the solve's T-bracket, otherwise the cold seed applies unchanged —
+    // the bracket/bisection guard makes a bad seed a slower solve, never a
+    // different answer (convergence is on the residual).
     void eval_from_rho_e(Real rho,
                          Real e_int,
                          const Vector<Real>& alpha,
                          EosEval& ev,
-                         EosInvertStats& st) const;
+                         EosInvertStats& st,
+                         Real T_seed = -1.0) const;
     // (rho, p, alpha) -> full mixture evaluation via the shared-T rp solve
     void eval_from_rho_p(Real rho,
                          Real p,
                          const Vector<Real>& alpha,
                          EosEval& ev,
-                         EosInvertStats& st) const;
+                         EosInvertStats& st,
+                         Real T_seed = -1.0) const;
     // shared body of the two above: solve for T with target e (by_e) or p
     void dalton_solve_T(Real rho,
                         Real target,
                         bool by_e,
                         const Vector<Real>& alpha,
                         EosEval& ev,
-                        EosInvertStats& st) const;
+                        EosInvertStats& st,
+                        Real T_seed = -1.0) const;
 
     // pure-cell short-circuit body shared by BOTH mixing rules (plan 7.1):
     // formula-identical to the single-table TabulatedEOS driver — the
@@ -249,7 +257,8 @@ class MixtureEOS : public HydroGas
                         bool by_e,
                         const Vector<Real>& alpha,
                         EosEval& ev,
-                        EosInvertStats& st) const;
+                        EosInvertStats& st,
+                        Real T_seed = -1.0) const;
     // mixture EosEval from the cached per-component evals at the solution:
     // alpha-weighted volume-derivative sums (plan section 3); reduces to
     // gamma*p/rho for a single ideal-gas component. Pinned components carry

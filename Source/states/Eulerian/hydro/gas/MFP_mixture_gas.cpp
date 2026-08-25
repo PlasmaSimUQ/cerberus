@@ -473,7 +473,8 @@ void MixtureEOS::dalton_solve_T(Real rho,
                                 bool by_e,
                                 const Vector<Real>& alpha,
                                 EosEval& ev,
-                                EosInvertStats& st) const
+                                EosInvertStats& st,
+                                Real T_seed) const
 {
     const Real tiny = std::numeric_limits<Real>::min();
 
@@ -528,14 +529,19 @@ void MixtureEOS::dalton_solve_T(Real rho,
         return val;
     };
 
-    // seed (plan 2.2): alpha-weighted per-component inverse-map lookup,
-    // bracket midpoint fallback. No Temp-slot warm start — the established
-    // single-table driver convention (the Temp slot is not trusted). Using
+    // seed (plan 2.2): a caller-supplied T_seed (the Temp slot of a
+    // primitive vector an earlier solve already filled) wins when it lies
+    // strictly inside the bracket — one converged-answer warm start beats
+    // any map heuristic. Otherwise the cold seed: alpha-weighted
+    // per-component inverse-map lookup, bracket midpoint fallback. Using
     // the MIXTURE target as each component's map argument is heuristic (the
     // component e_k differs from the mixture e in general) but the guarded
     // solve owns convergence; a seed only needs to be near.
     Real lt0 = 0.5 * (lt_lo + lt_hi);
-    {
+    if (T_seed > T_lo && T_seed < T_hi) {
+        lt0 = std::log10(T_seed);
+        st.seeded = true;
+    } else {
         Real Ts_sum = 0.0, w_sum = 0.0;
         for (const int k : m_retained) {
             const Real Ts =
@@ -863,7 +869,8 @@ void MixtureEOS::amagat_solve_T(Real rho,
                                 bool by_e,
                                 const Vector<Real>& alpha,
                                 EosEval& ev,
-                                EosInvertStats& st) const
+                                EosInvertStats& st,
+                                Real T_seed) const
 {
     const Real tiny = std::numeric_limits<Real>::min();
 
@@ -918,11 +925,18 @@ void MixtureEOS::amagat_solve_T(Real rho,
             return vsum;
         };
         Real lt0 = 0.5 * (lt_lo + lt_hi);
-        const Real Ts = seed_from_map(tvs[kd], tvs[kd].T_of_p, tvs[kd].lp_min, tvs[kd].dlp,
-                                      tvs[kd].n_p, rho_d, p);
-        if (Ts > 0.0) {
-            lt0 = std::log10(std::max(Ts, tiny));
+        if (T_seed > T_lo && T_seed < T_hi) {
+            // caller warm start (see dalton_solve_T): strictly in-bracket
+            // Temp-slot values only, cold seed otherwise
+            lt0 = std::log10(T_seed);
             st.seeded = true;
+        } else {
+            const Real Ts = seed_from_map(tvs[kd], tvs[kd].T_of_p, tvs[kd].lp_min, tvs[kd].dlp,
+                                          tvs[kd].n_p, rho_d, p);
+            if (Ts > 0.0) {
+                lt0 = std::log10(std::max(Ts, tiny));
+                st.seeded = true;
+            }
         }
         lt = guarded_solve(fval, lt_lo, lt_hi, 1.0 / rho, lt0, ttol, max_newton, st);
     } else {
@@ -974,11 +988,18 @@ void MixtureEOS::amagat_solve_T(Real rho,
             return esum;
         };
         Real lt0 = 0.5 * (lt_lo + lt_hi);
-        const Real Ts = seed_from_map(tvs[kd], tvs[kd].T_of_e, tvs[kd].le_min, tvs[kd].dle,
-                                      tvs[kd].n_e, rho_d, e_int);
-        if (Ts > 0.0) {
-            lt0 = std::log10(std::max(Ts, tiny));
+        if (T_seed > T_lo && T_seed < T_hi) {
+            // caller warm start (see dalton_solve_T): strictly in-bracket
+            // Temp-slot values only, cold seed otherwise
+            lt0 = std::log10(T_seed);
             st.seeded = true;
+        } else {
+            const Real Ts = seed_from_map(tvs[kd], tvs[kd].T_of_e, tvs[kd].le_min, tvs[kd].dle,
+                                          tvs[kd].n_e, rho_d, e_int);
+            if (Ts > 0.0) {
+                lt0 = std::log10(std::max(Ts, tiny));
+                st.seeded = true;
+            }
         }
         lt = guarded_solve(fval, lt_lo, lt_hi, e_int, lt0, ttol, max_newton, st);
         // endpoint clamp / bracket collapse: p_sol belongs to the LAST
@@ -1007,12 +1028,13 @@ void MixtureEOS::eval_from_rho_e(Real rho,
                                  Real e_int,
                                  const Vector<Real>& alpha,
                                  EosEval& ev,
-                                 EosInvertStats& st) const
+                                 EosInvertStats& st,
+                                 Real T_seed) const
 {
     if (rule == MixRule::Amagat) {
-        amagat_solve_T(rho, e_int, true, alpha, ev, st);
+        amagat_solve_T(rho, e_int, true, alpha, ev, st, T_seed);
     } else {
-        dalton_solve_T(rho, e_int, true, alpha, ev, st);
+        dalton_solve_T(rho, e_int, true, alpha, ev, st, T_seed);
     }
 }
 
@@ -1020,12 +1042,13 @@ void MixtureEOS::eval_from_rho_p(Real rho,
                                  Real p,
                                  const Vector<Real>& alpha,
                                  EosEval& ev,
-                                 EosInvertStats& st) const
+                                 EosInvertStats& st,
+                                 Real T_seed) const
 {
     if (rule == MixRule::Amagat) {
-        amagat_solve_T(rho, p, false, alpha, ev, st);
+        amagat_solve_T(rho, p, false, alpha, ev, st, T_seed);
     } else {
-        dalton_solve_T(rho, p, false, alpha, ev, st);
+        dalton_solve_T(rho, p, false, alpha, ev, st, T_seed);
     }
 }
 
@@ -1242,11 +1265,14 @@ void MixtureEOS::prim2cons(Vector<Real>& Q, Vector<Real>& U) const
     Real mz = w * rho;
     Real ke = 0.5 * rho * (u * u + v * v + w * w);
 
-    // rp solve -> shared T -> mixture e (the Temp slot is not trusted here,
-    // matching the single-table driver convention)
+    // rp solve -> shared T -> mixture e. The Temp slot is still never
+    // TRUSTED (T is re-solved from rho and p), but it is a good WARM START:
+    // every caller fills it before prim2cons (cons2prim at cell centres,
+    // reconstruction at faces, define_rho_p_T at init) — the guarded solve
+    // rejects an off-bracket value and cold-starts as before.
     EosEval ev;
     EosInvertStats st;
-    eval_from_rho_p(rho, p, m_alpha, ev, st);
+    eval_from_rho_p(rho, p, m_alpha, ev, st, Q[+HydroDef::PrimIdx::Temp]);
     tally(st);
 
     U[+HydroDef::ConsIdx::Density] = rho;
@@ -1456,9 +1482,11 @@ void MixtureEOS::get_face_eval_from_prim(const Vector<Real>& Q, Real& e, Real& a
     const Real rho = clamp_rho_union(Q[+HydroDef::PrimIdx::Density]);
     const Real p = Q[+HydroDef::PrimIdx::Prs];
 
+    // the reconstructed face Temp warm-starts the shared-T solve (guarded:
+    // off-bracket values fall back to the cold seed)
     EosEval ev;
     EosInvertStats st;
-    eval_from_rho_p(rho, p, m_alpha, ev, st);
+    eval_from_rho_p(rho, p, m_alpha, ev, st, Q[+HydroDef::PrimIdx::Temp]);
     tally(st);
     e = ev.e;
     a = ev.cs;
@@ -1530,9 +1558,11 @@ RealArray MixtureEOS::get_speed_from_prim(const Vector<Real>& Q) const
     const Real p = Q[+HydroDef::PrimIdx::Prs];
 #endif
 
+    // the caller's Temp slot warm-starts the shared-T solve (guarded:
+    // off-bracket values fall back to the cold seed)
     EosEval ev;
     EosInvertStats st;
-    eval_from_rho_p(rho, p, m_alpha, ev, st);
+    eval_from_rho_p(rho, p, m_alpha, ev, st, Q[+HydroDef::PrimIdx::Temp]);
     tally(st);
     const Real a = ev.cs;
 
