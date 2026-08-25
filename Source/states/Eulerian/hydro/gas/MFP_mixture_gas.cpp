@@ -1136,6 +1136,12 @@ bool MixtureEOS::cons2prim(Vector<Real>& U, Vector<Real>& Q) const
 {
     BL_PROFILE("MixtureEOS::cons2prim");
 
+    // consume-and-reset the one-shot warm start (set by correct_face_prim
+    // via set_cons2prim_T_seed): any call site that did not set it this
+    // call runs cold, so results never depend on sweep order.
+    Real T_seed = m_c2p_T_seed;
+    m_c2p_T_seed = -1.0;
+
     // composition first, from the RAW conserved data (the simplex
     // renormalisation absorbs the raw-vs-clamped density scale), then the
     // total density into the union hull (the Stage-4 clamp-rho-first rule):
@@ -1187,9 +1193,15 @@ bool MixtureEOS::cons2prim(Vector<Real>& U, Vector<Real>& Q) const
         }
     }
 
+    // never seed a repaired solve: both repair branches above rewrite the
+    // inputs (e_int zeroed or velocity capped) and the solve-dependent
+    // e_eff feeds the conserved-vector rewrite below — a seeded clamped
+    // solve there would perturb a conserved write.
+    if (last_repair) { T_seed = -1.0; }
+
     EosEval ev;
     EosInvertStats st;
-    eval_from_rho_e(rho, e_int, m_alpha, ev, st);
+    eval_from_rho_e(rho, e_int, m_alpha, ev, st, T_seed);
     tally(st);
 
     // energy-consistent effective gamma with the clamp-consistency rule
@@ -1250,6 +1262,10 @@ bool MixtureEOS::cons2prim(Vector<Real>& U, Vector<Real>& Q) const
 void MixtureEOS::prim2cons(Vector<Real>& Q, Vector<Real>& U) const
 {
     BL_PROFILE("MixtureEOS::prim2cons");
+
+    // the cons2prim seed is consume-and-reset; a value surviving to here
+    // means a set without a matching consume (stale-seed regression)
+    AMREX_ASSERT(m_c2p_T_seed < 0.0);
 
     get_alpha_fractions_from_prim(Q, m_alpha);
     n_alpha_fixes += sanitize_alpha(m_alpha);

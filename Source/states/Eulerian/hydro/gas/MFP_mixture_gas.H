@@ -81,6 +81,7 @@ class MixtureEOS : public HydroGas
 
     virtual bool cons2prim(Vector<Real>& U, Vector<Real>& Q) const override;
     virtual void prim2cons(Vector<Real>& Q, Vector<Real>& U) const override;
+    virtual void set_cons2prim_T_seed(const Real T) const override { m_c2p_T_seed = T; }
     virtual void define_rho_p_T(Vector<Real>& Q) const override;
 
     virtual Real get_temperature_from_cons(const Vector<Real>& U) const override;
@@ -409,6 +410,12 @@ class MixtureEOS : public HydroGas
     mutable long n_alpha_fixes = 0;              // sanitize_alpha repairs
     mutable long n_mom_fixes = 0;                // B: floor-time momentum repairs
     mutable bool last_repair = false;            // B: last cons2prim repaired U in place
+
+    // one-shot warm start for the NEXT cons2prim (PLAN_cfp_seed): set via
+    // set_cons2prim_T_seed immediately before the call, consumed and reset
+    // to -1 on entry so every unwired call site is provably cold. Same
+    // serial-only justification as the scratch vectors above.
+    mutable Real m_c2p_T_seed = -1.0;
 };
 
 #endif  // MFP_MIXTURE_GAS_H

@@ -1386,6 +1386,14 @@ void EulerianState::correct_face_prim(const Box& box,
                             R_prim[n] = lo4(i, j, k, n);
                         }
 
+                        // pre-correction face temperatures (PLAN_cfp_seed):
+                        // the corrected state differs by one transverse flux
+                        // difference, so these are close warm starts for the
+                        // return cons2prim below (a rejected face reverts to
+                        // this exact state, making the seed near-exact)
+                        const Real T_pre_L = L_prim[+HydroDef::PrimIdx::Temp];
+                        const Real T_pre_R = R_prim[+HydroDef::PrimIdx::Temp];
+
                         // convert to conserved
                         prim2cons(L_prim, L_cons);
                         prim2cons(R_prim, R_cons);
@@ -1509,8 +1517,12 @@ void EulerianState::correct_face_prim(const Box& box,
                         }
 
 
-                        // convert to primitive
+                        // convert to primitive, each call seeded with its
+                        // side's pre-correction T (consume-and-reset: the
+                        // seed cannot leak past the adjacent call)
+                        set_cons2prim_T_seed(T_pre_L);
                         cons2prim(L_cons, L_prim);
+                        set_cons2prim_T_seed(T_pre_R);
                         cons2prim(R_cons, R_prim);
 
                         // update reconstruction

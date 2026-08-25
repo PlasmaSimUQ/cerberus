@@ -111,6 +111,11 @@ class EulerianState : public State
     virtual bool cons2prim(Vector<Real>& U, Vector<Real>& Q) const = 0;
     virtual void prim2cons(Vector<Real>& Q, Vector<Real>& U) const = 0;
 
+    // one-shot warm start for the NEXT cons2prim call (consumed and reset by
+    // the gas model; correct_face_prim seeds its return leg with the
+    // pre-correction face T). No-op for states without an iterative EOS.
+    virtual void set_cons2prim_T_seed(const Real T) const {}
+
     virtual RealArray get_speed_from_cons(const Vector<Real>& U) const
     {
         return {AMREX_D_DECL(0, 0, 0)};

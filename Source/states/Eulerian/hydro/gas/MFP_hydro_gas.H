@@ -63,6 +63,11 @@ class HydroGas
     virtual bool cons2prim(Vector<Real>& U, Vector<Real>& Q) const { return true; }
     virtual void prim2cons(Vector<Real>& Q, Vector<Real>& U) const {}
 
+    // one-shot warm start for the NEXT cons2prim call — consumed and reset
+    // on entry by models that use it, so unwired call sites stay cold. No-op
+    // for closed-form gas models.
+    virtual void set_cons2prim_T_seed(const Real T) const {}
+
     virtual void define_rho_p_T(Vector<Real>& Q) const {}
     Real get_density_from_number_density(const Real nd, Vector<Real>& Q) const;
 

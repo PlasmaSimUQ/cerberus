@@ -136,6 +136,10 @@ class HydroState : public EulerianState
 
     virtual bool cons2prim(Vector<Real>& U, Vector<Real>& Q) const { return gas->cons2prim(U, Q); }
     virtual void prim2cons(Vector<Real>& Q, Vector<Real>& U) const { return gas->prim2cons(Q, U); }
+    virtual void set_cons2prim_T_seed(const Real T) const override
+    {
+        gas->set_cons2prim_T_seed(T);
+    }
 
     virtual RealArray get_speed_from_cons(const Vector<Real>& U) const override
     {
