@@ -16,6 +16,8 @@ std::string MFP::lua_script;
 
 Real MFP::force_dt = 0.0;
 Real MFP::cfl = 0.0;
+Real MFP::dt_init_shrink = 1.0;
+Real MFP::dt_change_max = 1.1;
 
 int MFP::Cost_Idx;
 bool MFP::archive_checkpoint = true;

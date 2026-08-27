@@ -32,6 +32,10 @@ refine_cutcells = false
 time_integration_scheme = 'strang'
 
 force_dt = 0 -- force specific time step
+dt_init_shrink = 1.0 -- one-time factor on the FIRST time step only (applied in
+                     -- computeInitialDt, never on restart); < 1 starts the run
+                     -- gently and dt_change_max then ramps it up. 1 = disabled
+dt_change_max = 1.1 -- maximum factor by which dt may grow per coarse step
 
 -- list of boxes with {{{x_lo, y_lo, z_lo}, {x_hi, y_hi, z_hi}, type='?'}, ...}
 -- type: 'force_refine' : refine to max level (default)

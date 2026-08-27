@@ -43,6 +43,17 @@ void MFP::computeInitialDt(int finest_level,
     }
 
     //
+    // Optional gentle start (Lua `dt_init_shrink`, 1 = off). This is applied
+    // ONCE, here: AMReX calls computeInitialDt only when levelSteps(0) == 0
+    // (AMReX_Amr.cpp:2101), so it never fires again during the run and never
+    // on restart -- a restarted run resumes from the checkpointed dt_level.
+    // computeNewDt then grows dt by at most dt_change_max per coarse step.
+    // Skipped when the step is forced, since estTimeStep returns force_dt
+    // before cfl is applied and a forced dt must not be scaled.
+    //
+    if ((force_dt <= 0.0) && (dt_init_shrink > 0.0)) { dt_0 *= dt_init_shrink; }
+
+    //
     // Limit dt's by the value of stop_time.
     //
     const Real eps = 0.001 * dt_0;
@@ -84,11 +95,10 @@ void MFP::computeNewDt(int finest_level,
         for (int i = 0; i <= finest_level; i++) { dt_min[i] = std::min(dt_min[i], dt_level[i]); }
     } else {
         //
-        // Limit dt's by change_max * old dt
+        // Limit dt's by dt_change_max * old dt (Lua `dt_change_max`)
         //
-        static Real change_max = 1.1;
         for (int i = 0; i <= finest_level; i++) {
-            dt_min[i] = std::min(dt_min[i], change_max * dt_level[i]);
+            dt_min[i] = std::min(dt_min[i], dt_change_max * dt_level[i]);
         }
     }
 

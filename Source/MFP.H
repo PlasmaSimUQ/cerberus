@@ -184,6 +184,8 @@ class MFP : public amrex::AmrLevel
 
     static Real cfl;
     static Real force_dt;
+    static Real dt_init_shrink;  // one-time factor on the initial dt (1 = off)
+    static Real dt_change_max;   // per-step cap on dt growth
 
     static int Cost_Idx;
 

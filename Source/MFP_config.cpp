@@ -233,6 +233,11 @@ void MFP::read_config()
 
     cfl = lua["cfl"];
 
+    // dt ramp: start at dt_init_shrink * the CFL-limited dt and let
+    // computeNewDt's dt_change_max cap grow it. Defaults are a no-op.
+    dt_init_shrink = lua["dt_init_shrink"];
+    dt_change_max = lua["dt_change_max"];
+
     //
     // geometry
     //
