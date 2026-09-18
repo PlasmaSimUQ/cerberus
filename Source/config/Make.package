@@ -1,5 +1,6 @@
 CEXE_headers += sol.hpp
 CEXE_headers += forward.hpp
+CEXE_headers += sol/config.hpp
 
 CEXE_headers += MFP_lua.hpp
 
