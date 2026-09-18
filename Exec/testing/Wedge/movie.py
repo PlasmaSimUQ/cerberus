@@ -71,7 +71,7 @@ def plot(frame, data, output_name):
         cmap="viridis")
 
     im.set_data(xc, yc, rho.T)
-    ax.images.append(im)
+    ax.add_image(im)
 
     cs = ax.contour(xc, yc, v.T, levels=[0.5], colors=['k'], linewidths=[0.25])
     line_x = cs.allsegs[0][0][:,0].tolist()
@@ -94,7 +94,7 @@ def plot(frame, data, output_name):
         cmap="viridis")
 
     im.set_data(xc, yc, T.T)
-    ax.images.append(im)
+    ax.add_image(im)
 
     cs = ax.contour(xc, yc, v.T, levels=[0.5], colors=['k'], linewidths=[0.25])
     line_x = cs.allsegs[0][0][:,0].tolist()
@@ -132,56 +132,61 @@ def plot(frame, data, output_name):
     return
 
 
-Q = []
+def main():
+    Q = []
 
-q = {}
-q["files_dir"] = "."
-q["level"] = -1
+    q = {}
+    q["files_dir"] = "."
+    q["level"] = -1
 
-# all the data we need to retrieve
-q["get"] = [
-    {"func":get_rho, "tag":"rho"},
-    {"func":get_T, "tag":"T"},
-    {"func":get_vfrac, "tag":"vfrac"},
-    {"func":get_boxes, "tag":"boxes"},
-]
+    # all the data we need to retrieve
+    q["get"] = [
+        {"func":get_rho, "tag":"rho"},
+        {"func":get_T, "tag":"T"},
+        {"func":get_vfrac, "tag":"vfrac"},
+        {"func":get_boxes, "tag":"boxes"},
+    ]
 
-# how to make a frame
-q["plot"] = plot
-q["name"] = "movie"
+    # how to make a frame
+    q["plot"] = plot
+    q["name"] = "movie"
 
 
 
-##
-q["framerate"] = 30
-q["mov_save"] = q["files_dir"] + "/mov"
-q["offset"] = [0.0, 0.0]
-q["xy_limits"] = [[-0.009, 0.0], [0.001, 0.01]]
-q["file_include"] = ["plt"]
-q["file_exclude"] = ["chk"]
-q["cores"] = 11
-q["force_data"] = False
-q["force_frames"] = True
-q["only_frames"] = False
-q["redo_streaks"] = False
-q["dpi"] = 300
+    ##
+    q["framerate"] = 30
+    q["mov_save"] = q["files_dir"] + "/mov"
+    q["offset"] = [0.0, 0.0]
+    q["xy_limits"] = [[-0.009, 0.0], [0.001, 0.01]]
+    q["file_include"] = ["plt"]
+    q["file_exclude"] = ["chk"]
+    q["cores"] = 11
+    q["force_data"] = False
+    q["force_frames"] = True
+    q["only_frames"] = False
+    q["redo_streaks"] = False
+    q["dpi"] = 300
 
-q["normalize"] = "all"
+    q["normalize"] = "all"
 
-# non-linear time sampling
-files = get_files(q["files_dir"], include=q["file_include"], exclude=q["file_exclude"], get_all=True)
-n_files = len(files)
-times = []
-for f in files:
-    times.append(get_time(f))
-times = np.array(times)
+    # non-linear time sampling
+    files = get_files(q["files_dir"], include=q["file_include"], exclude=q["file_exclude"], get_all=True)
+    n_files = len(files)
+    times = []
+    for f in files:
+        times.append(get_time(f))
+    times = np.array(times)
 
-log_i = np.logspace(0, np.log10(n_files-1), num=int(n_files/2), dtype=int)
-log_i = list(dict.fromkeys(log_i))
-q["time_span"] = times[log_i].tolist()
+    log_i = np.logspace(0, np.log10(n_files-1), num=int(n_files/2), dtype=int)
+    log_i = list(dict.fromkeys(log_i))
+    q["time_span"] = times[log_i].tolist()
 
-Q.append(q)
+    Q.append(q)
 
-make_all(Q)
+    make_all(Q)
 
-print("DONE")
+    print("DONE")
+
+
+if __name__ == "__main__":
+    main()

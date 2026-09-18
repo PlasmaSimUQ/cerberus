@@ -410,7 +410,7 @@ def parse_particle_header(name, data, state_name):
     for ilevel in range(num_levels):
         grids_per_level.append(int(fid.readline().rstrip()))
 
-    n_grids = np.product(grids_per_level)
+    n_grids = np.prod(grids_per_level)
 
     for ilevel in range(num_levels):
         for igrid in range(grids_per_level[ilevel]):
@@ -714,7 +714,7 @@ class ReadBoxLib:
         hi = binfo["hi"] + nghost
         shape = hi - lo + 1
 
-        n_dat = np.product(shape)
+        n_dat = np.prod(shape)
 
         n_bytes = np.dtype("float64").itemsize
 
