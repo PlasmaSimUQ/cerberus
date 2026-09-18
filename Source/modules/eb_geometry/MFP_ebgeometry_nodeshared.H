@@ -20,7 +20,7 @@
     #include <AMReX_REAL.H>
     #include <AMReX_SPACE.H>
 
-    // EBGeometry umbrella header (header-only; include path is unconditional).
+    // EBGeometry umbrella header (header-only; enabled by USE_EBGEOMETRY).
     #include "EBGeometry.hpp"
 
     #include <cstdint>

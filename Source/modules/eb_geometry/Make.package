@@ -1,5 +1,5 @@
 # Standalone EBGeometry-backed STL reader.
-# Included unconditionally (independent of USE_EB) so the STL signed-distance
+# Included when USE_EBGEOMETRY=TRUE (independent of USE_EB) so the STL signed-distance
 # reader is available in fluid-only builds. The translation unit guards its
 # body on AMREX_SPACEDIM > 1 and compiles to empty in 1D.
 

@@ -6,11 +6,11 @@
 // This class is intentionally independent of the Cerberus / AMReX embedded
 // boundary (EB) infrastructure so that STL geometries can be read and queried
 // even in fluid-only builds (USE_EB=FALSE).  The EBGeometry include path
-// ($EBGEOMETRY_HOME) is added unconditionally by the top-level Makefile, so
+// ($EBGEOMETRY_HOME) is added when USE_EBGEOMETRY=TRUE, so
 // nothing here depends on AMREX_USE_EB.
 //
 // EBGeometry is intrinsically 3D, so this module is only meaningful for
-// AMREX_SPACEDIM > 1 (the surrounding Make.package is included unconditionally,
+// AMREX_SPACEDIM > 1 (the surrounding Make.package also supports 1D,
 // which means the 1D build must still compile this translation unit to empty).
 //
 // This first pass is a faithful relocation of the previous implementation that

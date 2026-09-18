@@ -1,8 +1,10 @@
 #include "MFP.H"
 #include "MFP_action.H"
 #include "MFP_eb_sdf.H"
+#ifdef MFP_USE_EBGEOMETRY
 #include "MFP_ebgeometry_nodeshared.H"
 #include "MFP_ebgeometry_stl.H"
+#endif
 #include "MFP_read_geom.h"
 #include "MFP_state.H"
 #include "MFP_utility.H"
@@ -51,9 +53,9 @@ void MFP::read_config()
                        sol::lib::io);
 
     // The EBGeometry-backed STL reader is independent of the AMReX EB
-    // infrastructure, so it is registered unconditionally (e.g. available for
-    // fluid-only USE_EB=FALSE runs). It is only meaningful in 2D/3D.
-#if AMREX_SPACEDIM > 1
+    // infrastructure and can also be enabled for USE_EB=FALSE runs.
+    // Register it only when requested; it is only meaningful in 2D/3D.
+#if defined(MFP_USE_EBGEOMETRY) && AMREX_SPACEDIM > 1
     ReadEBGeometrySTL::register_with_lua(lua);
     ReadEBGeometrySTL_TriMesh::register_with_lua(lua);
     FlatTriMeshSDF::register_with_lua(lua);  // Tier 1 step 1: flat-BVH reader + self-test

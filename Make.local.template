@@ -5,8 +5,11 @@
 # enable for code development as it enables more checks, such as array out of bounds
 # DEBUG = FALSE
 
-# Location of the (header-only) EBGeometry library checkout, used for STL/SDF geometry.
-# This is machine-specific and has no default; set it to your local checkout.
+# Enable optional EBGeometry STL/SDF readers (independent of USE_EB).
+# Existing EB helpers, including ReadSTL, do not need this.
+# USE_EBGEOMETRY = FALSE
+
+# Location of the header-only library; required only with USE_EBGEOMETRY = TRUE.
 # EBGEOMETRY_HOME = /path/to/EBGeometry
 
 # Dimensionality (1, 2 or 3)
