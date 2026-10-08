@@ -1340,6 +1340,12 @@ void EulerianState::calc_wall_fluxes(const Box& box,
                 if (cflag.isSingleValued()) {
                     // the boundary condition
                     const int ebi = (int)nearbyint(bc_idx4(i, j, k));
+                    if ((ebi < 0) || (ebi >= (int)eb_bcs.size())) {
+                        Abort("State '" + name + "': cut cell (" + std::to_string(i) + ", " +
+                              std::to_string(j) + ", " + std::to_string(k) +
+                              ") has no embedded boundary condition (bndryidx = " +
+                              std::to_string(ebi) + ")");
+                    }
                     EulerianBoundaryEB& bc = *eb_bcs[ebi];
 
                     for (int d = 0; d < AMREX_SPACEDIM; ++d) {
