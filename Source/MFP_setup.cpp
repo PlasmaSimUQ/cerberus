@@ -185,6 +185,19 @@ void MFP::build_eb()
         }
     }
 
+    // the state flags in domain ghost cells were mirrored by update_eb_flags,
+    // so mirror the boundary-condition index the same way (otherwise a ghost
+    // cell can be cut but have bndryidx = -1)
+    for (auto& state : states) {
+        if (state->eb_all_regular) continue;
+        EBData& ebd = get_eb_data(state->global_idx);
+        for (MFIter mfi(ebd.bndryidx.boxArray(), ebd.bndryidx.DistributionMap()); mfi.isValid();
+             ++mfi) {
+            if (!ebd.bndryidx.ok(mfi)) continue;
+            state->update_eb_bndryidx(geom, ebd.bndryidx[mfi]);
+        }
+    }
+
     level_mask.clear();
     level_mask.define(grids, dmap, 1, 2);
     level_mask.BuildMask(geom.Domain(),

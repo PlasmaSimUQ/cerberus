@@ -67,6 +67,18 @@ class State
 
     void update_eb_flags(const Geometry& geom, EBCellFlagFab& flags) const;
 
+    // Fill the domain ghost cells of the EB boundary-condition index the same
+    // way update_eb_flags fills the flags (mirrored across symmetry boundaries),
+    // so every ghost cell flagged as cut also has a boundary condition.
+    void update_eb_bndryidx(const Geometry& geom, FArrayBox& bndryidx) const;
+
+  private:
+    // mirror cell data into domain ghost cells; source cells equal to 'check'
+    // are not copied
+    void fill_eb_ghost(const Geometry& geom, FArrayBox& data, const Real check) const;
+
+  public:
+
 #endif
 
     virtual void write_info(nlohmann::json& js) const;

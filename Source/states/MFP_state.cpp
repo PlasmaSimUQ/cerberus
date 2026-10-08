@@ -121,6 +121,22 @@ void State::update_eb_vfrac(const Geometry& geom, FArrayBox& vfrac) const
 {
     BL_PROFILE("State::update_eb_vfrac");
 
+    // if the cell we are copying from has no solid in it, don't copy
+    fill_eb_ghost(geom, vfrac, 1.0);
+}
+
+void State::update_eb_bndryidx(const Geometry& geom, FArrayBox& bndryidx) const
+{
+    BL_PROFILE("State::update_eb_bndryidx");
+
+    // if the cell we are copying from has no boundary condition (-1), don't copy
+    fill_eb_ghost(geom, bndryidx, -1.0);
+}
+
+void State::fill_eb_ghost(const Geometry& geom, FArrayBox& vfrac, const Real check) const
+{
+    BL_PROFILE("State::fill_eb_ghost");
+
     const BCRec& bc = boundary_conditions.eb_bc;
 
     // get supporting info for calling fillcc
@@ -137,9 +153,6 @@ void State::update_eb_vfrac(const Geometry& geom, FArrayBox& vfrac) const
     Vector<BoundaryInfo> limits = get_bc_limits(vfrac.box(), geom);
     if (!limits.empty()) {
         Array4<Real> const& vfrac4 = vfrac.array();
-
-        // if the cell we are copying from has no solid in it, don't copy
-        const Real check = 1.0;
 
         for (size_t i = 0; i < limits.size(); ++i) {
             const auto L = limits[i];
