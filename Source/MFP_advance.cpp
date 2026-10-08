@@ -99,8 +99,10 @@ void MFP::advance_RK(Real time, Real dt, int iteration, int ncycle)
             // this is done again so that ghost cells are filled in
             act->get_data(this, RK_step, time + dt);
 
-            act->calc_time_derivative(this, RK_step, time, dt);
-            act->calc_spatial_derivative(this, RK_step, time, dt, reflux_scaling);
+            // the second stage is evaluated on U^1, which is the solution at time + dt,
+            // so time-dependent boundary values and sources must use that time too
+            act->calc_time_derivative(this, RK_step, time + dt, dt);
+            act->calc_spatial_derivative(this, RK_step, time + dt, dt, reflux_scaling);
         }
 
         // final update
@@ -209,8 +211,11 @@ void MFP::advance_strang(Real time, Real dt, int iteration, int ncycle)
         act->get_data(this, RK_step, time + dt);
 
         // calculate any contributions to dU (dU += f(new*))
+        // get_data uses time + dt only to select new_data, which holds new*. The
+        // flux step covers [time, time + dt], so boundary values are evaluated
+        // from its start time.
 
-        act->calc_spatial_derivative(this, RK_step, time + dt, dt, dt);
+        act->calc_spatial_derivative(this, RK_step, time, dt, dt);
 
         // update new data with any one-shot updates based on new* data (new** = f(new*))
         act->apply_spatial_derivative(this, time + dt, dt);
