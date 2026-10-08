@@ -1602,6 +1602,12 @@ void EulerianState::merge_cells(const Box& box,
                             index[d] = 0;
                         }
 
+                        // No neighbour inside the halo shares an open face with this
+                        // cell (e.g. an isolated small cut cell, or one at the halo
+                        // edge), so mi/mj/mk were not set. Stop growing the super-cell
+                        // and keep the cells collected so far.
+                        if (side_alpha_max <= 0.0) break;
+
                         ii = mi;
                         jj = mj;
                         kk = mk;
