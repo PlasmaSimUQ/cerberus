@@ -142,7 +142,12 @@ void MFP::getPlotData(MultiFab& plot_data, std::vector<std::string>& plot_names)
 
     const Real* dx = geom.CellSize();
     const Real* prob_lo = geom.ProbLo();
-    const Real time = parent->cumTime();
+    // Use this level's own state time (as the plotfile header does), not
+    // Amr::cumTime(). The two are summed separately and drift apart by
+    // round-off; get_data/FillPatch only accept times within 0.001*dt of the
+    // state time, so a short final step (dt cut to reach stop_time) aborted
+    // with "get_data: invalid time".
+    const Real time = state[0].curTime();
 
     // get all the data
     Vector<MultiFab> U(states.size());
