@@ -58,6 +58,9 @@ Real FieldState::get_allowed_time_step(MFP* mfp) const
 {
     BL_PROFILE("FieldState::get_allowed_time_step");
 
+    // a static field is not transported, so light-speed waves do not limit the step
+    if (is_static) return std::numeric_limits<Real>::max();
+
     const Real* dx = mfp->Geom().CellSize();
 
     Real dt = dx[0] / fastest_speed;
