@@ -240,6 +240,11 @@ void HydroCTU::calc_spatial_derivative(MFP* mfp,
             }
         }
 
+        // With corner transport the reconstructed face values have been advanced
+        // to t + dt/2 (calc_time_averaged_faces), so boundary functions that set
+        // the exterior face state must be evaluated at that time as well.
+        const Real face_time = do_CTU ? time + 0.5 * dt : time;
+
         // 3.1 Setup for flux calculation
 
         // resize the flux arrays before any get used
@@ -285,7 +290,7 @@ void HydroCTU::calc_spatial_derivative(MFP* mfp,
 #ifdef AMREX_USE_EB
                                     *fab_flags[idx],
 #endif
-                                    time);
+                                    face_time);
         }
 
         //---
@@ -332,7 +337,7 @@ void HydroCTU::calc_spatial_derivative(MFP* mfp,
     #ifdef AMREX_USE_EB
                                         *fab_flags[idx],
     #endif
-                                        time,
+                                        face_time,
                                         true);
             }
 #endif
