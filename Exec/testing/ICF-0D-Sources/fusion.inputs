@@ -1,0 +1,33 @@
+amrex.fpe_trap_invalid=1
+amrex.fpe_trap_zero=1
+amrex.fpe_trap_overflow=1
+amr.v = 0
+
+max_step  = 1000000
+stop_time = 2.4
+
+geometry.is_periodic = 1
+geometry.coord_sys   = 0
+geometry.prob_lo     = 0.0
+geometry.prob_hi     = 1.0
+amr.n_cell           = 8
+amr.max_level        = 0
+amr.blocking_factor  = 8
+amr.max_grid_size    = 8
+amr.subcycling_mode  = None
+
+eb2.geom_type = all_regular
+particles.do_particles = 0
+
+amr.checkpoint_files_output = 0
+amr.plot_files_output = 1
+amr.plot_file         = fusion.plt
+amr.plot_int          = -1
+amr.plot_per          = 0.24
+
+mfp.lua = "
+CASE = 'fusion'
+T0_KEV = 10.0
+FORCE_DT = 5.0e-3
+dofile('problem_definition.lua')
+"

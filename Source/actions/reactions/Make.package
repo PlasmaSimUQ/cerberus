@@ -6,3 +6,9 @@ CEXE_sources += MFP_collisions_rambo.cpp
 
 INCLUDE_LOCATIONS += $(TOP)/Source/actions/reactions
 VPATH_LOCATIONS   += $(TOP)/Source/actions/reactions
+
+CEXE_headers += MFP_bremsstrahlung.H
+CEXE_sources += MFP_bremsstrahlung.cpp
+
+CEXE_headers += MFP_fusion.H
+CEXE_sources += MFP_fusion.cpp

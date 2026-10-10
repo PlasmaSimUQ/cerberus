@@ -1,0 +1,49 @@
+ICF-0D-Sources: 0-D checks of the local ICF source terms
+---------------------------------------------------------
+
+Uniform, periodic, 8-cell 1-D box with NO flux action: only the source
+terms act, with a forced time step, so each case has a closed-form or
+ODE reference. Three actions are exercised (Source/actions/reactions/):
+
+  bremsstrahlung  optically-thin NRL loss, P = 1.69e-38 n_e sqrt(T_e[eV]) sum Z^2 n_i
+  fusion          *** D + T -> He4 + n ONLY (no D-D, D-He3, ...) ***
+                  NRL reactivity fit (T < ~25 keV);
+                  fuel accounting through the tracer write-back of the
+                  Collisions base (D, T consumed, He4 produced; the fluid loses
+                  m_D + m_T - m_He4 per reaction, i.e. the neutron plus the
+                  rest-mass defect); local alpha deposition, neutron energy lost
+
+Code units: ref_temp = 1 keV/kB and ref_mass = m_D, so code T is in keV and
+code mass is in deuteron masses (see problem_definition.lua).
+
+Cases (one .inputs each, CASE / T0_KEV / FORCE_DT passed to the lua):
+  brems         2 keV, 300 steps:    sqrt(T) = sqrt(T0) - a t/2
+  fusion        10 keV, 480 steps:   exact mass identities + RK4 ODE on N(t),
+                                     ~1 % burn-up, alpha_fraction = 0
+  ignition_lo   3.5 keV, burn + brems, all alpha energy deposited: T must fall
+  ignition_hi   6.0 keV, same:                                     T must rise
+                (P_alpha = P_br crosses at ~4.6 keV with these fits)
+
+Running:  ./run        (builds DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE,
+                        runs the four cases, then python3 check.py)
+
+Lua schema of the two actions (both accept `states` of one single-fluid
+state or {ion, electron}; the electron species is the `species` entry with
+charge < 0 if present):
+
+  { type = 'bremsstrahlung', states = {...}, species = {...},
+    gaunt = 1.0, max_sink_fraction = 0.5, dt_fraction = 0 }
+  { type = 'fusion', states = {...}, species = {...},
+    fuel = {'D','T'}, product = 'He4',
+    alpha_fraction = 1.0,      -- share of E_alpha deposited locally
+    alpha_partition = 'fixed', -- 'fixed': ion share = ion_fraction
+                               -- 'fraley': ion share = 1/(1 + fraley_constant/T_e[keV])
+    ion_fraction = 0.0,        --   (Fraley et al. 1974; only matters for two-fluid states)
+    fraley_constant = 32.0,    --   keV; some sources quote 33
+    max_burn_fraction = 0.5, dt_fraction = 0 }
+
+`dt_fraction > 0` enables a lagged source time-step limit
+(dt <= cfl * dt_fraction * tau_min over the previous step's evaluations).
+
+Cumulative reaction count is NOT printed by the code: it is the ash tracer,
+N = integral (rho_He4(t) - rho_He4(0)) / m_He4 dV, read from the plotfiles.

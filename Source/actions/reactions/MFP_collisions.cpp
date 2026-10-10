@@ -16,6 +16,8 @@ Collisions::Collisions(const int idx, const sol::table& def)
 
     init_species_info(def);
 
+    dt_fraction = def.get_or("dt_fraction", 0.0);
+
     const sol::table state_names = def["states"];
     Vector<std::string> names;
 
@@ -106,6 +108,8 @@ void Collisions::calc_time_derivative(MFP* mfp,
     size_t n_states = states.size();
     size_t n_species = species_info.size();
 
+    dt_stage = dt;
+
     for (int n = 0; n < n_states; ++n) {
         update[states[n]->data_idx].dU_status = UpdateData::Status::Changed;
     }
@@ -122,8 +126,8 @@ void Collisions::calc_time_derivative(MFP* mfp,
         alpha[i].resize(hstate.gas->n_species());
     }
 
-    Vector<Array4<Real>> state4(n_species);
-    Vector<Array4<Real>> state_dU4(n_species);
+    Vector<Array4<Real>> state4(n_states);
+    Vector<Array4<Real>> state_dU4(n_states);
 
     for (MFIter mfi(cost); mfi.isValid(); ++mfi) {
         Real wt = ParallelDescriptor::second();
@@ -178,23 +182,26 @@ void Collisions::calc_time_derivative(MFP* mfp,
                         // zero out the delta terms
                         info.delta.fill(0.0);
 
-                        Vector<Real>& Un = U[n];
-                        Vector<Real>& Qn = Q[n];
-                        Real& a = alpha[n][info.alpha_idx];
+                        const int si = info.state_idx;
+                        Vector<Real>& Un = U[si];
+                        Vector<Real>& Qn = Q[si];
+                        Real& a = alpha[si][info.alpha_idx];
 
                         if (Un[+HydroDef::ConsIdx::Density] >
-                            states[info.state_idx]->effective_zero) {
+                            states[si]->effective_zero) {
                             info.rho = a * Un[+HydroDef::ConsIdx::Density];
-                            info.m = states[n]->gas->mass[info.alpha_idx];
-                            info.q = states[n]->gas->charge[info.alpha_idx];
-                            info.T = states[n]->gas->get_temperature_from_prim(Qn);
+                            info.m = states[si]->gas->mass[info.alpha_idx];
+                            info.q = states[si]->gas->charge[info.alpha_idx];
+                            info.T = states[si]->gas->get_temperature_from_prim(Qn);
                             info.q2 = info.q * info.q;
                             info.n = info.rho / info.m;
 
-                            const Real i_rho = 1 / info.rho;
-                            info.vel[0] = a * Un[+HydroDef::ConsIdx::Xmom] * i_rho;
-                            info.vel[1] = a * Un[+HydroDef::ConsIdx::Ymom] * i_rho;
-                            info.vel[2] = a * Un[+HydroDef::ConsIdx::Zmom] * i_rho;
+                            // sub-species share the state velocity; computed from the
+                            // state so that alpha = 0 (e.g. an ash species) is safe
+                            const Real i_rho = 1 / Un[+HydroDef::ConsIdx::Density];
+                            info.vel[0] = Un[+HydroDef::ConsIdx::Xmom] * i_rho;
+                            info.vel[1] = Un[+HydroDef::ConsIdx::Ymom] * i_rho;
+                            info.vel[2] = Un[+HydroDef::ConsIdx::Zmom] * i_rho;
                         } else {
                             info.rho = 0.0;
                             info.m = 0.0;
@@ -264,4 +271,19 @@ void Collisions::calc_time_derivative(MFP* mfp,
         wt = (ParallelDescriptor::second() - wt) / box.d_numPts();
         cost[mfi].plus(wt, box);
     }
+}
+
+int Collisions::electron_species() const
+{
+    for (size_t i = 0; i < species_info.size(); ++i) {
+        if (species_info[i].q < 0.0) return i;
+    }
+    return -1;
+}
+
+Real Collisions::get_allowed_time_step(MFP* mfp)
+{
+    const Real out = (dt_fraction > 0.0) ? dt_fraction * tau_min : std::numeric_limits<Real>::max();
+    tau_min = std::numeric_limits<Real>::max();
+    return out;
 }

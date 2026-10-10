@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+# 0-D source-term checks (bremsstrahlung, DT fusion + fuel accounting,
+# ignition bracket). Uniform periodic box, no CTU action, forced dt.
+(cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE)
+
+EXE=../../local/MFP.1d.gnu.MPI.ex
+
+rm -rf *plt* chk*
+
+for c in brems fusion ignition_lo ignition_hi; do
+    mpirun -n 1 ${EXE} ${c}.inputs 2>&1 | tee run_log_${c}.txt
+done
+
+python3 check.py
