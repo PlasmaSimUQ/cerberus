@@ -40,3 +40,6 @@ include $(TOP)/Source/actions/reactions/Make.package
 
 INCLUDE_LOCATIONS += $(TOP)/Source/actions
 VPATH_LOCATIONS   += $(TOP)/Source/actions
+
+CEXE_headers += MFP_laser.H
+CEXE_sources += MFP_laser.cpp

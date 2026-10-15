@@ -1,0 +1,43 @@
+Laser-IB: inverse-bremsstrahlung ray-march checks for the `laser` action
+-------------------------------------------------------------------------
+
+Action: Source/actions/MFP_laser.{H,cpp}. Straight (unrefracted) rays from
+an arbitrary origin along an arbitrary direction; a beam is a midpoint
+lattice of parallel rays (spacing dx_min / rays_per_cell) over a 'tophat'
+or 'gaussian' cross-section of given radius. Per cell (Amanatides-Woo
+traversal, kappa piecewise constant):
+  kappa = (nu_ei / c) (n_e/n_c) (1 - n_e/n_c)^-1/2,
+  nu_ei = 2.91e-6 sum Z^2 n_i[cm^-3] lnLambda T_e[eV]^-3/2   (NRL formulary)
+Absorbed power is deposited as energy; whatever reaches the first cell with
+n_e >= critical_fraction * n_c is deposited there (no reflection). Level 0
+and Cartesian only; the level is gathered to rank 0 for the march.
+
+Code units here: n = 1 is the critical density for 0.351 um, T in keV,
+length in 1e-4 m, mass in proton masses (Z = 1 so n_e = n_i).
+
+Cases (plasma frozen: no flux action, 2 forced steps, tiny intensity; the
+first "[laser]" log line is the march on the exact initial fields):
+  ramp1d   n_e = x/L to n_c then 1.2 n_c, plane wave:  absorbed = 1 - e^-tau,
+           dumped = e^-tau, tau = sum_i kappa_i dx (cell-centred)
+  ramp2d   one ray at 30 deg: tau = sum_i kappa_i dx / cos(theta) — tests
+           the chord lengths through the DDA
+  beam2d   top-hat radius R through uniform n = 0.5 n_c: y-uniform inside,
+           zero outside, column ratio exp(-kappa dx), P_in = I 2R
+  all      P_in = absorbed + dumped + transmitted every evaluation
+
+Running:  ./run   (builds DIM=1 and DIM=2, USE_EB=FALSE AMREX_PARTICLES=FALSE)
+
+Lua schema:
+  { type = 'laser', state = '<hydro state>',
+    origin = {x, y, z},           -- m
+    direction = {dx, dy, dz},     -- any non-zero vector
+    wavelength = 0.351e-6,        -- m
+    intensity = I0 or function(t) ... end,   -- W/m^2 on axis
+    radius = R,                   -- m; 0 = single ray (1-D: plane wave)
+    profile = 'tophat' | 'gaussian',          -- gaussian: 1/e radius R, cut at 2R
+    rays_per_cell = 2,
+    lnLambda = 7.0 | 'NRL',       -- fixed, or the NRL electron-ion form
+    critical_fraction = 1.0,
+    Z_eff = 1.0 }                 -- ion charge for nu_ei when `state` is an electron fluid
+Energy goes to `state`; n_e is rho/m for an electron fluid, else the
+quasi-neutral sum of Z_i n_i over the state's components.

@@ -1,0 +1,57 @@
+eos_fusion_implosion: the implosion on tabulated SESAME EOS, in three steps
+----------------------------------------------------------------------------
+
+The 2D converging-shock layout of Exec/testing/fusion_implosion (quarter
+domain, perturbed contact, prescribed driver) closed by the
+`tabulated_mixture` gas model (Amagat rule) on real SESAME-derived tables of
+the common-gauge eref295 set in Exec/testing/EOS-Sesame/data. One lua,
+three configurations selected by flags in the inputs files:
+
+  step 1  ./run                     hydro only           32^2 + 2 AMR levels,
+          (eos_fusion_implosion.inputs)                  50 km/s, 1e5 K driver, t = 4
+  step 2  step2_two_fluid/step2.inputs  + electron fluid, Maxwell field,
+                                          plasma5, elliptic cleaning
+                                          (Thermal-RMI plasma settings)
+  step 3  step3_burn/step3.inputs        + 50/50 D-T target, He4 ash,
+                                          `fusion` action (Fraley split)
+          steps 2-3: uniform 128^2, 300 km/s, 1e6 K driver, t = 1
+  ./run_steps                       builds, makes the stand-in tables, runs
+                                    steps 2 and 3 and plots each
+
+  zone         material         rho (g/cc)   T
+  target       D (step 3: D-T)  0.2          5000 K
+  shell        diamond          3.515        5000 K
+  driver       diamond          7.03         1e5 / 1e6 K, inward
+  background   D gas            0.01         5000 K
+
+Tables: deuterium_5267_s301_eref295 and diamond_7834_s301_eref295 from
+EOS-Sesame/data (other members of the set — dry air 5031, Al 3720,
+Ti-Beta-21S 2963 — are available there). Shared T-bracket 72 K - 1e9 K.
+
+Tritium and He4 stand-ins (step 3): make_isotope_tables.py writes
+data/tritium_standin_from_D5267_eref295.eostab and
+data/helium4_standin_from_D5267_eref295.eostab by classical isotope scaling
+of the D table (equal nuclear number density and T: p unchanged, e and cv
+per mass / s, s = m/m_D; a pure relabelling of the log axes, no
+interpolation). The He4 stand-in has deuterium's electronic structure and
+exists only so the burn product has a table. data/ is gitignored
+(SESAME-derived).
+
+Two-fluid closure (steps 2-3): the 301 tables are TOTAL EOS, used to close
+the heavy `fluid`; the `electron` state is an ideal gas with the Thermal-RMI
+reduced mass (0.01) and the plasma is singly ionised everywhere
+(n_e = sum Z_k n_k, Z = 1 except He4 = 2). The electron thermal energy is
+therefore double-counted at high T; the proper split is the SESAME 303/304
+two-temperature closure, out of scope here. Plasma settings are
+Thermal-RMI's (lightspeed = 20 non-dimensional, m_e/m_D = 0.01); T_ref is
+then fixed by the code at ~5.4e10 K and temperatures are set in kelvin.
+
+Numerical findings recorded in the lua header: Dalton vs Amagat for dilute
+condensed components; 5000 K ambient (table noise at 295 K); air dropped as
+background (noise + 30 keV cap); uniform grid for steps 2-3 (AMR
+prolongation across the 700:1 jump puts e below the eref295 gauge floor).
+
+Plots: python3 plot.py [prefix] writes figures/ (rho, T, p, C fraction) for
+the plotfiles in the current directory; run_steps calls it per step.
+Burn diagnostics for step 3: He4 mass fraction = alpha_2-fluid (components
+C, T, He4, D), cumulative reactions = integral rho alpha_He4 / m_He4.

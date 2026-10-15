@@ -1,0 +1,62 @@
+2D cylindrically converging two-fluid DT implosion with fusion burn
+-------------------------------------------------------------------
+
+Two-fluid (ion / electron) five-moment plasma + Maxwell field version of
+Exec/testing/2D_RMI_implosion_test, with the D + T -> He4 + n `fusion`
+action (Source/actions/reactions/MFP_fusion.*). Plasma model, numerics and
+non-dimensional plasma parameters follow Exec/testing/Thermal-RMI:
+plasma5 (explicit), elliptic divergence cleaning, minmod/HLLC fluids,
+O6/Rankine-Hugoniot field, skin_depth = beta = 1, reduced light speed
+(lightspeed = 20) and electron mass (m_e/m_D = 0.01).
+
+Reference quantities: code mass in deuteron masses, code length 1e-4 m,
+code rho = 1 is 1000 kg/m^3 (n ~ 3e29 m^-3); lightspeed = 20
+(non-dimensional, Thermal-RMI) fixes T_ref at ~5.4e10 K, and the lua sets
+temperatures in keV through T_keV. The fusion action converts via T_ref.
+
+Initial state (R = sqrt(x^2 + y^2); T in keV, both fluids share T, v and
+n_e = n_i; 50/50 D-T by number, no He4):
+
+  zone         radius               rho_i    T        v_r
+  target       R < 1.0              1.0      0.1      0
+  shell        1.0 <= R < 1.1       2.0      0.1      0
+  driver       1.1 <= R <= 1.3      shell x rho_ratio, T x p_ratio/rho_ratio, -u_post
+  background   R > 1.3              0.1      2.0      0      (pressure equilibrium)
+
+The driver is the M = 10 normal-shock jump of the COMBINED gas
+(p_i + p_e, rho_i + rho_e) about the shell state, applied to each fluid.
+The contact at R = 1 carries a cos(12 theta) perturbation of amplitude
+0.02, tanh-blended over 0.02 (see the lua for the quarter-domain symmetry
+argument that fixes the mode to be even).
+
+Fusion: `burn` consumes D and T into the He4 tracer (fuel accounting is the
+Collisions tracer write-back), deposits E_alpha = 3.5 MeV locally with the
+Fraley ion/electron split evaluated on T_e, and loses the neutron energy.
+Cumulative reactions = integral of rho_He4 / m_He4: read it from the
+plotfiles (alpha_0-ion, alpha_1-ion are the D and T mass fractions; He4 is
+1 - alpha_0 - alpha_1). No bremsstrahlung in this case; add
+  brems = { type = 'bremsstrahlung', states = {'ion','electron'},
+            species = {'D','T','He4','electron'} }
+to `actions` for the loss term.
+
+Domain and boundary conditions: first quadrant [0,2]^2, 32^2 base, 2 AMR
+levels (finest dx = 1/64, as in Thermal-RMI); x = 0 and y = 0 are symmetry
+planes (`fill_hydro_bc = 'symmetry'`, `fill_D_bc = fill_B_bc = 'symmetry'`),
+outer boundaries outflow.
+
+Running
+-------
+  ./run                (stop_time = 0.4, plot_per = 0.02; mpirun -n 8)
+  ./run_cases          the three comparison cases, each in its own subdir
+                       (no_fusion/, fusion/, fusion_brems/, selected by the
+                       BURN / BREMS lua flags in each <case>.inputs), then
+                       compare.py -> compare.png (peak T_i, T_e, total fluid
+                       energy, burn fraction vs t)
+
+  short check:
+  mpirun -n 8 ../../local/MFP.2d.gnu.MPI.ex fusion_implosion.inputs \
+    max_step=10 amr.plot_int=5 amr.plot_per=-1
+
+`plot.py` writes one png per plotfile into figures/ (rho_i, T_i, T_e, He4
+mass fraction) plus fusion_implosion_initial.png / _final.png, with colour
+limits fixed over the whole sequence.

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+# steps 2 and 3 of the series, each in its own subdirectory (step 1 is the
+# top-level ./run). 300 km/s, 1e6 K driver; stop_time = 1.0.
+(cd ../../local && make -j8 DIM=2 USE_EB=FALSE AMREX_PARTICLES=FALSE)
+
+EXE=../../../local/MFP.2d.gnu.MPI.ex
+
+python3 make_isotope_tables.py
+
+for c in "step2_two_fluid step2" "step3_burn step3"; do
+    set -- $c
+    (cd $1 && rm -rf *plt* *chk* figures && mpirun -n 8 ${EXE} $2.inputs 2>&1 | tee run_log.txt && python3 ../plot.py $2)
+done

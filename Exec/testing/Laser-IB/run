@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+# Laser inverse-bremsstrahlung ray-march checks (1-D plane wave, 2-D oblique
+# ray, 2-D top-hat beam) against closed forms; see check.py.
+(cd ../../local && make -j8 DIM=1 USE_EB=FALSE AMREX_PARTICLES=FALSE)
+(cd ../../local && make -j8 DIM=2 USE_EB=FALSE AMREX_PARTICLES=FALSE)
+
+rm -rf *plt* chk*
+
+mpirun -n 1 ../../local/MFP.1d.gnu.MPI.ex ramp1d.inputs 2>&1 | tee run_log_ramp1d.txt
+mpirun -n 4 ../../local/MFP.2d.gnu.MPI.ex ramp2d.inputs 2>&1 | tee run_log_ramp2d.txt
+mpirun -n 4 ../../local/MFP.2d.gnu.MPI.ex beam2d.inputs 2>&1 | tee run_log_beam2d.txt
+
+python3 check.py

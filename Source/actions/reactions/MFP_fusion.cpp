@@ -74,7 +74,11 @@ void Fusion::calc_update()
     const Real x = std::pow(T_keV, -1.0 / 3.0);
     Real R = D.n * T.n * C_sv * x * x * std::exp(-19.94 * x);  // reactions per volume per time
 
+    // cold cells: the Gamow factor underflows to a denormal or zero; a burn
+    // time above 1e30 code units is no burn, and n_min / R would overflow
     const Real n_min = std::min(D.n, T.n);
+    if (!(R > 1.0e-30 * n_min)) return;
+
     if (dt_stage > 0.0) R = std::min(R, max_burn_fraction * n_min / dt_stage);
 
     // mass transfer; products inherit the state velocity v (shared by all sub-species)

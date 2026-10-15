@@ -1,0 +1,7 @@
+*.plt*
+*.chk*
+*.png
+run_log.txt
+movie.visit
+figures/
+data/

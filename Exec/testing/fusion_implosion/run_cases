@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+# the three comparison cases, each in its own subdirectory:
+#   no_fusion     hydro + plasma only
+#   fusion        + D-T burn (default of fusion_implosion.inputs)
+#   fusion_brems  + bremsstrahlung loss
+(cd ../../local && make -j8 DIM=2 USE_EB=FALSE AMREX_PARTICLES=FALSE)
+
+EXE=../../../local/MFP.2d.gnu.MPI.ex
+
+for c in no_fusion fusion fusion_brems; do
+    (cd $c && rm -rf *plt* *chk* figures && mpirun -n 8 ${EXE} ${c}.inputs 2>&1 | tee run_log.txt && python3 ../plot.py $c)
+done
+
+python3 compare.py

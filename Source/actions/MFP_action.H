@@ -49,7 +49,8 @@ class Action
         UserDefined,
         DampDivergenceMHD,
         Collisions,
-        GasKinetics
+        GasKinetics,
+        Laser
     };
 
     int action_idx;
